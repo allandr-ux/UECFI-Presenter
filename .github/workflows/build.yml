@@ -1,4 +1,4 @@
-name: Build Desktop Apps (Mac & Windows)
+name: Build Desktop Apps (macOS Intel & Windows)
 
 on:
   push:
@@ -17,9 +17,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
+          - os: macos-13 # Last Intel-based macOS runner (macos-latest is Apple Silicon)
             platform: mac
-            artifact_name: uecfi-presenter-macos
+            artifact_name: uecfi-presenter-macos-intel
           - os: windows-latest
             platform: windows
             artifact_name: uecfi-presenter-windows
@@ -40,12 +40,12 @@ jobs:
       - name: Build CSS
         run: npm run build:css
 
-      - name: Build macOS app (DMG & ZIP)
+      - name: Build macOS Intel app (DMG & ZIP)
         if: matrix.platform == 'mac'
         env:
           # Disable automatic code signing search when certificates are not configured
           CSC_IDENTITY_AUTO_DISCOVERY: false
-        run: npx electron-builder --mac
+        run: npx electron-builder --mac --x64
 
       - name: Build Windows app (NSIS Installer & Portable)
         if: matrix.platform == 'windows'

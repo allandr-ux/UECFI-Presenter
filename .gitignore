@@ -56,3 +56,29 @@ pnpm-debug.log*
 __pycache__/
 *.py[cod]
 *$py.class
+
+# User Data (runtime-generated; never commit)
+storage/
+
+# Unused / Orphaned Assets (audit: zero references in code or content)
+Philippine_Bibles/
+bible/kjv.db
+bible/lbla.xml
+bible/malabible.xml
+Grapevine.jpg
+splash.htm
+test_strip.js
+xml/schedule.db
+storage/network/
+graphics/f.png
+graphics/banner4.png
+graphics/banner41.png
+graphics/margin_stand.jpg
+graphics/marginbig.jpg
+graphics/hue_thumb.png
+graphics/picker_thumb.png
+graphics/loader.gif
+graphics/loadcomplete.gif
+graphics/margin.gif
+graphics/icon/add_bkg.png
+graphics/icon/del_bkg.png
