@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<bibleversion>
+  <version>
+    <name>English (KJV)</name>
+    <file>kjv.xml</file>
+    <font>Arial</font>
+    <copyright>Public Domain</copyright>
+    <fontsizefactor>1</fontsizefactor>
+    <searchfile></searchfile>
+    <selectedfont>Arial</selectedfont>
+  </version>
+</bibleversion>

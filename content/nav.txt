@@ -1,0 +1,62 @@
+<div style="height: 100%; display: flex; flex-direction: column;">
+<div id="legacyBibleTab" style="display: none;">
+  <input type="text" id="nav_bibleRefID">
+  <img id="nav_bibleRef_findID">
+  <img id="nav_bibleRef_presentID">
+  <select name="book" id="bookList"></select>
+  <select name="chapter" id="chapterList"></select>
+  <select name="verse" id="verseList"></select>
+  <select id="recentSel"></select>
+  <input type="text" id="searchID">
+  <img id="searchButtonID">
+  <img id="present">
+  <img id="prevBut">
+  <img id="nextBut">
+  <img id="closeBut">
+  <img id="addScheduleBut">
+</div>
+
+<div id="modernNavContainer" class="flex flex-col h-full min-h-0 bg-white overflow-hidden">
+    <!-- Quick Reference Search & Add to Schedule -->
+    <div class="p-3 border-b border-slate-200 bg-white shrink-0">
+        <label class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Quick Reference Search</label>
+        <div class="flex items-center gap-1.5">
+            <div class="relative flex-1">
+                <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-slate-400 text-xs z-10"></i>
+                <input id="modernRefInput" type="text" style="padding-left: 32px !important;" placeholder="e.g. Genesis 1:1 or Psa 23" 
+                       class="w-full !pl-12 pr-12 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition">
+                <button id="modernRefGoBtn" class="absolute right-1 top-1 bottom-1 px-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-md text-[11px] font-medium transition">
+                    Go
+                </button>
+            </div>
+            <div class="has-tooltip shrink-0">
+                <button id="modernBibleAddScheduleBtn" onclick="var btn = document.getElementById('addScheduleBut'); if(btn) btn.click();" class="p-2 bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200 rounded-lg text-sm flex items-center justify-center transition">
+                    <i class="fa-regular fa-calendar-plus"></i>
+                </button>
+                <div class="tooltip-content tooltip-bottom">Add Verse to Schedule</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3-Column Selector (Book | Chapter | Verse) -->
+    <div class="flex-1 grid grid-cols-4 divide-x divide-slate-200 min-h-0 bg-slate-50/50" style="min-height: 0;">
+        <!-- Column 1: Books -->
+        <div class="col-span-2 flex flex-col min-h-0">
+            <div class="px-2 py-1 bg-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 shrink-0">Book</div>
+            <div id="modernBookList" class="flex-1 overflow-y-auto p-1 space-y-0.5 text-xs custom-scrollbar"></div>
+        </div>
+
+        <!-- Column 2: Chapter -->
+        <div class="col-span-1 flex flex-col min-h-0">
+            <div class="px-2 py-1 bg-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 shrink-0">Chapter</div>
+            <div id="modernChapterList" class="flex-1 overflow-y-auto p-1 space-y-0.5 text-xs text-center custom-scrollbar"></div>
+        </div>
+
+        <!-- Column 3: Verse -->
+        <div class="col-span-1 flex flex-col min-h-0">
+            <div class="px-2 py-1 bg-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 shrink-0">Verse</div>
+            <div id="modernVerseList" class="flex-1 overflow-y-auto p-1 space-y-0.5 text-xs text-center custom-scrollbar"></div>
+        </div>
+    </div>
+</div>
+</div>

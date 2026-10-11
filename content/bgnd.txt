@@ -1,0 +1,68 @@
+<div class="p-6 space-y-6 max-w-5xl mx-auto">
+  <!-- Top Section: Selected Background & Text Color -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+    
+    <!-- Left: Selected Background -->
+    <div>
+      <div class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
+        <i class="fa-regular fa-image text-brand-600"></i> Active Background
+      </div>
+      <table id="bkgndSelected" border="0" cellspacing="0" cellpadding="0">
+        <tr>
+          <td height="160"></td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Right: Text Color Picker -->
+    <div class="flex flex-col justify-between">
+      <div>
+        <div class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
+          <i class="fa-solid fa-palette text-brand-600"></i> Presentation Text Color
+        </div>
+        <div id="colorPickerID" class="mb-4">
+          <!-- Color Picker Rendered Here -->
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+        <button id="cp_reset_id" type="button" class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition border border-slate-300">
+          Reset (White)
+        </button>
+        <button id="cp_save_id" type="button" class="px-3 py-1.5 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition shadow-xs">
+          Save Settings
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Section: Background Selection Gallery -->
+  <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+    <div class="flex items-center justify-between mb-4">
+      <div class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+        <i class="fa-solid fa-images text-brand-600"></i> Background Library
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="addBkgndBtnAction" onclick="if(typeof bkgnd!=='undefined') bkgnd.showBrowse();" class="px-3 py-1.5 text-xs font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 rounded-lg transition flex items-center gap-1.5">
+          <i class="fa-solid fa-plus text-brand-600"></i> Add Image
+        </button>
+        <button id="delBkgndBtnAction" onclick="if(typeof bkgnd!=='undefined') bkgnd.delBkgnd();" class="px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition flex items-center gap-1.5">
+          <i class="fa-regular fa-trash-can text-red-500"></i> Delete Selected
+        </button>
+      </div>
+    </div>
+
+    <div id="bkgndDivId" class="overflow-x-auto max-h-[420px] overflow-y-auto p-1">
+      <table id="bkgndList" border="0" cellspacing="0" cellpadding="0" class="w-full">
+      </table>
+    </div>
+
+    <!-- Hidden compatibility elements for legacy scripts -->
+    <div style="display: none;">
+      <img id="addBkgndButton">
+      <img id="delBkgndButton">
+    </div>
+  </div>
+</div>
+
+

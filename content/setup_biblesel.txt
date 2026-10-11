@@ -1,0 +1,41 @@
+<div class="flex flex-col gap-5">
+	<div>
+		<div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Versions</div>
+		<div class="flex flex-col gap-2">
+			<label class="text-xs font-semibold text-slate-600 flex items-center gap-2">Version 1
+				<select name="version1Menu" id="version1Menu" class="flex-1 min-w-0 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-brand-500"></select>
+			</label>
+			<div id="version1Text" class="text-[11px] text-slate-400"></div>
+			<label class="text-xs font-semibold text-slate-600 flex items-center gap-2">Version 2
+				<select name="version2Menu" id="version2Menu" class="flex-1 min-w-0 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-brand-500"></select>
+			</label>
+			<div id="version2Text" class="text-[11px] text-slate-400"></div>
+		</div>
+	</div>
+
+	<div>
+		<div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Display</div>
+		<div class="flex flex-col gap-1.5">
+			<label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+				<input type="checkbox" id="singleVersionBoxID" class="rounded accent-brand-600" style="width:14px;height:14px;"> Display Only Version 1
+			</label>
+			<label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+				<input type="checkbox" id="multipleVerseID" class="rounded accent-brand-600" style="width:14px;height:14px;"> Display 2 Verses per Slide
+			</label>
+		</div>
+	</div>
+
+	<div>
+		<div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Navigation</div>
+		<label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer mb-2">
+			<input type="checkbox" id="navDualLanguageID" class="rounded accent-brand-600" style="width:14px;height:14px;" checked> Dual Language Display
+		</label>
+		<div class="text-xs font-semibold text-slate-600 mb-1">Navigation Font Size</div>
+		<div id="sliderbg" class="px-1"></div>
+	</div>
+
+	<div class="flex items-center gap-2">
+		<input type="button" id="versionSave" value="Save" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold transition cursor-pointer">
+		<input type="button" id="versionManageBtn" onclick="if(typeof show_bible_manage==='function') show_bible_manage();" value="Manage Bibles" class="px-4 py-2 bg-slate-900 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition cursor-pointer">
+	</div>
+</div>

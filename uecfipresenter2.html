@@ -1,0 +1,217 @@
+<!DOCTYPE html><html><head>
+    <title>UECFI Presenter</title>
+    <link rel="icon" type="image/png" href="app-icon.png">
+    <link rel="stylesheet" href="./fonts/material-symbols.css">
+    <link rel="stylesheet" type="text/css" href="./uecfipresenter.css?v=1791425998840">
+    <script src="storage_service.js"></script>
+    <script src="db_service.js"></script>
+    <script src="ui_service.js"></script>
+    <script type="text/javascript" src="uecfipresenter.js"></script>
+    <script type="text/javascript" src="navigation.js"></script>
+    <script type="text/javascript" src="version.js"></script>
+    <script type="text/javascript" src="presentation.js"></script>
+    <script type="text/javascript" src="background.js"></script>
+    <script type="text/javascript" src="p_window.js"></script>
+    <script type="text/javascript" src="recent.js"></script>
+    <script type="text/javascript" src="common.js"></script>
+    <script type="text/javascript" src="config.js"></script>
+    <script type="text/javascript" src="search.js"></script>
+    <script type="text/javascript" src="notes.js"></script>
+    <script type="text/javascript" src="notesmanage.js"></script>
+    <script type="text/javascript" src="update.js"></script>
+    <script type="text/javascript" src="schedule.js"></script>
+    <script type="text/javascript" src="help.js"></script>
+    <script type="text/javascript" src="setup.js"></script>
+    <script type="text/javascript" src="network/webserver.js"></script>
+    <script type="text/javascript" src="network/support.js"></script>
+    <script type="text/javascript" src="song/song_edit.js"></script>
+    <script type="text/javascript" src="song/song_nav.js"></script>
+    <script type="text/javascript" src="song/song_manager.js"></script>
+    <script type="text/javascript" src="song/song_present.js"></script>
+    <script type="text/javascript" src="song/songobj.js"></script>
+    <script type="text/javascript" src="song/song_lyrics.js"></script>
+    <script type="text/javascript" src="song/song_port_xml.js"></script>
+    <script type="text/javascript" src="song/song_import.js"></script>
+    <script type="text/javascript" src="program.js"></script>
+    <script type="text/javascript" src="theme_manager.js"></script>
+    <script type="text/javascript" src="menu/menu.js"></script>
+    <!-- Local precompiled Tailwind CSS (offline, high performance) -->
+    <link rel="stylesheet" type="text/css" href="./tailwind.css">
+    <!-- Local FontAwesome icons (100% offline compatible) -->
+    <link rel="stylesheet" href="./fonts/fontawesome/css/all.min.css">
+</head>
+<body class="bg-slate-100 text-slate-800 h-screen w-screen overflow-hidden flex flex-col" onload="vvinit()">
+  <header class="bg-white border-b border-slate-200 px-4 py-2 flex items-center justify-between shrink-0 shadow-sm z-20">
+        <!-- Brand & Connection Status -->
+        <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-2">
+                <img src="app-icon.png" alt="UECFI Presenter" class="w-9 h-9 object-contain drop-shadow-sm bg-transparent">
+                <div>
+                    <h1 class="font-bold text-slate-900 text-base leading-tight flex items-center gap-1.5">
+                        UECFI Presenter <span class="bg-brand-100 text-brand-700 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-md">v1.0.0</span>
+                    </h1>
+                    <p class="text-[11px] text-slate-500">Centro Display Controller</p>
+                </div>
+            </div>
+            <!-- INJECT BUTTONS HERE -->
+            <div id="modernActionButtons" class="ml-6 flex items-center gap-1.5">
+                <!-- Projection transport (mockup: cast + prev/next/stop, styles: .ctl-btn) -->
+                <button id="present" class="ctl-btn ctl-cast" title="Present Bible (project to screen)"><i class="fa-brands fa-chromecast"></i></button>
+                <button id="prevBut" class="ctl-btn" title="Previous (←)" aria-label="Previous"><i class="fa-solid fa-play fa-flip-horizontal"></i></button>
+                <button id="nextBut" class="ctl-btn" title="Next (→)" aria-label="Next"><i class="fa-solid fa-play"></i></button>
+                <button id="closeBut" class="ctl-btn ctl-stop" title="End Projection"><i class="fa-solid fa-stop"></i></button>
+                <div class="h-5 w-[1px] bg-slate-200 mx-1"></div>
+                <button id="btnBibleSelect" onclick="if(typeof setup_bible_version==='function') setup_bible_version();" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-700 bg-slate-50 hover:bg-brand-50 border border-slate-200 hover:border-brand-300 rounded-lg transition flex items-center gap-1.5" title="Select Bible Versions">
+                    <i class="fa-solid fa-book-bible text-brand-600"></i> Select Version
+                </button>
+                <button id="btnBibleManage" onclick="if(typeof show_bible_manage==='function') show_bible_manage();" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-700 bg-slate-50 hover:bg-brand-50 border border-slate-200 hover:border-brand-300 rounded-lg transition flex items-center gap-1.5" title="Manage Bible (Add/Delete)">
+                    <i class="fa-solid fa-sliders text-brand-600"></i> Manage Bibles
+                </button>
+            </div>
+            <div id="modernSongActionButtons" class="ml-6 hidden items-center gap-1.5">
+                <button id="songnav_presentbutton" class="ctl-btn ctl-cast" title="Present Song (project to screen)"><i class="fa-brands fa-chromecast"></i></button>
+                <button id="songnav_prevbutton" class="ctl-btn" title="Previous (←)" aria-label="Previous"><i class="fa-solid fa-play fa-flip-horizontal"></i></button>
+                <button id="songnav_nextbutton" class="ctl-btn" title="Next (→)" aria-label="Next"><i class="fa-solid fa-play"></i></button>
+                <button id="songnav_closebutton" class="ctl-btn ctl-stop" title="End Projection"><i class="fa-solid fa-stop"></i></button>
+                <div class="h-5 w-[1px] bg-slate-200 mx-1"></div>
+                <button id="btnNewSong" onclick="if(typeof song_new_menu==='function') song_new_menu();" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-700 bg-slate-50 hover:bg-brand-50 border border-slate-200 hover:border-brand-300 rounded-lg transition flex items-center gap-1.5" title="Create New Song">
+                    <i class="fa-solid fa-plus text-brand-600"></i> New Song
+                </button>
+                <button id="btnEditSong" onclick="if(typeof song_edit_menu==='function') song_edit_menu();" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-700 bg-slate-50 hover:bg-brand-50 border border-slate-200 hover:border-brand-300 rounded-lg transition flex items-center gap-1.5" title="Edit Selected Song">
+                    <i class="fa-solid fa-pen-to-square text-brand-600"></i> Edit
+                </button>
+                <button id="btnDeleteSong" onclick="if(typeof song_delete_menu==='function') song_delete_menu();" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-red-600 bg-slate-50 hover:bg-red-50 border border-slate-200 hover:border-red-200 rounded-lg transition flex items-center gap-1.5" title="Delete Selected Song">
+                    <i class="fa-regular fa-trash-can text-red-500"></i> Delete
+                </button>
+                <div class="h-5 w-[1px] bg-slate-200 mx-1"></div>
+                <button id="btnImportSongXml" onclick="if(typeof songDB_Import_xml==='function') songDB_Import_xml();" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-700 bg-slate-50 hover:bg-brand-50 border border-slate-200 hover:border-brand-300 rounded-lg transition flex items-center gap-1.5" title="Import Songs from XML">
+                    <i class="fa-solid fa-file-import text-brand-600"></i> Import XML
+                </button>
+                <button id="btnExportSongXml" onclick="if(typeof songDB_Export_all_xml==='function') songDB_Export_all_xml();" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-700 bg-slate-50 hover:bg-brand-50 border border-slate-200 hover:border-brand-300 rounded-lg transition flex items-center gap-1.5" title="Export All Songs to XML">
+                    <i class="fa-solid fa-file-export text-slate-500"></i> Export XML
+                </button>
+            </div>
+            <div id="modernProgramActionButtons" class="ml-6 hidden items-center gap-1.5">
+                <button id="prog_present_btn" onclick="if(window.programManager) window.programManager.presentItem(window.programManager.selectedItemIndex);" class="ctl-btn ctl-cast" title="Present Program Item (project to screen)"><i class="fa-brands fa-chromecast"></i></button>
+                <button id="prog_prev_btn" onclick="if(window.programManager) window.programManager.previousSlide();" class="ctl-btn" title="Previous Slide/Item (←)" aria-label="Previous slide"><i class="fa-solid fa-play fa-flip-horizontal"></i></button>
+                <button id="prog_next_btn" onclick="if(window.programManager) window.programManager.nextSlide();" class="ctl-btn" title="Next Slide/Item (→)" aria-label="Next slide"><i class="fa-solid fa-play"></i></button>
+                <button id="prog_close_btn" onclick="if(typeof closePresentWindow==='function') closePresentWindow(); if(window.programManager) window.programManager.clearPresentationHighlight();" class="ctl-btn ctl-stop" title="End Projection"><i class="fa-solid fa-stop"></i></button>
+                <div class="h-5 w-[1px] bg-slate-200 mx-1"></div>
+                <button id="prog_add_btn" onclick="if(window.programManager) window.programManager.openItemModal(-1);" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-700 bg-slate-50 hover:bg-brand-50 border border-slate-200 hover:border-brand-300 rounded-lg transition flex items-center gap-1.5" title="Add Program Item">
+                    <i class="fa-solid fa-plus text-brand-600"></i> Add Item
+                </button>
+                <button id="prog_clear_all_btn" onclick="if(window.programManager) window.programManager.clearAllItems();" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-red-600 bg-slate-50 hover:bg-red-50 border border-slate-200 hover:border-red-200 rounded-lg transition flex items-center gap-1.5" title="Clear Program">
+                    <i class="fa-regular fa-trash-can text-red-500"></i> Clear Program
+                </button>
+            </div>
+
+        </div>
+
+        <!-- Master Live Output Controls -->
+        <div class="flex items-center space-x-2">
+            <button id="btnClear" onclick="toggleOutputState('clear')" class="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition flex items-center gap-1.5">
+                <i class="fa-solid fa-eraser text-slate-400"></i> Clear Text
+            </button>
+            <button id="btnLogo" onclick="toggleOutputState('logo')" class="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition flex items-center gap-1.5">
+                <i class="fa-solid fa-church text-slate-400"></i> Logo
+            </button>
+            <button id="btnBlack" onclick="toggleOutputState('black')" class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition flex items-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-power-off text-red-400"></i> Black Screen
+            </button>
+            
+            <div class="h-6 w-[1px] bg-slate-200 mx-1"></div>
+
+            <button id="btnToolbarSettings" onclick="if(typeof openSettingsPage==='function') openSettingsPage();" class="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition" title="Settings">
+                <i class="fa-solid fa-gear text-base"></i>
+            </button>
+        </div>
+    </header>
+  <div class="flex-1 flex overflow-hidden relative">
+      <div id="container" class="w-[380px] shrink-0 border-r border-slate-200 bg-[#F1F5F9] relative flex flex-col">
+      </div>
+
+      <div id="container2" class="flex-1 min-w-[300px] shrink-0 border-r border-slate-200 bg-white relative flex flex-col">
+      </div>
+
+      <aside class="w-96 border-l border-slate-200 bg-white flex flex-col shrink-0 shadow-sm z-10 overflow-hidden">
+            <!-- Monitor Header -->
+            <div class="p-3 bg-slate-900 text-white flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                    <span class="relative flex h-2.5 w-2.5">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                    </span>
+                    Live Output Preview
+                </span>
+                <span class="text-[10px] font-mono text-slate-400 bg-slate-800 px-2 py-0.5 rounded">1920x1080</span>
+            </div>
+
+            <!-- LIVE SCREEN MONITOR (SIMULATED PROJECTOR DISPLAY) -->
+            <div class="bg-slate-950 p-3">
+                <div id="liveMonitorBox" class="screen-aspect-ratio w-full rounded-lg overflow-hidden relative shadow-2xl border border-slate-800 transition-all duration-300">
+                    <!-- Live projection engine (same page as the projector, scaled) -->
+                    <iframe id="livePreviewFrame" title="Live projection mirror" scrolling="no" style="border:0; pointer-events:none; transform-origin: top left; display:block; position:absolute; left:0; top:0;"></iframe>
+
+                    <!-- Shown only when nothing is on live projection -->
+                    <div id="livePlaceholder" class="absolute inset-0 z-10 flex flex-col justify-center items-center text-center p-4 bg-gradient-to-tr from-indigo-950 via-slate-900 to-purple-950">
+                        <p class="text-white font-sans font-semibold leading-relaxed">
+                            Select a verse or song to present
+                        </p>
+                        <span class="inline-block mt-3 px-2 py-0.5 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-bold tracking-wide uppercase text-white border border-white/30">
+                            OFF AIR
+                        </span>
+                    </div>
+
+                    <!-- Optional Alert Banner -->
+                    <div id="liveAlertTicker" class="hidden absolute top-0 left-0 right-0 bg-amber-500 text-slate-950 font-bold text-[10px] py-1 overflow-hidden z-20">
+                        <div id="liveAlertText" class="whitespace-nowrap animate-ticker inline-block">
+                            Nursery Call: Child #104
+                        </div>
+                    </div>
+
+                    <!-- Full Black overlay state -->
+                    <div id="blackoutOverlay" class="hidden absolute inset-0 bg-black z-30 flex items-center justify-center">
+                        <span class="text-slate-700 text-xs font-mono">BLACKOUT ACTIVE</span>
+                    </div>
+
+                    <!-- Logo state overlay -->
+                    <div id="logoOverlay" class="hidden absolute inset-0 bg-slate-900 z-30 flex flex-col items-center justify-center text-white">
+                        <i class="fa-solid fa-cross text-3xl text-brand-500 mb-2"></i>
+                        <span class="font-bold text-sm tracking-widest uppercase">UECFI CHURCH</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Stage Navigation & Slide Control -->
+            <div class="p-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
+                <button id="monitorPrevBtn" onclick="navPrevVerse()" class="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-1">
+                    <i class="fa-solid fa-chevron-left"></i> Prev
+                </button>
+                <span id="liveSlideIndicator" class="text-xs font-semibold text-slate-600">Verse 1 of 14</span>
+                <button id="monitorNextBtn" onclick="navNextVerse()" class="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-1">
+                    Next <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+
+            <!-- Notepad (user-generated scratch list) -->
+            <div class="flex-1 min-h-0 flex flex-col bg-white">
+                <div class="px-3 py-2 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Notepad</span>
+                    <span class="flex items-center gap-2 shrink-0">
+                        <button type="button" onclick="if(typeof uncheckAllNotepadItems==='function') uncheckAllNotepadItems();" title="Uncheck all notes" class="text-[10px] font-semibold text-slate-400 hover:text-brand-600 transition" style="background:none;border:0;cursor:pointer;">Uncheck all</button>
+                        <span id="notepadCount" class="text-[10px] font-bold text-slate-400"></span>
+                    </span>
+                </div>
+                <div id="notepadList" class="flex-1 min-h-0 overflow-y-auto px-3 py-1 custom-scrollbar"></div>
+                <div class="p-2 border-t border-slate-200 bg-slate-50 flex items-center gap-1.5 shrink-0">
+                    <input id="notepadInput" type="text" maxlength="200" placeholder="Add a note..."
+                           class="flex-1 min-w-0 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-500 transition">
+                    <button id="notepadAddBtn" title="Add note" class="p-1.5 px-2.5 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition shrink-0">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+  </div>
+</body>
+</html>

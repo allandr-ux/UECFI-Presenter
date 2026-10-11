@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+	<menu label="UECFI-STNB UECFI Presenter">
+		<menuItem label="Presentation Setup" onSelect="show_present_setup_UI" />
+		<menuItem label="Remote UECFI Presenter" onSelect="remoteVV_UI" />
+		<menuItem label="Update" onSelect="show_updateVV_UI" />
+		<menuItem type="separator" />
+ 		<menuItem label="Exit" onSelect="uecfipresenterExit" />
+		<menuItem label="Quit" role="quit" />
+	</menu>
+	<menu label="Bible">
+		<menuItem label="Select Version" onSelect="setup_bible_version" />
+		<menuItem label="Manage Version" onSelect="show_bible_manage" />
+	</menu>
+	<menu label="Edit">
+		<menuItem label="Undo" role="undo" />
+		<menuItem label="Redo" role="redo" />
+		<menuItem type="separator" />
+		<menuItem label="Cut" role="cut" />
+		<menuItem label="Copy" role="copy" />
+		<menuItem label="Paste" role="paste" />
+		<menuItem label="Select All" role="selectAll" />
+	</menu>
+	<menu label="Song">
+		<menuItem label="New" onSelect="song_new_menu" />
+		<menuItem label="Edit" onSelect="song_edit_menu" />
+		<menu label="Delete">
+			<menuItem label="Delete Selected Song" onSelect="song_delete_menu" />
+			<menuItem label="Delete Song Category" onSelect="song_delete_cat_menu" />
+		</menu>
+		<menuItem type="separator" />
+		<menu label="Export">
+			<menuItem label="ALL to Native Database" onSelect="songDB_Export_all_db" />
+			<menuItem label="ALL to XML" onSelect="songDB_Export_all_xml" />
+			<menuItem label="Selected Category to XML" onSelect="songDB_Export_cat_xml" />
+			<!-- <menuItem label="Selected Song to XML" onSelect="" /> -->
+		</menu>
+		<menu label="Import">
+			<menuItem label="Native Database" onSelect="songDB_Import_db" />
+			<menuItem label="XML Database" onSelect="songDB_Import_xml" />
+		</menu>
+ 
+
+	</menu>
+</root>

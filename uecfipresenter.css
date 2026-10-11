@@ -1,0 +1,1243 @@
+
+/* Fix the squished verses table */
+#verseTab table, #verseTab tbody {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+#verseTab tr.vcClass {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: flex !important;
+    background: white;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    padding: 12px;
+}
+
+#verseTab td.navtd {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+}
+
+/* Fix link color */
+#verseTab a {
+    color: inherit !important;
+    text-decoration: none !important;
+}
+
+/* Make verse bubbles look like mockup */
+#verseTab .verse-number-bubble {
+    background: #f1f5f9;
+    color: #475569;
+    border-radius: 9999px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: bold;
+    margin-right: 12px;
+}
+
+/* Modern Tabs Styling for Left Sidebar */
+#container .app-tab-list {
+    display: flex;
+    background: #F8FAFC;
+    padding: 4px;
+    border-bottom: 1px solid #E2E8F0;
+    gap: 4px;
+    list-style: none !important;
+    margin: 0;
+}
+#container .app-tab-list li {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex: 1;
+    text-align: center;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    border-radius: 6px;
+    list-style: none !important;
+}
+#container .app-tab-list li.active {
+    background: white;
+    color: #7c3aed;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border: 1px solid #E2E8F0;
+}
+
+/* Modern Tabs Styling for Middle Column */
+#container2 .app-tab-list {
+    display: flex;
+    background: white;
+    border-bottom: 1px solid #E2E8F0;
+    padding: 0;
+    list-style: none !important;
+    margin: 0;
+}
+#container2 .app-tab-list li {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    color: #64748b;
+    cursor: pointer;
+    border-bottom: 3px solid transparent !important;
+    list-style: none !important;
+    margin-bottom: -1px !important;
+}
+#container2 .app-tab-list li.active {
+    color: #7c3aed !important;
+    border-bottom: 3px solid #7c3aed !important;
+}
+
+/* Tab Content Areas */
+.app-tab-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Override legacy absolute positioning */
+#container, #container2 {
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    width: auto !important;
+    height: 100% !important;
+}
+#container { width: 380px !important; }
+#container2 { flex: 1 !important; min-width: 300px !important; }
+
+/* Form Controls (Inputs, Selects) */
+input[type="text"] {
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 6px !important;
+    padding: 6px 10px !important;
+    font-size: 13px !important;
+}
+/* Search box carries an inline icon: keep left clearance that the
+   global input padding above would otherwise crush. */
+#adSearch {
+    padding-left: 2rem !important;
+}
+select[size], select[multiple] {
+    padding: 4px 0 !important;
+    overflow-y: auto !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 6px !important;
+    background: white !important;
+}
+select[size] option {
+    padding: 8px 12px !important;
+    border-bottom: none !important;
+    border-radius: 6px !important;
+    margin: 2px 8px !important;
+    cursor: pointer !important;
+    font-size: 13px !important;
+    color: #334155 !important;
+}
+select[size] option:checked {
+    background: #f5f3ff !important;
+    color: #7c3aed !important;
+    font-weight: bold !important;
+}
+
+
+#navTab {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+
+/* Force lists to shrink in flex containers despite their size attribute */
+select[size], select[multiple] {
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    min-height: 0 !important;
+}
+
+
+/* Hide the legacy Recent container in the left sidebar */
+div:has(> #recentSel) {
+    display: none !important;
+}
+
+/* Styling for the modern Recent strip */
+#modernRecentStrip {
+    display: none;
+    flex: 0 0 auto;
+    padding: 12px 16px;
+    background: #F8FAFC;
+    border-top: 1px solid #E2E8F0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    overflow-x: auto;
+}
+#modernRecentStrip .recent-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+#modernRecentStrip .recent-button {
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #475569;
+    background: white;
+    border: 1px solid #CBD5E1;
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+#modernRecentStrip .recent-button:hover {
+    background: #F1F5F9;
+    border-color: #94A3B8;
+    color: #1E293B;
+}
+
+
+/* Force verse list to scroll instead of pushing the recent strip down or rendering over it */
+#verseTab {
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+    padding: 16px;
+    box-sizing: border-box;
+}
+.tabSubContainer {
+    /* NOTE: no height rule here -- tab panes get explicit pixel heights
+       inline from setupNavWindow(), and any !important height would override
+       those and collapse the pane to content height (panels can't stretch). */
+    overflow-y: auto !important;
+    min-height: 0 !important;
+}
+#container2 {
+    overflow: hidden !important;
+}
+
+
+/* Synchronize tab bar heights */
+#container .app-tab-list {
+    height: 48px !important;
+    box-sizing: border-box !important;
+}
+#container .app-tab-list li {
+    height: 100% !important;
+    box-sizing: border-box !important;
+}
+
+#container2 .app-tab-list {
+    height: 48px !important;
+    box-sizing: border-box !important;
+}
+#container2 .app-tab-list li {
+    height: 100% !important;
+    box-sizing: border-box !important;
+}
+
+
+/* Hide Quick Search in Bible tab */
+
+
+/* Hide legacy action buttons at the bottom of the Bible tab */
+
+
+/* Hide legacy action buttons at the bottom of the Songs tab */
+#container .app-tab-content > div:has(#songnav_presentbutton) > span:has(img[id^="songnav_"]) {
+    display: none !important;
+}
+
+
+/* Hide legacy action buttons securely without breaking the tabs */
+span:has(> #present),
+span:has(> #prevBut),
+span:has(> #nextBut),
+span:has(> #closeBut),
+span:has(> #addScheduleBut) {
+    display: none !important;
+}
+
+
+span:has(> #songnav_presentbutton),
+span:has(> #songnav_prevbutton),
+span:has(> #songnav_nextbutton),
+span:has(> #songnav_closebutton),
+span:has(> #songnav_add2schedule_button) {
+    display: none !important;
+}
+
+/* Custom Packaged Fonts */
+@font-face {
+    font-family: 'AnjaliOldLipi';
+    src: url('./font/AnjaliOldLipi.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'JC_Hindi';
+    src: url('./font/JC_Hindi.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'JC_Malayalam';
+    src: url('./font/JC_Malayalam.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'Mlkr0ntt';
+    src: url('./font/Mlkr0ntt.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'malayalam';
+    src: url('./font/malayalam.ttf') format('truetype');
+}
+
+/* --- MODERN SONG LYRICS TAB STYLES --- */
+#ly_slide {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+#ly_slide div[id^="lyricsID"] {
+    background: white;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    padding: 16px;
+    transition: all 0.2s;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+#ly_slide div[id^="lyricsID"]:hover {
+    border-color: #6366f1; /* Brand color hover */
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+}
+
+#ly_slide div[id^="lyricsID"] a {
+    color: #334155;
+    text-decoration: none !important;
+    font-size: 16px;
+    line-height: 1.6;
+    display: block; /* Make the whole div clickable */
+    white-space: pre-wrap; /* Preserve line breaks from lyrics */
+}
+
+/* Hide the ugly legacy horizontal rules injected by song_nav.js */
+#ly_slide hr {
+    display: none !important;
+}
+
+
+#verseTab div.vcClass a {
+    text-decoration: none !important;
+    color: inherit !important;
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+#verseTab td.navtd {
+    flex: 1 1 0 !important;
+}
+
+/* ========================================================
+   VERSE CARD SELECTION & PRESENTATION HIGHLIGHTING
+   ======================================================== */
+
+/* Selected (not presented): Violet / Purple */
+#verseTab tr.vcClass.verse-selected {
+    border-color: #8b5cf6 !important;
+    background-color: #f5f3ff !important;
+    box-shadow: 0 4px 12px -2px rgba(139, 92, 246, 0.25) !important;
+    transform: translateY(-1px);
+}
+
+#verseTab tr.vcClass.verse-selected .verse-number-bubble {
+    background-color: #8b5cf6 !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}
+
+#verseTab tr.vcClass.verse-selected td.navtd:last-child {
+    border-left-color: #ddd6fe !important;
+}
+
+/* Presented: Emerald / Green */
+#verseTab tr.vcClass.verse-presented,
+#searchResultID tr.vcClass.verse-presented {
+    border-color: #10b981 !important;
+    background-color: #ecfdf5 !important;
+    box-shadow: 0 4px 12px -2px rgba(16, 185, 129, 0.3) !important;
+    transform: translateY(-1px);
+}
+
+/* Schedule: emerald ring while the previewed item is the live projection */
+#sch_verseTextID.schedule-presented {
+    border-color: #10b981 !important;
+    box-shadow: 0 4px 16px -2px rgba(16, 185, 129, 0.35) !important;
+}
+
+#verseTab tr.vcClass.verse-presented .verse-number-bubble {
+    background-color: #10b981 !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}
+
+#verseTab tr.vcClass.verse-presented td.navtd:last-child {
+    border-left-color: #a7f3d0 !important;
+}
+
+/* ========================================================
+   SONG ITEM SELECTION & PRESENTATION HIGHLIGHTING
+   ======================================================== */
+
+/* Selected (not presented): Violet / Purple */
+.song-selected,
+.prog-item-selected {
+    border-color: #8b5cf6 !important;
+    background-color: #f5f3ff !important;
+    box-shadow: 0 4px 12px -2px rgba(139, 92, 246, 0.25) !important;
+    transform: translateY(-1px);
+}
+.song-selected p,
+.prog-item-selected .prog-item-title {
+    color: #6d28d9 !important;
+}
+
+/* Presented: Emerald / Green */
+.song-presented,
+.prog-item-presented {
+    border-color: #10b981 !important;
+    background-color: #ecfdf5 !important;
+    box-shadow: 0 4px 12px -2px rgba(16, 185, 129, 0.3) !important;
+    transform: translateY(-1px);
+}
+.song-presented p,
+.prog-item-presented .prog-item-title {
+    color: #047857 !important;
+}
+
+/* Song Lyrics / Program Slide Card Presented: Emerald / Green */
+#ly_slide div[id^="lyricsID"].slide-presented,
+.program-slide-presented {
+    border-color: #10b981 !important;
+    background-color: #ecfdf5 !important;
+    box-shadow: 0 4px 12px -2px rgba(16, 185, 129, 0.3) !important;
+    transform: translateY(-1px);
+}
+#ly_slide div[id^="lyricsID"].slide-presented a {
+    color: #065f46 !important;
+    font-weight: 600 !important;
+}
+
+/* Schedule song slide presented: same emerald language */
+#sch_verseTextID div[id^="schlyricsID"].sch-slide-presented {
+    border-color: #10b981 !important;
+    background-color: #ecfdf5 !important;
+    box-shadow: 0 4px 12px -2px rgba(16, 185, 129, 0.3) !important;
+    transform: translateY(-1px);
+}
+
+/* ========================================================
+   MODERN DIALOG / PANEL STYLING
+   ======================================================== */
+dialog:not([open]) {
+    display: none !important;
+}
+
+dialog#panelObj {
+    width: 680px !important;
+    max-width: 95vw !important;
+    max-height: 90vh !important;
+}
+
+dialog#panelObj[open] {
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* ========================================================
+   GRAPHICS / BACKGROUND TAB MODERN STYLING
+   ======================================================== */
+#bkgndTab {
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+    padding: 16px !important;
+    box-sizing: border-box !important;
+    background-color: #f8fafc !important;
+}
+
+#bkgndList tr {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+#bkgndList td {
+    border: none !important;
+    padding: 0 !important;
+}
+
+/* ========================================================
+   PROGRAM TAB MODERN STYLING
+   ======================================================== */
+#programNavTab {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+#programTab {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+#programWorkspace {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+.scripture-ref-row select {
+    font-size: 11px !important;
+}
+
+/* ========================================================
+   PROGRAM TAB SCRIPTURE CARDS (EXACT MATCH TO VERSE CARDS)
+   ======================================================== */
+.program-scripture-card {
+    width: 100% !important;
+    display: flex !important;
+    align-items: flex-start !important;
+    background: #FFFFFF !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 8px !important;
+    margin-bottom: 8px !important;
+    padding: 12px !important;
+    cursor: pointer !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+    transition: all 0.15s ease !important;
+    position: relative !important;
+}
+
+.program-scripture-card:hover {
+    border-color: #0284C7 !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+}
+
+.program-scripture-card .program-verse-bubble {
+    background: #f1f5f9 !important;
+    color: #475569 !important;
+    border-radius: 9999px !important;
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 11px !important;
+    font-weight: bold !important;
+    margin-right: 12px !important;
+    flex-shrink: 0 !important;
+    transition: all 0.15s ease !important;
+}
+
+.program-scripture-card:hover .program-verse-bubble {
+    background: #F0F9FF !important;
+    color: #0284C7 !important;
+}
+
+.program-scripture-card .program-verse-col1 {
+    flex: 1 1 0% !important;
+    min-width: 0 !important;
+    color: #1E293B !important;
+    font-weight: 500 !important;
+    font-size: 14px !important;
+    line-height: 1.6 !important;
+}
+
+.program-scripture-card .program-verse-col2 {
+    flex: 1 1 0% !important;
+    min-width: 0 !important;
+    border-left: 1px solid #E2E8F0 !important;
+    padding-left: 20px !important;
+    color: #64748B !important;
+    font-size: 13px !important;
+    line-height: 1.6 !important;
+}
+
+.program-scripture-card .program-verse-single {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    color: #1E293B !important;
+    font-weight: 500 !important;
+    font-size: 14px !important;
+    line-height: 1.6 !important;
+}
+
+/* Selected state (Violet/Purple) */
+.program-scripture-card.scripture-selected {
+    border-color: #8b5cf6 !important;
+    background-color: #f5f3ff !important;
+    box-shadow: 0 4px 12px -2px rgba(139, 92, 246, 0.25) !important;
+    transform: translateY(-1px);
+}
+
+.program-scripture-card.scripture-selected .program-verse-bubble {
+    background-color: #8b5cf6 !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}
+
+.program-scripture-card.scripture-selected .program-verse-col2 {
+    border-left-color: #ddd6fe !important;
+}
+
+/* Presented state (Emerald/Green) */
+.program-scripture-card.scripture-presented {
+    border-color: #10b981 !important;
+    background-color: #ecfdf5 !important;
+    box-shadow: 0 4px 12px -2px rgba(16, 185, 129, 0.3) !important;
+    transform: translateY(-1px);
+}
+
+.program-scripture-card.scripture-presented .program-verse-bubble {
+    background-color: #10b981 !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}
+
+.program-scripture-card.scripture-presented .program-verse-col2 {
+    border-left-color: #a7f3d0 !important;
+}
+
+/* ========================================================
+   SCRIPTURE VERSE GROUP HEADER STYLING
+   ======================================================== */
+.program-scripture-group-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 8px 14px !important;
+    margin-top: 18px !important;
+    margin-bottom: 10px !important;
+    background: #F8FAFC !important;
+    border: 1px solid #E2E8F0 !important;
+    border-left: 4px solid #7c3aed !important;
+    border-radius: 8px !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+}
+
+.program-scripture-group-header:first-child {
+    margin-top: 0 !important;
+}
+
+.program-scripture-group-header .group-title {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    color: #1E293B !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+.program-scripture-group-header .group-title i {
+    color: #7c3aed !important;
+    font-size: 13px !important;
+}
+
+.program-scripture-group-header .group-badge {
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    padding: 2px 8px !important;
+    background: #EDE9FE !important;
+    color: #6D28D9 !important;
+    border-radius: 9999px !important;
+}
+
+/* ========================================================
+   REFINED NOTES TAB STYLING
+   ======================================================== */
+#notesResultsID {
+    height: auto !important;
+}
+#notesResultsID table {
+    width: 100% !important;
+    border-collapse: separate !important;
+    border-spacing: 0 10px !important;
+}
+
+#notesResultsID tr {
+    background: #ffffff !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+    display: table-row !important;
+    transition: all 0.15s ease !important;
+}
+
+#notesResultsID tr:hover {
+    border-color: #cbd5e1 !important;
+    box-shadow: 0 4px 10px -1px rgba(0, 0, 0, 0.08) !important;
+}
+
+#notesResultsID td {
+    padding: 14px 16px !important;
+    vertical-align: top !important;
+}
+
+#notesResultsID td:first-child {
+    border-top-left-radius: 12px !important;
+    border-bottom-left-radius: 12px !important;
+    border-right: 1px solid #F1F5F9 !important;
+}
+
+#notesResultsID td:last-child {
+    border-top-right-radius: 12px !important;
+    border-bottom-right-radius: 12px !important;
+}
+
+#notesResultsID td b {
+    color: #0f172a !important;
+    font-size: 14px !important;
+    display: inline-block !important;
+    margin-bottom: 6px !important;
+}
+
+#notesResultsID .notes_css {
+    color: #475569 !important;
+    font-size: 13px !important;
+    line-height: 1.6 !important;
+    background: #F8FAFC !important;
+    padding: 10px 14px !important;
+    border-radius: 8px !important;
+    border: 1px solid #E2E8F0 !important;
+    display: block !important;
+}
+
+/* ========================================================
+   REFINED SEARCH TAB STYLING
+   ======================================================== */
+#searchResultID {
+    width: 100% !important;
+    height: auto !important;
+}
+#searchResultID table {
+    width: 100% !important;
+    border-collapse: separate !important;
+    border-spacing: 0 8px !important;
+}
+
+#searchResultID tr.vcClass {
+    background: #ffffff !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 10px !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+    transition: all 0.15s ease !important;
+    cursor: pointer !important;
+}
+
+#searchResultID tr.vcClass:hover {
+    border-color: #8b5cf6 !important;
+    box-shadow: 0 3px 10px rgba(139, 92, 246, 0.12) !important;
+    transform: translateY(-1px);
+}
+
+#searchResultID td {
+    padding: 10px 14px !important;
+    vertical-align: middle !important;
+}
+
+#searchResultID td:first-child {
+    border-top-left-radius: 10px !important;
+    border-bottom-left-radius: 10px !important;
+    text-align: center !important;
+}
+
+#searchResultID td:last-child {
+    border-top-right-radius: 10px !important;
+    border-bottom-right-radius: 10px !important;
+}
+
+#searchResultID input[type="button"] {
+    padding: 6px 14px !important;
+    border-radius: 8px !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    border: 1px solid #E2E8F0 !important;
+    background: #ffffff !important;
+    color: #334155 !important;
+    cursor: pointer !important;
+    margin-right: 6px !important;
+    transition: all 0.15s ease !important;
+}
+
+#searchResultID input[type="button"]:hover {
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+    color: #7c3aed !important;
+}
+
+#searchResultID input#saveResult {
+    background: #7c3aed !important;
+    border-color: #7c3aed !important;
+    color: #ffffff !important;
+}
+
+#searchResultID input#saveResult:hover {
+    background: #6d28d9 !important;
+}
+
+/* ========================================================
+   REFINED SCHEDULE TAB STYLING
+   ======================================================== */
+#scheduleTab {
+    width: 100% !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    /* NOTE: no height:100% here -- setupNavWindow() sets an explicit pixel
+       height inline. height:100% !important would override that inline value
+       yet resolve against an auto-height tab wrapper, collapsing to 0px
+       (blank tab). contain:size has the same collapsing effect, so keep
+       layout containment only. */
+    contain: layout;
+}
+
+#scheduleTab select#sch_selectID {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    flex: 1 1 0% !important;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+#scheduleTab select#sch_selectID option {
+    padding: 10px 14px !important;
+    border-radius: 8px !important;
+    margin: 3px 0 !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #334155 !important;
+    border: 1px solid transparent !important;
+    transition: all 0.15s ease !important;
+}
+
+#scheduleTab select#sch_selectID option:checked {
+    background: #ede9fe !important;
+    color: #6d28d9 !important;
+    border-color: #ddd6fe !important;
+}
+
+#sch_verseTextID {
+    min-height: 0 !important;
+}
+
+#sch_verseTextID #scheduleTextDIV a {
+    text-decoration: none !important;
+    color: #1e293b !important;
+    display: block !important;
+}
+
+#sch_verseTextID #scheduleTextDIV b {
+    color: #7c3aed !important;
+    font-size: 15px !important;
+    display: inline-block !important;
+    margin-bottom: 8px !important;
+}
+
+#sch_verseTextID hr {
+    border: none !important;
+    border-top: 1px solid #e2e8f0 !important;
+    margin: 12px 0 !important;
+}
+
+/* ========================================================
+   MODERN HTML TOOLTIP STYLING
+   ======================================================== */
+.has-tooltip {
+    position: relative;
+}
+
+.has-tooltip .tooltip-content {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    position: absolute;
+    z-index: 100;
+    background-color: #262626;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+    padding: 6px 10px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+/* Tooltip positioned to the bottom */
+.has-tooltip .tooltip-content.tooltip-bottom {
+    top: calc(100% + 7px);
+    right: 0;
+    transform: translateY(-4px);
+}
+
+.has-tooltip:hover .tooltip-content.tooltip-bottom {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.has-tooltip .tooltip-content.tooltip-bottom::before {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    right: 14px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent transparent #262626 transparent;
+}
+
+/* Tooltip positioned to the left (side arrow) */
+.has-tooltip .tooltip-content.tooltip-left {
+    right: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%) translateX(4px);
+}
+
+.has-tooltip:hover .tooltip-content.tooltip-left {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+}
+
+.has-tooltip .tooltip-content.tooltip-left::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 100%;
+    transform: translateY(-50%);
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent transparent transparent #262626;
+}
+
+
+
+
+
+/* ==========================================================================
+   Prev/Next segmented stepper (Bible, Songs, Program toolbars)
+   Why: groups navigation into one clear control with larger hit targets,
+   visible focus ring, press feedback and a proper disabled state.
+   ========================================================================== */
+.nav-stepper {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+.nav-step-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  min-height: 34px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: background-color .15s, color .15s, transform .08s;
+}
+.nav-step-btn + .nav-step-btn { border-left: 1px solid #e2e8f0; }
+.nav-step-btn i { font-size: 11px; }
+.nav-step-btn:hover { background: #eef2ff; color: #4338ca; }
+.nav-step-btn:active { transform: scale(0.96); background: #e0e7ff; }
+.nav-step-btn:focus-visible { outline: 2px solid #6366f1; outline-offset: -2px; }
+.nav-step-btn:disabled,
+.nav-step-btn[disabled] { opacity: .4; cursor: not-allowed; background: transparent; color: #94a3b8; transform: none; }
+#monitorPrevBtn:disabled,
+#monitorNextBtn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ==========================================================================
+   Projection transport buttons (mockup: flat cast + prev/next/stop icons).
+   Idle: black cast, grayed-out prev/next/stop. Live: green cast, dark
+   transport, red stop. Driven by updateProjectionControls().
+   ========================================================================== */
+.ctl-btn {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 20px;
+  color: #111827;
+  padding: 0;
+  transition: background-color .15s, color .15s, transform .08s;
+}
+.ctl-btn:hover:not(:disabled) {
+  background: #F1F5F9;
+}
+.ctl-btn:active:not(:disabled) {
+  transform: scale(.94);
+}
+.ctl-btn:disabled {
+  color: #D1D5DB;
+  cursor: not-allowed;
+  background: transparent;
+}
+.ctl-btn.ctl-live-cast {
+  color: #16A34A;
+}
+.ctl-btn.ctl-live-stop {
+  color: #DC2626;
+}
+
+/* ==========================================================================
+   Projection action buttons: Present (primary/green) and End (red outline)
+   Why: these are the most important live controls, so they get labels,
+   strong colour coding and distinct shapes to avoid mis-clicks mid-service.
+   ========================================================================== */
+.proj-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color .15s, color .15s, box-shadow .15s, transform .08s;
+}
+.proj-btn i { font-size: 11px; }
+.proj-btn:active { transform: scale(0.96); }
+.proj-btn:focus-visible { outline: 2px solid #6366f1; outline-offset: 2px; }
+.proj-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.proj-btn-go {
+  color: #fff;
+  background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+  border-color: #047857;
+  box-shadow: 0 1px 2px rgba(5, 150, 105, .35), inset 0 1px 0 rgba(255,255,255,.18);
+}
+.proj-btn-go:hover { background: linear-gradient(180deg, #059669 0%, #047857 100%); box-shadow: 0 2px 8px rgba(5, 150, 105, .35); }
+
+.proj-btn-stop {
+  color: #dc2626;
+  background: #fff;
+  border-color: #fecaca;
+}
+.proj-btn-stop:hover { color: #fff; background: #dc2626; border-color: #b91c1c; box-shadow: 0 2px 8px rgba(220, 38, 38, .3); }
+
+/* ==========================================================================
+   Left panel segmented pill tabs (Bible / Songs / Program)
+   NOTE: AppUI.Tabs (ui_service.js selectTab) never sets an `active` class --
+   it swaps Tailwind utility classes, with the active tab carrying `bg-white`.
+   So active state is matched via [class*="bg-white"] instead of li.active.
+   Placed last so it wins over the earlier tab rules and the 48px sync rule.
+   ========================================================================== */
+#container .app-tab-list {
+    height: 52px !important;
+    box-sizing: border-box !important;
+    align-items: center !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 12px !important;
+    margin: 0 !important;
+    gap: 4px !important;
+}
+#container .app-tab-list li {
+    height: auto !important;
+    flex: 1 1 0% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    border-radius: 8px !important;
+    border: 1px solid transparent !important;
+    padding: 8px 10px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #64748b !important;
+    background: transparent !important;
+}
+#container .app-tab-list li i {
+    font-size: 14px !important;
+}
+#container .app-tab-list li:not([class*="bg-white"]):hover {
+    background: #f1f5f9 !important;
+    color: #334155 !important;
+}
+/* Active pill: white, purple label, hairline border + soft shadow */
+#container .app-tab-list li[class*="bg-white"] {
+    background: #ffffff !important;
+    color: #6d28d9 !important;
+    font-weight: 700 !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08) !important;
+}
+
+/* ==========================================================================
+   Middle panel underline tabs (Verses / Lyrics / Slides / Notes / Search /
+   Schedule). Same note as above: active state is matched via
+   [class*="bg-white"] since AppUI.Tabs never sets li.active.
+   ========================================================================== */
+#container2 .app-tab-list {
+    height: 52px !important;
+    box-sizing: border-box !important;
+    align-items: stretch !important;
+    background: #ffffff !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    padding: 0 8px !important;
+    margin: 0 !important;
+    gap: 0 !important;
+}
+#container2 .app-tab-list li {
+    height: auto !important;
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 3px solid transparent !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 12px 14px !important;
+    margin-bottom: -1px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #64748b !important;
+}
+#container2 .app-tab-list li i {
+    font-size: 14px !important;
+}
+#container2 .app-tab-list li:not([class*="bg-white"]):hover {
+    color: #334155 !important;
+    background: #f8fafc !important;
+}
+/* Active tab: purple label + purple underline (kills the JS top-border) */
+#container2 .app-tab-list li[class*="bg-white"] {
+    background: transparent !important;
+    color: #7c3aed !important;
+    font-weight: 700 !important;
+    border: none !important;
+    border-bottom: 3px solid #7c3aed !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+
+/* ==========================================================================
+   Exact 16:9 projection mirrors (width drives height): theme designer
+   preview and the sidebar live output monitor.
+   ========================================================================== */
+#themePreviewBox {
+    aspect-ratio: 16 / 9 !important;
+}
+#liveMonitorBox {
+    aspect-ratio: 16 / 9 !important;
+    overflow: hidden !important;
+}
+
+/* ==========================================================================
+   Bible tab: bounded 3-column layout so Book / Chapter / Verse scroll
+   individually. The tab wrapper divs AppUI.Tabs creates are height:auto by
+   default, which lets the columns grow unbounded (whole-tab scroll). Giving
+   the left-panel wrappers a definite height bounds the flex chain:
+   wrapper -> #navTab -> #modernNavContainer -> grid -> column -> list.
+   ========================================================================== */
+#container .app-tab-content > div {
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    /* NOTE: no display rule here -- AppUI.Tabs toggles display:none/block
+       inline to switch tabs, and any !important display would break that. */
+}
+#container2 .app-tab-content > div {
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
+#scheduleTab,
+#lyricsTab,
+#programTab,
+#notesTab,
+#searchTab {
+    height: 100% !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+#searchField {
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+#navTab {
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
+#modernNavContainer {
+    height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
+#modernBookList,
+#modernChapterList,
+#modernVerseList {
+    min-height: 0 !important;
+    overscroll-behavior-y: contain !important;
+}

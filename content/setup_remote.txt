@@ -1,0 +1,61 @@
+<div class="flex flex-col gap-5">
+	<div>
+		<div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Remote Servers (2 Ports)</div>
+		<div class="flex flex-col gap-2">
+			<label class="text-xs font-semibold text-slate-600 flex items-center gap-2">IP Address
+				<select id="configIPaddr" class="flex-1 min-w-0 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-brand-500"></select>
+			</label>
+			<label class="text-xs font-semibold text-slate-600 flex items-center gap-2">Presenter Port
+				<input type="text" id="configPresenterPort" value="50000" size="5" class="w-24 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-brand-500">
+				<span class="text-[11px] font-normal text-slate-400">speaker remote: live view + buttons</span>
+			</label>
+			<label class="text-xs font-semibold text-slate-600 flex items-center gap-2">Audience Port
+				<input type="text" id="configAudiencePort" value="50001" size="5" class="w-24 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-brand-500">
+				<span class="text-[11px] font-normal text-slate-400">members: live view only</span>
+			</label>
+		</div>
+		<div class="mt-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-600">
+			<span id="remoteVVStatus">Remote Access Disabled</span>
+		</div>
+		<div class="mt-2">
+		  	<input name="saveRemoteVVSettings" type="button" id="saveRemoteVVSettings" value=" Enable Remote Access " class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold transition cursor-pointer">
+		</div>
+	</div>
+
+	<div>
+		<div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Speaker Remote Buttons</div>
+		<p class="text-[11px] text-slate-400 mb-2">Custom buttons shown on the speaker remote under Previous / Next.</p>
+		<div id="remoteBtnList" class="flex flex-col gap-1.5 mb-3"></div>
+		<div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Add Button Manually</div>
+		<div class="flex flex-wrap items-center gap-1.5">
+			<input type="text" id="remoteBtnLabel" size="14" maxlength="24" placeholder="Label" class="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-500">
+			<select id="remoteBtnCommand" class="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-brand-500">
+				<option value="1">Present verse</option>
+				<option value="2">Next</option>
+				<option value="3">Previous</option>
+				<option value="4">Blank screen</option>
+				<option value="7">Present schedule #</option>
+				<option value="8">Present song (id)</option>
+				<option value="9">Present program item (id)</option>
+			</select>
+			<input type="text" id="remoteBtnValue" size="12" placeholder="value (verse / #)" class="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-500">
+			<input type="button" id="remoteBtnAdd" value="Add" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition cursor-pointer">
+		</div>
+		<div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mt-3 mb-2">Add From Library</div>
+		<div class="flex flex-col gap-1.5">
+			<div class="flex items-center gap-1.5">
+				<span class="text-xs font-semibold text-slate-600 shrink-0" style="width:88px;">Song</span>
+				<select id="remoteSongPick" class="flex-1 min-w-0 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-brand-500"></select>
+				<input type="button" id="remoteSongAdd" value="Add" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition cursor-pointer shrink-0">
+			</div>
+			<div class="flex items-center gap-1.5">
+				<span class="text-xs font-semibold text-slate-600 shrink-0" style="width:88px;">Program item</span>
+				<select id="remoteProgPick" class="flex-1 min-w-0 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-brand-500"></select>
+				<input type="button" id="remoteProgAdd" value="Add" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition cursor-pointer shrink-0">
+			</div>
+			<div>
+				<input type="button" id="remoteSrcRefresh" value="Reload song / program lists" class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg text-xs font-semibold transition cursor-pointer">
+			</div>
+		</div>
+	</div>
+</div>

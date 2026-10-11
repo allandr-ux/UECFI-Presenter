@@ -1,0 +1,39 @@
+<!-- Settings Page: Full-window overlay covering the entire application for comfortable wide-screen layout -->
+<div id="settingsPage" class="hidden fixed inset-0 bg-white z-50 flex flex-col font-sans">
+    <!-- Settings Header -->
+    <div class="px-6 py-3.5 border-b border-slate-200 flex items-center justify-between bg-white shrink-0 shadow-xs">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center text-brand-600 border border-brand-200">
+                <i class="fa-solid fa-gear text-base"></i>
+            </div>
+            <div>
+                <h2 class="text-base font-bold text-slate-900 leading-tight">Settings &amp; Theme Designer</h2>
+                <p class="text-xs text-slate-500">Configure presentation styles, display screen, and preferences</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <!-- Settings Main Navigation Tabs -->
+            <div id="settingsMainTabList" class="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold mr-2 gap-1">
+                <button type="button" id="tabBtn_theme" onclick="if(window.themeManager) window.themeManager.switchSettingsMainTab('theme')" class="px-3.5 py-1.5 rounded-lg bg-white shadow-xs text-brand-700 flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-palette text-xs"></i> Theme Designer
+                </button>
+                <button type="button" id="tabBtn_display" onclick="if(window.themeManager) window.themeManager.switchSettingsMainTab('display')" class="px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-desktop text-xs"></i> Display &amp; Screen
+                </button>
+                <button type="button" id="tabBtn_options" onclick="if(window.themeManager) window.themeManager.switchSettingsMainTab('options')" class="px-3.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-sliders text-xs"></i> General Options
+                </button>
+            </div>
+            <div class="h-6 w-[1px] bg-slate-200 mx-1"></div>
+            <button id="closeSettingsBtn" onclick="closeSettingsPage()" class="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 rounded-lg transition flex items-center gap-1.5" title="Close Settings (Esc)">
+                <i class="fa-solid fa-xmark text-sm"></i>
+                <span>Close</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Settings Content Body -->
+    <div id="settingsContentContainer" class="flex-1 overflow-y-auto p-6 bg-slate-50 custom-scrollbar">
+        <!-- Theme Designer is dynamically mounted here by themeManager -->
+    </div>
+</div>

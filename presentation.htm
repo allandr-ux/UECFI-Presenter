@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<script src="storage_service.js"></script>
+		<title>Presentation Window</title>
+		
+		<script type="text/javascript" src="presentation.js"></script>
+		<link rel="stylesheet" type="text/css" href="./uecfipresenter.css" />
+	</head>
+	
+<body id="p_body" onkeyup="findKey(event)" style="overflow:hidden; color:#FFFFFF; margin:0; padding:0;">
+
+<div id="backgroundLayer" style="position:absolute; left:0px; top:0px;  z-index:1;  border: 1px none #000000;">
+<img id="backgroundImage">
+</div>
+
+<div id="overlayLayer" style="position:absolute; left:0px; top:0px; z-index:1; pointer-events:none;"></div>
+
+<div id="contentLayer" style="position:absolute; left:0px; top:0px; z-index:2; border: 1px none #000000;">
+
+<div id="presentationContainer">
+
+<div id="presentationTitle" class="titleStyle"></div>
+
+<div id="presentationContent" class="contentStyle" style="display:flex; flex-direction:column; justify-content:center; align-items:center; width:100%;">
+  <div id="p_contentID" style="width:100%; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+    <div id="content1" style="overflow:hidden; width:100%;"></div>
+    <div id="presentationDivider" style="display:none; margin: 16px auto; transition: all 0.2s;"></div>
+    <div id="content2" style="overflow:hidden; width:100%;"></div>
+  </div>
+</div>
+
+<div id="footnote" class="footerStyle"></div>
+</div>
+</div>
+		
+<script>
+	initPresentation();
+</script>	
+
+</body>
+</html>

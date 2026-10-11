@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<configuration>
+  <version1>1</version1>
+  <version2>2</version2>
+  <bkgndIndex>0</bkgndIndex>
+  <topMargin>50</topMargin>
+  <bottomMargin>50</bottomMargin>
+  <leftMargin>60</leftMargin>
+  <rightMargin>60</rightMargin>
+  <singleVersion>false</singleVersion>
+  <navduallang>true</navduallang>
+  <navFontSize>14</navFontSize>
+  <screensel>1</screensel>
+  <maxFontSize>100</maxFontSize>
+  <enableTransition>true</enableTransition>
+  <enableShadow>true</enableShadow>
+  <enableTitle>true</enableTitle>
+  <textColorHEX>FFFFFF</textColorHEX>
+</configuration>

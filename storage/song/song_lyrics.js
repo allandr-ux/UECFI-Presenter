@@ -1,0 +1,1 @@
+function songLyricsClass(){this.init=c;var d=null;var a=null;var e=0;function c(g,f,h){d=g;a=f;e=h;var i='<a href="#">'+d.slides[e]+"</a>";document.getElementById(a).innerHTML=i;document.getElementById(a).addEventListener("click",b,false)}function b(){var f=new songPresentObj();f.init(d);f.present(e)}};
