@@ -35,11 +35,14 @@
 			<menuItem label="Selected Category to XML" onSelect="songDB_Export_cat_xml" />
 			<!-- <menuItem label="Selected Song to XML" onSelect="" /> -->
 		</menu>
-		<menu label="Import">
-			<menuItem label="Native Database" onSelect="songDB_Import_db" />
-			<menuItem label="XML Database" onSelect="songDB_Import_xml" />
-		</menu>
- 
+	<menu label="Import">
+		<menuItem label="Native Database" onSelect="songDB_Import_db" />
+		<menuItem label="XML Database" onSelect="songDB_Import_xml" />
+	</menu>
 
+
+	</menu>
+	<menu label="Help">
+		<menuItem label="About UECFI Presenter" onSelect="showAboutDialog" />
 	</menu>
 </root>

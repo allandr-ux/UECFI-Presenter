@@ -131,8 +131,8 @@ function vvsearch(M) {
     k();
     K.stop();
     console.log(`Time to print:${K.delta()}`);
-    // Tab 4 is Search (0: Verses, 1: Lyrics, 2: Program, 3: Notes, 4: Search, 5: Schedule, 6: Graphics)
-    tabViewN.selectTab(4);
+    // Tab 3 is Search (0: Verses, 1: Lyrics, 2: Slides, 3: Search, 4: Schedule)
+    tabViewN.selectTab(3);
   }
   function k() {
     const V = document.getElementById("searchResultID");

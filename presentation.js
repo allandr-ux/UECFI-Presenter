@@ -74,6 +74,22 @@ var blur = 4;
 var shadowColor = PROJECTION_FALLBACK_STYLE.shadowColor;
 var p_ver1ScaleFactor = 1;
 var p_ver2ScaleFactor = 1;
+var p_logo_mode = false;
+var p_logo_image = "";
+var p_logo_title = "";
+var p_logo_sub = "";
+var p_logo_bg = "#020617";
+var p_logo_color = "#ffffff";
+var p_logo_imgsize = 40;
+var p_logo_titlesize = 8;
+var p_logo_subsize = 4;
+var p_logo_title_bold = true;
+var p_logo_title_italic = false;
+var p_logo_sub_bold = false;
+var p_logo_sub_italic = false;
+var p_output_mode = "live";
+var p_logo_bgimage = "";
+var p_logo_bgdim = 50;
 var showingtheme = false;
 function initPresentation() {
   window.passVariable = function() {
@@ -106,7 +122,9 @@ function initPresentation() {
       p_enableShadow = (s.shadow !== undefined) ? !!s.shadow : true;
       p_ver1ScaleFactor = s.ver1 || 1;
       p_ver2ScaleFactor = s.ver2 || 1;
+      p_logo_mode = false;
       p_align = s.align || PROJECTION_FALLBACK_STYLE.textAlign;
+      p_output_mode = "live";
       window.activeThemeObj = s.theme || null;
       if (window.activeThemeObj) {
         blur = (typeof window.activeThemeObj.shadowBlur !== "undefined") ? window.activeThemeObj.shadowBlur : 4;
@@ -140,6 +158,22 @@ function initPresentation() {
         p_enableShadow = src.p_enableShadow;
         p_ver1ScaleFactor = src.p_ver1ScaleFactor;
         p_ver2ScaleFactor = src.p_ver2ScaleFactor;
+        p_logo_mode = !!src.p_logo_mode;
+        p_logo_image = src.p_logo_image || "";
+        p_logo_title = src.p_logo_title || "";
+        p_logo_sub = src.p_logo_sub || "";
+        p_logo_bg = src.p_logo_bg || "#020617";
+        p_logo_color = src.p_logo_color || "#ffffff";
+        p_logo_imgsize = (isFinite(Number(src.p_logo_imgsize)) ? Number(src.p_logo_imgsize) : 40);
+        p_logo_titlesize = (isFinite(Number(src.p_logo_titlesize)) ? Number(src.p_logo_titlesize) : 8);
+        p_logo_subsize = (isFinite(Number(src.p_logo_subsize)) ? Number(src.p_logo_subsize) : 4);
+        p_logo_title_bold = (src.p_logo_title_bold === undefined) ? true : !!src.p_logo_title_bold;
+        p_logo_title_italic = !!src.p_logo_title_italic;
+        p_logo_sub_bold = !!src.p_logo_sub_bold;
+        p_logo_sub_italic = !!src.p_logo_sub_italic;
+        p_logo_bgimage = (typeof src.p_logo_bgimage === "string") ? src.p_logo_bgimage : "";
+        p_logo_bgdim = (isFinite(Number(src.p_logo_bgdim)) ? Number(src.p_logo_bgdim) : 50);
+        p_output_mode = src.p_output_mode || "live";
         p_align = src.p_align || PROJECTION_FALLBACK_STYLE.textAlign;
         window.activeThemeObj = src.activeThemeObj || null;
     }
@@ -611,6 +645,105 @@ function updatePresentation() {
     cellEl.style.height = `${b}px`;
     cellEl.style.textAlign = (theme && theme.textAlign) ? theme.textAlign : (p_align || PROJECTION_FALLBACK_STYLE.textAlign);
   }
+  renderLogoLayer();
+  renderOutputState();
+}
+// Blackout output state (Black Screen button): covers everything.
+function renderOutputState() {
+  try {
+    const mode = (typeof p_output_mode === "string") ? p_output_mode : "live";
+    const black = document.getElementById("blackLayer");
+    if (black) black.style.display = (mode === "black") ? "block" : "none";
+  } catch (e) {}
+}
+// Custom logo screen overlay (driven by the controller Logo button).
+// Scales type from the projection dimensions so it holds from 800px
+// previews to full-HD projectors.
+function renderLogoLayer() {
+  try {
+    const layer = document.getElementById("logoLayer");
+    if (!layer) return;
+    if (!p_logo_mode) {
+      layer.style.display = "none";
+      return;
+    }
+    const w = Number(p_window_X) || 800;
+    // Height placeholder defaults ("100") predate the first projection;
+    // derive from width (16:9) until a real projection reports dimensions.
+    const h = Math.max(Number(p_window_Y) || 0, Math.round(w * 9 / 16));
+    layer.style.display = "flex";
+    layer.style.width = `${w}px`;
+    layer.style.height = `${h}px`;
+    layer.style.background = p_logo_bg || "#020617";
+    // Background photo (optional) with dimming overlay for readability.
+    const dimPct = Math.min(90, Math.max(0, isFinite(Number(p_logo_bgdim)) ? Number(p_logo_bgdim) : 50));
+    const bg = document.getElementById("logoBgImage");
+    if (bg) {
+      if (p_logo_bgimage) {
+        const primary = `./background/${p_logo_bgimage}`;
+        const fallback = `storage/background/${p_logo_bgimage}`;
+        if (bg.getAttribute("data-file") !== p_logo_bgimage) {
+          bg.setAttribute("data-file", p_logo_bgimage);
+          bg.onerror = () => {
+            bg.onerror = null;
+            if (bg.getAttribute("src") !== fallback) bg.setAttribute("src", fallback);
+          };
+          bg.setAttribute("src", primary);
+        }
+        bg.style.display = "block";
+      } else {
+        bg.removeAttribute("data-file");
+        bg.style.display = "none";
+      }
+    }
+    const dim = document.getElementById("logoDim");
+    if (dim) {
+      if (p_logo_bgimage && dimPct > 0) {
+        dim.style.display = "block";
+        dim.style.opacity = String(dimPct / 100);
+      } else {
+        dim.style.display = "none";
+      }
+    }
+    // Sizes are % of screen height so the layout holds on any resolution.
+    const imgPct = Math.min(95, Math.max(5, isFinite(Number(p_logo_imgsize)) ? Number(p_logo_imgsize) : 40));
+    const titlePx = Math.max(12, Math.round(h * Math.min(25, Math.max(1, isFinite(Number(p_logo_titlesize)) ? Number(p_logo_titlesize) : 8)) / 100));
+    const subPx = Math.max(10, Math.round(h * Math.min(15, Math.max(1, isFinite(Number(p_logo_subsize)) ? Number(p_logo_subsize) : 4)) / 100));
+    const img = document.getElementById("logoImage");
+    if (img) {
+      if (p_logo_image) {
+        if (img.getAttribute("src") !== p_logo_image) img.setAttribute("src", p_logo_image);
+        img.style.display = "block";
+        img.style.maxHeight = `${imgPct}%`;
+        img.style.maxWidth = "90%";
+        img.style.marginBottom = `${Math.round(h * 0.025)}px`;
+      } else {
+        img.style.display = "none";
+      }
+    }
+    const t = document.getElementById("logoTitle");
+    if (t) {
+      t.textContent = p_logo_title || "";
+      t.style.display = p_logo_title ? "block" : "none";
+      t.style.color = p_logo_color || "#ffffff";
+      t.style.fontSize = `${titlePx}px`;
+      t.style.letterSpacing = "0.08em";
+      t.style.textTransform = "uppercase";
+      t.style.fontWeight = (p_logo_title_bold === false) ? "normal" : "bold";
+      t.style.fontStyle = p_logo_title_italic ? "italic" : "normal";
+    }
+    const s = document.getElementById("logoSub");
+    if (s) {
+      s.textContent = p_logo_sub || "";
+      s.style.display = p_logo_sub ? "block" : "none";
+      s.style.color = p_logo_color || "#ffffff";
+      s.style.fontSize = `${subPx}px`;
+      s.style.opacity = "0.85";
+      s.style.marginTop = `${Math.round(h * 0.012)}px`;
+      s.style.fontWeight = p_logo_sub_bold ? "bold" : "normal";
+      s.style.fontStyle = p_logo_sub_italic ? "italic" : "normal";
+    }
+  } catch (e) {}
 }
 function findKey(a) {
   // Preview iframes never steal keyboard actions (Esc would close, arrows flip slides)

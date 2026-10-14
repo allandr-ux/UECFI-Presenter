@@ -958,6 +958,29 @@ dialog#panelObj[open] {
     border-color: transparent transparent transparent #262626;
 }
 
+/* ========================================================
+   TOOLTIP STACKING IN SCROLLED LISTS
+   Presented rows/cards use transform (translateY), which creates a
+   stacking context per row -- so an HTML tooltip from one row would
+   otherwise paint behind the following rows. Keep every row/slide in
+   the same stacking order and raise the hovered one above its siblings
+   so its tooltip stays on top.
+   ======================================================== */
+[id^="prog_item_row_"],
+#programWorkspace .program-scripture-card,
+#programWorkspace .program-slide-card,
+#modernSongList [id^="songRow_"] {
+    position: relative;
+    z-index: 0;
+}
+
+[id^="prog_item_row_"]:hover,
+#programWorkspace .program-scripture-card:hover,
+#programWorkspace .program-slide-card:hover,
+#modernSongList [id^="songRow_"]:hover {
+    z-index: 50;
+}
+
 
 
 

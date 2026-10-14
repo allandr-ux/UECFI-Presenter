@@ -16,9 +16,8 @@
     <script type="text/javascript" src="common.js"></script>
     <script type="text/javascript" src="config.js"></script>
     <script type="text/javascript" src="search.js"></script>
-    <script type="text/javascript" src="notes.js"></script>
-    <script type="text/javascript" src="notesmanage.js"></script>
     <script type="text/javascript" src="update.js"></script>
+    <script type="text/javascript" src="about.js"></script>
     <script type="text/javascript" src="schedule.js"></script>
     <script type="text/javascript" src="help.js"></script>
     <script type="text/javascript" src="setup.js"></script>
@@ -45,7 +44,7 @@
         <!-- Brand & Connection Status -->
         <div class="flex items-center space-x-4">
             <div class="flex items-center space-x-2">
-                <img src="app-icon.png" alt="UECFI Presenter" class="w-9 h-9 object-contain drop-shadow-sm bg-transparent">
+                <img src="uecfi-logo.png" alt="UECFI" class="w-9 h-9 object-contain drop-shadow-sm bg-transparent">
                 <div>
                     <h1 class="font-bold text-slate-900 text-base leading-tight flex items-center gap-1.5">
                         UECFI Presenter <span class="bg-brand-100 text-brand-700 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-md">v1.0.0</span>
@@ -56,10 +55,22 @@
             <!-- INJECT BUTTONS HERE -->
             <div id="modernActionButtons" class="ml-6 flex items-center gap-1.5">
                 <!-- Projection transport (mockup: cast + prev/next/stop, styles: .ctl-btn) -->
-                <button id="present" class="ctl-btn ctl-cast" title="Present Bible (project to screen)"><i class="fa-brands fa-chromecast"></i></button>
-                <button id="prevBut" class="ctl-btn" title="Previous (←)" aria-label="Previous"><i class="fa-solid fa-play fa-flip-horizontal"></i></button>
-                <button id="nextBut" class="ctl-btn" title="Next (→)" aria-label="Next"><i class="fa-solid fa-play"></i></button>
-                <button id="closeBut" class="ctl-btn ctl-stop" title="End Projection"><i class="fa-solid fa-stop"></i></button>
+                <div class="has-tooltip shrink-0">
+                    <button id="present" class="ctl-btn ctl-cast" aria-label="Present Bible"><i class="fa-brands fa-chromecast"></i></button>
+                    <div class="tooltip-content tooltip-bottom">Present Bible</div>
+                </div>
+                <div class="has-tooltip shrink-0">
+                    <button id="prevBut" class="ctl-btn" aria-label="Previous"><i class="fa-solid fa-play fa-flip-horizontal"></i></button>
+                    <div class="tooltip-content tooltip-bottom">Previous (←)</div>
+                </div>
+                <div class="has-tooltip shrink-0">
+                    <button id="nextBut" class="ctl-btn" aria-label="Next"><i class="fa-solid fa-play"></i></button>
+                    <div class="tooltip-content tooltip-bottom">Next (→)</div>
+                </div>
+                <div class="has-tooltip shrink-0">
+                    <button id="closeBut" class="ctl-btn ctl-stop" aria-label="End Projection"><i class="fa-solid fa-stop"></i></button>
+                    <div class="tooltip-content tooltip-bottom">End Projection</div>
+                </div>
                 <div class="h-5 w-[1px] bg-slate-200 mx-1"></div>
                 <button id="btnBibleSelect" onclick="if(typeof setup_bible_version==='function') setup_bible_version();" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-700 bg-slate-50 hover:bg-brand-50 border border-slate-200 hover:border-brand-300 rounded-lg transition flex items-center gap-1.5" title="Select Bible Versions">
                     <i class="fa-solid fa-book-bible text-brand-600"></i> Select Version
@@ -69,10 +80,22 @@
                 </button>
             </div>
             <div id="modernSongActionButtons" class="ml-6 hidden items-center gap-1.5">
-                <button id="songnav_presentbutton" class="ctl-btn ctl-cast" title="Present Song (project to screen)"><i class="fa-brands fa-chromecast"></i></button>
-                <button id="songnav_prevbutton" class="ctl-btn" title="Previous (←)" aria-label="Previous"><i class="fa-solid fa-play fa-flip-horizontal"></i></button>
-                <button id="songnav_nextbutton" class="ctl-btn" title="Next (→)" aria-label="Next"><i class="fa-solid fa-play"></i></button>
-                <button id="songnav_closebutton" class="ctl-btn ctl-stop" title="End Projection"><i class="fa-solid fa-stop"></i></button>
+                <div class="has-tooltip shrink-0">
+                    <button id="songnav_presentbutton" class="ctl-btn ctl-cast" aria-label="Present Song"><i class="fa-brands fa-chromecast"></i></button>
+                    <div class="tooltip-content tooltip-bottom">Present Song</div>
+                </div>
+                <div class="has-tooltip shrink-0">
+                    <button id="songnav_prevbutton" class="ctl-btn" aria-label="Previous"><i class="fa-solid fa-play fa-flip-horizontal"></i></button>
+                    <div class="tooltip-content tooltip-bottom">Previous (←)</div>
+                </div>
+                <div class="has-tooltip shrink-0">
+                    <button id="songnav_nextbutton" class="ctl-btn" aria-label="Next"><i class="fa-solid fa-play"></i></button>
+                    <div class="tooltip-content tooltip-bottom">Next (→)</div>
+                </div>
+                <div class="has-tooltip shrink-0">
+                    <button id="songnav_closebutton" class="ctl-btn ctl-stop" aria-label="End Projection"><i class="fa-solid fa-stop"></i></button>
+                    <div class="tooltip-content tooltip-bottom">End Projection</div>
+                </div>
                 <div class="h-5 w-[1px] bg-slate-200 mx-1"></div>
                 <button id="btnNewSong" onclick="if(typeof song_new_menu==='function') song_new_menu();" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-700 bg-slate-50 hover:bg-brand-50 border border-slate-200 hover:border-brand-300 rounded-lg transition flex items-center gap-1.5" title="Create New Song">
                     <i class="fa-solid fa-plus text-brand-600"></i> New Song
@@ -92,10 +115,22 @@
                 </button>
             </div>
             <div id="modernProgramActionButtons" class="ml-6 hidden items-center gap-1.5">
-                <button id="prog_present_btn" onclick="if(window.programManager) window.programManager.presentItem(window.programManager.selectedItemIndex);" class="ctl-btn ctl-cast" title="Present Program Item (project to screen)"><i class="fa-brands fa-chromecast"></i></button>
-                <button id="prog_prev_btn" onclick="if(window.programManager) window.programManager.previousSlide();" class="ctl-btn" title="Previous Slide/Item (←)" aria-label="Previous slide"><i class="fa-solid fa-play fa-flip-horizontal"></i></button>
-                <button id="prog_next_btn" onclick="if(window.programManager) window.programManager.nextSlide();" class="ctl-btn" title="Next Slide/Item (→)" aria-label="Next slide"><i class="fa-solid fa-play"></i></button>
-                <button id="prog_close_btn" onclick="if(typeof closePresentWindow==='function') closePresentWindow(); if(window.programManager) window.programManager.clearPresentationHighlight();" class="ctl-btn ctl-stop" title="End Projection"><i class="fa-solid fa-stop"></i></button>
+                <div class="has-tooltip shrink-0">
+                    <button id="prog_present_btn" onclick="if(window.programManager) window.programManager.presentItem(window.programManager.selectedItemIndex);" class="ctl-btn ctl-cast" aria-label="Present Program Item"><i class="fa-brands fa-chromecast"></i></button>
+                    <div class="tooltip-content tooltip-bottom">Present Program Item</div>
+                </div>
+                <div class="has-tooltip shrink-0">
+                    <button id="prog_prev_btn" onclick="if(window.programManager) window.programManager.previousSlide();" class="ctl-btn" aria-label="Previous slide"><i class="fa-solid fa-play fa-flip-horizontal"></i></button>
+                    <div class="tooltip-content tooltip-bottom">Previous Slide (←)</div>
+                </div>
+                <div class="has-tooltip shrink-0">
+                    <button id="prog_next_btn" onclick="if(window.programManager) window.programManager.nextSlide();" class="ctl-btn" aria-label="Next slide"><i class="fa-solid fa-play"></i></button>
+                    <div class="tooltip-content tooltip-bottom">Next Slide (→)</div>
+                </div>
+                <div class="has-tooltip shrink-0">
+                    <button id="prog_close_btn" onclick="if(typeof closePresentWindow==='function') closePresentWindow(); if(window.programManager) window.programManager.clearPresentationHighlight();" class="ctl-btn ctl-stop" aria-label="End Projection"><i class="fa-solid fa-stop"></i></button>
+                    <div class="tooltip-content tooltip-bottom">End Projection</div>
+                </div>
                 <div class="h-5 w-[1px] bg-slate-200 mx-1"></div>
                 <button id="prog_add_btn" onclick="if(window.programManager) window.programManager.openItemModal(-1);" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-700 bg-slate-50 hover:bg-brand-50 border border-slate-200 hover:border-brand-300 rounded-lg transition flex items-center gap-1.5" title="Add Program Item">
                     <i class="fa-solid fa-plus text-brand-600"></i> Add Item
@@ -109,15 +144,22 @@
 
         <!-- Master Live Output Controls -->
         <div class="flex items-center space-x-2">
-            <button id="btnClear" onclick="toggleOutputState('clear')" class="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition flex items-center gap-1.5">
-                <i class="fa-solid fa-eraser text-slate-400"></i> Clear Text
-            </button>
-            <button id="btnLogo" onclick="toggleOutputState('logo')" class="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition flex items-center gap-1.5">
-                <i class="fa-solid fa-church text-slate-400"></i> Logo
-            </button>
-            <button id="btnBlack" onclick="toggleOutputState('black')" class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition flex items-center gap-1.5 shadow-sm">
-                <i class="fa-solid fa-power-off text-red-400"></i> Black Screen
-            </button>
+            <div id="logoSplitWrap" class="flex items-center shrink-0 rounded-lg border border-slate-300 bg-white">
+                <div class="has-tooltip flex items-center">
+                    <button id="btnLogo" onclick="toggleOutputState('logo')" class="px-3 py-1.5 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition flex items-center gap-1.5" style="background:none;border:0;border-radius:8px 0 0 8px;cursor:pointer;">
+                        <i class="fa-solid fa-church text-slate-400"></i> Logo
+                    </button>
+                    <div class="tooltip-content tooltip-bottom">Show church logo</div>
+                </div>
+                <div style="width:1px;align-self:stretch;background:#cbd5e1;"></div>
+                <button id="btnLogoCustomize" onclick="if(typeof openLogoDesigner==='function') openLogoDesigner();" title="Customize logo screen" class="px-2 py-1.5 text-[11px] leading-none text-slate-400 hover:text-brand-600 hover:bg-brand-50 transition" style="background:none;border:0;border-radius:0 8px 8px 0;cursor:pointer;"><i class="fa-solid fa-pen"></i></button>
+            </div>
+            <div class="has-tooltip shrink-0">
+                <button id="btnBlack" onclick="toggleOutputState('black')" class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition flex items-center gap-1.5 shadow-sm">
+                    <i class="fa-solid fa-power-off text-red-400"></i> Black Screen
+                </button>
+                <div class="tooltip-content tooltip-bottom">Black out the screen</div>
+            </div>
             
             <div class="h-6 w-[1px] bg-slate-200 mx-1"></div>
 
@@ -174,30 +216,48 @@
                         <span class="text-slate-700 text-xs font-mono">BLACKOUT ACTIVE</span>
                     </div>
 
-                    <!-- Logo state overlay -->
-                    <div id="logoOverlay" class="hidden absolute inset-0 bg-slate-900 z-30 flex flex-col items-center justify-center text-white">
-                        <i class="fa-solid fa-cross text-3xl text-brand-500 mb-2"></i>
-                        <span class="font-bold text-sm tracking-widest uppercase">UECFI CHURCH</span>
+                    <!-- Logo state overlay (custom logo screen preview) -->
+                    <div id="logoOverlay" class="hidden absolute inset-0 bg-slate-900 z-30 text-white text-center">
+                        <img id="logoOverlayBg" style="display:none;position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;">
+                        <div id="logoOverlayDim" style="display:none;position:absolute;left:0;top:0;width:100%;height:100%;background:#000;"></div>
+                        <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:16px;">
+                            <img id="logoOverlayImg" style="display:none;max-width:45%;max-height:45%;object-fit:contain;margin-bottom:10px;">
+                            <span id="logoOverlayTitle" class="font-bold text-sm tracking-widest uppercase">Union Espiritista Cristiana de Filipinas, Inc.</span>
+                            <span id="logoOverlaySub" style="display:none;" class="text-[11px] mt-1 opacity-85"></span>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Quick Stage Navigation & Slide Control -->
             <div class="p-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
-                <button id="monitorPrevBtn" onclick="navPrevVerse()" class="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-1">
-                    <i class="fa-solid fa-chevron-left"></i> Prev
-                </button>
+                <div class="has-tooltip shrink-0">
+                    <button id="monitorPrevBtn" onclick="navPrevVerse()" class="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-1">
+                        <i class="fa-solid fa-chevron-left"></i> Prev
+                    </button>
+                    <div class="tooltip-content tooltip-bottom">Previous slide</div>
+                </div>
                 <span id="liveSlideIndicator" class="text-xs font-semibold text-slate-600">Verse 1 of 14</span>
-                <button id="monitorNextBtn" onclick="navNextVerse()" class="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-1">
-                    Next <i class="fa-solid fa-chevron-right"></i>
-                </button>
+                <div class="has-tooltip shrink-0">
+                    <button id="monitorNextBtn" onclick="navNextVerse()" class="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-1">
+                        Next <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                    <div class="tooltip-content tooltip-bottom">Next slide</div>
+                </div>
             </div>
 
-            <!-- Notepad (user-generated scratch list) -->
+            <!-- Notepad (user-generated scratch lists) -->
             <div class="flex-1 min-h-0 flex flex-col bg-white">
+                <div class="px-2 pt-2 flex items-center gap-1 shrink-0">
+                    <button id="notepadTabsPrevBtn" type="button" title="Scroll notepads left" class="shrink-0 p-1 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition" style="background:none;border:0;cursor:pointer;"><i class="fa-solid fa-chevron-left text-[10px]"></i></button>
+                    <div id="notepadTabs" class="flex-1 min-w-0 flex items-center gap-1 overflow-hidden"></div>
+                    <button id="notepadTabsNextBtn" type="button" title="Scroll notepads right" class="shrink-0 p-1 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition" style="background:none;border:0;cursor:pointer;"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>
+                    <button id="notepadAddPadBtn" type="button" title="Add notepad" class="shrink-0 p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition" style="background:none;border:0;cursor:pointer;"><i class="fa-solid fa-plus text-xs"></i></button>
+                </div>
                 <div class="px-3 py-2 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
                     <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Notepad</span>
                     <span class="flex items-center gap-2 shrink-0">
+                        <button id="notepadNumberBtn" type="button" onclick="if(typeof toggleNotepadNumbering==='function') toggleNotepadNumbering();" title="Number notes" class="text-[10px] font-semibold text-slate-400 hover:text-brand-600 transition" style="background:none;border:0;cursor:pointer;"><i class="fa-solid fa-list-ol"></i></button>
                         <button type="button" onclick="if(typeof uncheckAllNotepadItems==='function') uncheckAllNotepadItems();" title="Uncheck all notes" class="text-[10px] font-semibold text-slate-400 hover:text-brand-600 transition" style="background:none;border:0;cursor:pointer;">Uncheck all</button>
                         <span id="notepadCount" class="text-[10px] font-bold text-slate-400"></span>
                     </span>

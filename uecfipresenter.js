@@ -302,8 +302,6 @@ let searchFocus = false;
 let verseFocus = false;
 let tabViewN = null;
 let searchObj = null;
-let notesObj = null;
-let notesManageObj = null;
 let scheduleObj = null;
 let webServerObj = null;
 let bibleRefObj = null;
@@ -316,7 +314,6 @@ let remoteVV_UI_Obj = null;
 let setup_present_UI_Obj = null;
 let updateVV_UI_Obj = null;
 let varID = "";
-let notesUI = "";
 let songEditUI = "";
 let helpContent = "";
 let cpObj = null;
@@ -435,6 +432,12 @@ function launch(g) {
   window.presentedVerseIndex = g;
   window.selectedVerseIndex = g;
   if (typeof updateVerseHighlight === 'function') updateVerseHighlight();
+  // Keep the projected verse visible and centered so the surrounding
+  // verses stay in view for the operator (mirrors the Slides tab).
+  try {
+    const card = document.getElementById(`verseRow_${g}`);
+    if (card && typeof card.scrollIntoView === "function") card.scrollIntoView({ block: "center" });
+  } catch (e) {}
 }
 function loadBible(e, a) {
   if (!bibleVersionArray || !bibleVersionArray[e]) return;
@@ -622,14 +625,6 @@ function putver() {
   window.presentedVerseIndex = -1;
   window.selectedVerseIndex = 0;
   updateVerseContainer();
-  if (notesObj != null) {
-    console.log(`Notes Object Valid Book: ${bookval}`);
-    console.log(`Notes Object Valid Chapter: ${chval}`);
-    const a = document.getElementById("nm_note_type1");
-    if (a.checked) {
-      notesObj.getNotes(bookval, chval, 0);
-    }
-  }
 }
 function updateVerseContainer() {
   priFontName = bibleVersionArray[version1][6];
@@ -804,6 +799,12 @@ function vvinit() {
     if (typeof initNotepad === "function") {
       try { initNotepad(); } catch (e) {}
     }
+    if (typeof loadLogoScreenConfig === "function") {
+      try { loadLogoScreenConfig(); } catch (e) {}
+    }
+    if (typeof renderLogoOverlay === "function") {
+      try { renderLogoOverlay(); } catch (e) {}
+    }
     if (typeof updateProjectionControls === "function") {
       try { updateProjectionControls(); } catch (e) {}
     }
@@ -860,12 +861,8 @@ function setupNavWindow() {
     programTab.style.width = b - 25;
     programTab.style.height = tabHeight - 55;
   }
-  document.getElementById("notesTab").style.width = b - 25;
-  document.getElementById("notesTab").style.height = tabHeight - 60;
   document.getElementById("searchResultID").style.width = b - 25;
   document.getElementById("searchResultID").style.height = tabHeight - 150;
-  document.getElementById("notesResultsID").style.width = b - 30;
-  document.getElementById("notesResultsID").style.height = tabHeight - 350;
   songNavObj.setFormats();
   syncTabHeaderHeights();
   if (typeof sizeSidebarPreview === "function") {
@@ -876,7 +873,7 @@ function setupNavWindow() {
 /**
  * Equalize middle-panel tab header bars to the Schedule header height.
  * The Schedule header is measured read-only (never modified); Lyrics /
- * Slides / Notes / Search headers are compact single-row bars by design so
+ * Slides / Search headers are compact single-row bars by design so
  * their content always fits the measured height. Re-runs on tab switch and
  * resize because hidden tabs report offsetHeight 0 until first shown.
  */
@@ -887,7 +884,6 @@ function syncTabHeaderHeights() {
     if (!refH) return false;
     const sels = [
       "#lyricsTab > div > div.shrink-0",
-      "#notesTab > div > div.shrink-0",
       "#searchTab > div > div.shrink-0",
       "#programWorkspace > div > div.shrink-0",
     ];
@@ -933,7 +929,6 @@ function generateTabContent() {
   readTabContentFile("./content/config.txt", "configTab");
   readTabContentFile("./content/nav.txt", "navTab");
   readTabContentFile("./content/search.txt", "searchField");
-  readTabContentFile("./content/notesmanage.txt", "notesTab");
   readTabContentFile("./content/schedule.txt", "scheduleTab");
   readTabContentFile("./content/song_nav.txt", "songNavTab");
   readContentFile2Var("./content/help.txt");
@@ -943,12 +938,6 @@ function generateTabContent() {
   readTabContentFile("./content/song_lyrics.txt", "lyricsTab");
   readTabContentFile("./content/program_nav.txt", "programNavTab");
   readTabContentFile("./content/program_workspace.txt", "programTab");
-  readContentFile2Var("./content/notesui.txt");
-  notesUI = varID;
-  notesManageObj = new manageNotes();
-  notesObj = new notes();
-  notesObj.setNotesContainerID("notesPanelID");
-  notesManageObj.init(firstTimeFlag);
   cpObj = new cp();
   cpObj.init();
   // NOTE: the legacy per-version searchfile slot is inert metadata only;
@@ -1309,10 +1298,6 @@ function tabFrameVerse() {
     content: '<div id="programTab" class="tabSubContainer" style="height: 100%;">Slides</div>',
   });
   a.addTab({
-    label: " Notes",
-    content: '<div id="notesTab" class="notesTabSubContainer">Notes</div>',
-  });
-  a.addTab({
     label: " Search",
     content:
       '<div id="searchTab"><div id="searchField" class="searchFieldContainer"></div></div>',
@@ -1360,9 +1345,8 @@ function tabFrameVerse() {
     if(tabs[0]) tabs[0].innerHTML = '<i class="fa-solid fa-list-ol"></i> Verses';
     if(tabs[1]) tabs[1].innerHTML = '<i class="fa-solid fa-align-left"></i> Lyrics';
     if(tabs[2]) tabs[2].innerHTML = '<i class="fa-solid fa-layer-group"></i> Slides';
-    if(tabs[3]) tabs[3].innerHTML = '<i class="fa-regular fa-note-sticky"></i> Notes';
-    if(tabs[4]) tabs[4].innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Search';
-    if(tabs[5]) tabs[5].innerHTML = '<i class="fa-regular fa-calendar-check"></i> Schedule';
+    if(tabs[3]) tabs[3].innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Search';
+    if(tabs[4]) tabs[4].innerHTML = '<i class="fa-regular fa-calendar-check"></i> Schedule';
   }, 100);
 
   tabViewN = a;
@@ -1386,7 +1370,7 @@ function tabFrameVerse() {
       const songBar = document.getElementById("modernSongActionButtons");
       const progBar = document.getElementById("modernProgramActionButtons");
 
-      // For notes, search, schedule and graphics, do nothing to the left panel
+      // For search, schedule and graphics, do nothing to the left panel
       let leftTabIndex = -1;
       if (rightLabel === "Verses") {
         leftTabIndex = 0; // Bible tab in left panel
@@ -1514,7 +1498,6 @@ function firstTimeCheck() {
 function setupVVersion() {
   createFolder("xml");
   createFolder("bible");
-  createFolder("notes");
   createFolder("song");
   createFolder("network");
   var a = copyFile("xml/version.xml", "xml/version.xml");
@@ -1918,6 +1901,13 @@ function setupModernSongNavSync() {
                 div.classList.remove('slide-presented');
             }
         });
+        // Keep the projected lyric slide centered so the surrounding
+        // slides stay in view (mirrors the Slides tab). Only scrolls when
+        // the viewed song is the presented one.
+        try {
+            const live = document.querySelector('#ly_slide div.slide-presented');
+            if (live && typeof live.scrollIntoView === "function") live.scrollIntoView({ block: "center" });
+        } catch (e) {}
     };
 
     // Bind song close button to closePresentWindow
@@ -2043,6 +2033,10 @@ function setupModernSongNavSync() {
     };
 
     function renderSongList() {
+        // Rebuilding innerHTML resets the list scroll to top, so preserve
+        // it across the rebuild (clicking a lyric slide re-renders this list).
+        let savedScroll = 0;
+        try { savedScroll = modernList ? modernList.scrollTop : 0; } catch (e) {}
         // Source songs either from window.songDataStore or from the legacy table tbody rows
         const songData = (window.songDataStore && Array.isArray(window.songDataStore.songTitle) && window.songDataStore.songTitle.length > 0)
             ? window.songDataStore.songTitle
@@ -2056,7 +2050,6 @@ function setupModernSongNavSync() {
             modernList.innerHTML = '<div class="p-4 text-center text-xs text-slate-400">No songs found.</div>';
             return;
         }
-
         let html = '';
         for (let i = 0; i < totalItems; i++) {
             let title = '';
@@ -2100,16 +2093,17 @@ function setupModernSongNavSync() {
                         <p class="text-xs font-bold leading-snug truncate flex-1 min-w-0">${title}</p>
                         ${isPresented ? '<span class="px-1.5 py-0.2 rounded-full bg-emerald-600 text-white text-[9px] font-bold uppercase tracking-wider shrink-0">LIVE</span>' : ''}
                         <div class="flex items-center gap-1 opacity-90 shrink-0 text-[10px]">
-                            <button onclick="quickPresentSong(${i}, event)" title="Present Song" class="p-1 hover:bg-black/10 text-emerald-600 hover:text-emerald-700 rounded transition"><i class="fa-solid fa-play"></i></button>
-                            <button onclick="quickAddSongToSchedule(${i}, event)" title="Add to Schedule" class="p-1 hover:bg-black/10 text-brand-600 hover:text-brand-700 rounded transition"><i class="fa-regular fa-calendar-plus"></i></button>
-                            <button onclick="quickEditSong(${i}, event)" title="Edit Song" class="p-1 hover:bg-black/10 text-slate-600 hover:text-slate-900 rounded transition"><i class="fa-solid fa-pen-to-square"></i></button>
-                            <button onclick="quickDeleteSong(${i}, event)" title="Delete Song" class="p-1 hover:bg-red-500/20 text-red-500 rounded transition"><i class="fa-regular fa-trash-can"></i></button>
+                            <div class="has-tooltip"><button onclick="quickPresentSong(${i}, event)" class="p-1 hover:bg-black/10 text-emerald-600 hover:text-emerald-700 rounded transition"><i class="fa-solid fa-play"></i></button><div class="tooltip-content tooltip-bottom">Present Song</div></div>
+                            <div class="has-tooltip"><button onclick="quickAddSongToSchedule(${i}, event)" class="p-1 hover:bg-black/10 text-brand-600 hover:text-brand-700 rounded transition"><i class="fa-regular fa-calendar-plus"></i></button><div class="tooltip-content tooltip-bottom">Add Song to Schedule</div></div>
+                            <div class="has-tooltip"><button onclick="quickEditSong(${i}, event)" class="p-1 hover:bg-black/10 text-slate-600 hover:text-slate-900 rounded transition"><i class="fa-solid fa-pen-to-square"></i></button><div class="tooltip-content tooltip-bottom">Edit Song</div></div>
+                            <div class="has-tooltip"><button onclick="quickDeleteSong(${i}, event)" class="p-1 hover:bg-red-500/20 text-red-500 rounded transition"><i class="fa-regular fa-trash-can"></i></button><div class="tooltip-content tooltip-bottom">Delete Song</div></div>
                         </div>
                     </div>
                 </div>
             `;
         }
         modernList.innerHTML = html;
+        try { if (modernList) modernList.scrollTop = savedScroll; } catch (e) {}
     }
     window.renderModernSongList = renderSongList;
     window.updateSongListHighlight = renderSongList;

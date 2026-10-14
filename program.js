@@ -215,10 +215,10 @@ class ProgramManager {
           <div class="flex items-center justify-between gap-1">
             <div class="text-[11px] opacity-75 truncate flex-1 min-w-0">${summaryText ? summaryText : `Item #${idx + 1}`}</div>
             <div class="flex items-center gap-1 opacity-90 shrink-0 text-[10px]">
-              <button onclick="event.stopPropagation(); programManager.moveItem(${idx}, -1)" title="Move Up" class="p-1 hover:bg-black/10 rounded"><i class="fa-solid fa-chevron-up"></i></button>
-              <button onclick="event.stopPropagation(); programManager.moveItem(${idx}, 1)" title="Move Down" class="p-1 hover:bg-black/10 rounded"><i class="fa-solid fa-chevron-down"></i></button>
-              <button onclick="event.stopPropagation(); programManager.openItemModal(${idx})" title="Edit Item" class="p-1 hover:bg-black/10 rounded"><i class="fa-solid fa-pen-to-square"></i></button>
-              <button onclick="event.stopPropagation(); programManager.deleteItem(${idx})" title="Delete Item" class="p-1 hover:bg-red-500/20 text-red-500 rounded"><i class="fa-regular fa-trash-can"></i></button>
+              <div class="has-tooltip"><button onclick="event.stopPropagation(); programManager.moveItem(${idx}, -1)" class="p-1 hover:bg-black/10 rounded"><i class="fa-solid fa-chevron-up"></i></button><div class="tooltip-content tooltip-bottom">Move Up</div></div>
+              <div class="has-tooltip"><button onclick="event.stopPropagation(); programManager.moveItem(${idx}, 1)" class="p-1 hover:bg-black/10 rounded"><i class="fa-solid fa-chevron-down"></i></button><div class="tooltip-content tooltip-bottom">Move Down</div></div>
+              <div class="has-tooltip"><button onclick="event.stopPropagation(); programManager.openItemModal(${idx})" class="p-1 hover:bg-black/10 rounded"><i class="fa-solid fa-pen-to-square"></i></button><div class="tooltip-content tooltip-bottom">Edit Item</div></div>
+              <div class="has-tooltip"><button onclick="event.stopPropagation(); programManager.deleteItem(${idx})" class="p-1 hover:bg-red-500/20 text-red-500 rounded"><i class="fa-regular fa-trash-can"></i></button><div class="tooltip-content tooltip-bottom">Delete Item</div></div>
             </div>
           </div>
         </div>
@@ -284,7 +284,7 @@ class ProgramManager {
 
         if (isDual && col2Text) {
           slidesHtml += `
-            <div onclick="programManager.presentSlide(${this.selectedItemIndex}, ${sIdx})" class="${cardClass}">
+            <div onclick="event.preventDefault(); programManager.presentSlide(${this.selectedItemIndex}, ${sIdx})" class="${cardClass}">
               <div class="program-verse-bubble">${verseNum}</div>
               <div class="program-verse-col1" style="padding-right: 20px;">
                 ${col1Text}
@@ -296,7 +296,7 @@ class ProgramManager {
           `;
         } else {
           slidesHtml += `
-            <div onclick="programManager.presentSlide(${this.selectedItemIndex}, ${sIdx})" class="${cardClass}">
+            <div onclick="event.preventDefault(); programManager.presentSlide(${this.selectedItemIndex}, ${sIdx})" class="${cardClass}">
               <div class="program-verse-bubble">${verseNum}</div>
               <div class="program-verse-single">
                 ${col1Text}
@@ -305,7 +305,7 @@ class ProgramManager {
           `;
         }
       } else {
-        let slideClass = "bg-white border rounded-xl p-5 shadow-xs transition cursor-pointer relative hover:shadow-md ";
+        let slideClass = "program-slide-card bg-white border rounded-xl p-5 shadow-xs transition cursor-pointer relative hover:shadow-md ";
         if (isSlidePresented) {
           slideClass += "program-slide-presented ";
         } else {
@@ -313,15 +313,15 @@ class ProgramManager {
         }
 
         slidesHtml += `
-          <div onclick="programManager.presentSlide(${this.selectedItemIndex}, ${sIdx})" 
+          <div onclick="event.preventDefault(); programManager.presentSlide(${this.selectedItemIndex}, ${sIdx})" 
                class="${slideClass}">
             <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
               <span class="text-[11px] font-bold uppercase tracking-wider ${isSlidePresented ? 'text-emerald-700' : 'text-slate-500'}">
                 Slide ${sIdx + 1} of ${slides.length} ${isSlidePresented ? '<span class="ml-2 px-2 py-0.5 bg-emerald-600 text-white rounded-full text-[9px] font-bold uppercase tracking-wider">LIVE</span>' : ''}
               </span>
-              <button onclick="event.stopPropagation(); programManager.presentSlide(${this.selectedItemIndex}, ${sIdx})" class="px-2.5 py-1 text-xs font-bold rounded-md ${isSlidePresented ? 'bg-emerald-600 text-white' : 'bg-slate-100 hover:bg-brand-50 text-slate-700 hover:text-brand-700'} transition flex items-center gap-1.5">
+              <div class="has-tooltip shrink-0"><button onclick="event.stopPropagation(); programManager.presentSlide(${this.selectedItemIndex}, ${sIdx})" class="px-2.5 py-1 text-xs font-bold rounded-md ${isSlidePresented ? 'bg-emerald-600 text-white' : 'bg-slate-100 hover:bg-brand-50 text-slate-700 hover:text-brand-700'} transition flex items-center gap-1.5">
                 <i class="fa-solid fa-play text-[10px]"></i> Present
-              </button>
+              </button><div class="tooltip-content tooltip-bottom">Present This Slide</div></div>
             </div>
             <div class="text-center py-4 px-2">
               ${slide.text1 ? `<p class="text-base font-bold text-slate-900 leading-relaxed">${slide.text1}</p>` : ""}
@@ -589,6 +589,16 @@ class ProgramManager {
     // Refresh UI highlights
     this.renderLeftNav();
     this.renderRightWorkspace();
+    // The workspace re-render rebuilds the scrollable slides list, which
+    // resets its scroll to top. Center the projected (LIVE) slide so the
+    // operator can see the slides above and below it without scrolling.
+    try {
+      const ws = document.getElementById("programWorkspace");
+      const live = ws ? ws.querySelector(".program-slide-presented, .scripture-presented") : null;
+      if (live && typeof live.scrollIntoView === "function") {
+        live.scrollIntoView({ block: "center" });
+      }
+    } catch (e) {}
   }
 
   // Slide navigation

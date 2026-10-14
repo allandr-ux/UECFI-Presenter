@@ -194,6 +194,12 @@ function verseClass() {
     if (typeof updateVerseHighlight === "function") updateVerseHighlight();
   }
 }
+// Verse-number bubble attachment for verse cards. Formerly opened the
+// (removed) verse-notes panel on click; kept as a no-op stub because the
+// verses and search tabs still instantiate it per row.
+function postit() {
+  this.init = function() {};
+}
 function slideshow() {
   bookIndex = document.getElementById("bookList").selectedIndex;
   chapterIndex = document.getElementById("chapterList").selectedIndex;
