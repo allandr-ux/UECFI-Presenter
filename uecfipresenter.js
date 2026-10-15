@@ -444,6 +444,13 @@ function loadBible(e, a) {
   if (bible[e]) return; // Already cached in memory
 
   let fileUrl = AppStorage.resolveStoragePath("bible", bibleVersionArray[e][1]);
+  // Native absolute paths (Windows backslashes/drive letters) are not
+  // valid XHR URLs -- convert to file:// form. Relative paths pass through.
+  if (typeof AppStorage !== "undefined" && typeof AppStorage.toFileUrl === "function") {
+    try {
+      fileUrl = AppStorage.toFileUrl(fileUrl);
+    } catch (err) {}
+  }
 
   const b = new XMLHttpRequest();
   b.onreadystatechange = () => {
@@ -805,6 +812,9 @@ function vvinit() {
     if (typeof renderLogoOverlay === "function") {
       try { renderLogoOverlay(); } catch (e) {}
     }
+    if (typeof maybeShowRemoteToast === "function") {
+      try { maybeShowRemoteToast(); } catch (e) {}
+    }
     if (typeof updateProjectionControls === "function") {
       try { updateProjectionControls(); } catch (e) {}
     }
@@ -961,6 +971,7 @@ function generateTabContent() {
         }
         
         webServerObj.init({ presenterPort: pp, audiencePort: ap, host: c });
+        try { if (typeof syncRemoteVVStatusUI === "function") syncRemoteVVStatusUI(); } catch (e) {}
       }
     } catch(e) {
       console.warn("Failed to auto-start remote server", e);
@@ -990,7 +1001,7 @@ function readContentFile2Var(a) {
       const fs = require("fs");
       const path = require("path");
       const cleanPath = a.startsWith("file://") ? a.replace("file://", "") : a;
-      const fullPath = path.isAbsolute(cleanPath) ? cleanPath : path.join(__dirname || "", cleanPath);
+      const fullPath = path.isAbsolute(cleanPath) ? cleanPath : path.join((typeof AppStorage !== "undefined" && AppStorage.appDir) ? AppStorage.appDir() : "", cleanPath);
       if (fs.existsSync(fullPath)) {
         varID = fs.readFileSync(fullPath, "utf8");
         return;
@@ -1026,7 +1037,7 @@ function readTabContentFile(a, b) {
       const fs = require("fs");
       const path = require("path");
       const cleanPath = a.startsWith("file://") ? a.replace("file://", "") : a;
-      const fullPath = path.isAbsolute(cleanPath) ? cleanPath : path.join(__dirname || "", cleanPath);
+      const fullPath = path.isAbsolute(cleanPath) ? cleanPath : path.join((typeof AppStorage !== "undefined" && AppStorage.appDir) ? AppStorage.appDir() : "", cleanPath);
       if (fs.existsSync(fullPath)) {
         content = fs.readFileSync(fullPath, "utf8");
       }

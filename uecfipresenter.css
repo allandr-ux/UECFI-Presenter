@@ -1264,3 +1264,15 @@ dialog#panelObj[open] {
     min-height: 0 !important;
     overscroll-behavior-y: contain !important;
 }
+
+/* ========================================================
+   SEARCH RESULT KEYWORD HIGHLIGHT
+   Applied by search.js around the matched word (Contains mode)
+   or phrase (Exact Phrase mode) in both version columns.
+   ======================================================== */
+.highlighttext {
+    background-color: #fef08b;
+    color: inherit;
+    border-radius: 3px;
+    padding: 0 1px;
+}

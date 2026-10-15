@@ -569,6 +569,11 @@ function updatePresentation() {
     let imgSrc = "";
     if (p_bkgnd_filename && p_bkgnd_filename.trim() !== "") {
       imgSrc = p_bkgnd_filename.startsWith("file://") ? p_bkgnd_filename : AppStorage.resolvePath(p_bkgnd_filename);
+      if (typeof AppStorage !== "undefined" && typeof AppStorage.toFileUrl === "function") {
+        try {
+          imgSrc = AppStorage.toFileUrl(imgSrc);
+        } catch (e) {}
+      }
       bgImg.style.display = "block";
       bgImg.src = imgSrc;
     } else {

@@ -43,6 +43,9 @@ function remoteVV_UI_Class() {
   }
   function d() {}
   function a() {
+    // Refresh against the live server state on every open so the modal
+    // never shows the stale startup status.
+    try { if (typeof syncRemoteVVStatusUI === "function") syncRemoteVVStatusUI(); } catch (e) {}
     b.show();
   }
   function c() {

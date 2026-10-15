@@ -44,9 +44,71 @@
     return idbPromise;
   }
 
+  // App root directory, anchored to the loaded HTML file. Deterministic on
+  // every platform, packaged or dev -- unlike process.cwd(), which depends
+  // on how the app was launched (notably unreliable for installed
+  // Windows builds).
+  function appRootDir() {
+    try {
+      if (typeof window !== "undefined" && window.location && /^file:/i.test(window.location.href || "")) {
+        const path = require("path");
+        let p = "";
+        try {
+          p = decodeURIComponent(window.location.pathname || "");
+        } catch (e) {
+          p = window.location.pathname || "";
+        }
+        p = p.replace(/^\/([A-Za-z]:\/)/, "$1");
+        return path.dirname(p);
+      }
+    } catch (e) {}
+    try {
+      if (typeof __dirname === "string" && __dirname) return __dirname;
+    } catch (e) {}
+    try {
+      if (typeof process !== "undefined" && process.cwd) return process.cwd();
+    } catch (e) {}
+    return ".";
+  }
+
+  // Convert a filesystem path to a fetch/XHR/img-safe file:// URL.
+  // Relative paths pass through (they resolve against the document on any
+  // platform). Native absolute paths -- including Windows backslash and
+  // drive-letter forms, which XHR cannot parse -- are normalized.
+  function fileUrlFromPath(p) {
+    try {
+      let s = String(p == null ? "" : p);
+      if (/^file:\/\//i.test(s)) s = s.replace(/^file:\/+/i, "");
+      const absWin = /^[A-Za-z]:[\\/]/.test(s) || s.indexOf(":\\") >= 0;
+      if (!absWin && s.charAt(0) !== "/") return p;
+      s = s.replace(/\\/g, "/");
+      if (/^[A-Za-z]:\//.test(s)) return encodeURI("file:///" + s);
+      if (s.charAt(0) !== "/") return encodeURI("file:///" + s);
+      return encodeURI("file://" + s);
+    } catch (e) {
+      return p;
+    }
+  }
+
   const AppStorage = {
     isElectron: isElectron,
     isWeb: !isElectron,
+
+    /**
+     * App root directory, anchored to the loaded HTML file. Deterministic
+     * on every platform, packaged or dev -- unlike process.cwd(), which
+     * depends on how the app was launched (notably unreliable for
+     * installed Windows builds).
+     */
+    appDir: appRootDir,
+
+    /**
+     * Convert a filesystem path to a fetch/XHR/img-safe file:// URL.
+     * Relative paths pass through (they resolve against the document on
+     * any platform). Native absolute paths -- including Windows backslash
+     * and drive-letter forms, which XHR cannot parse -- are normalized.
+     */
+    toFileUrl: fileUrlFromPath,
 
     /**
      * Reads a text file.
@@ -58,7 +120,7 @@
           const fs = require('fs');
           const path = require('path');
           const cleanPath = filePath.startsWith('file://') ? filePath.replace('file://', '') : filePath;
-          const fullPath = path.isAbsolute(cleanPath) ? cleanPath : path.join(__dirname || '', cleanPath);
+          const fullPath = path.isAbsolute(cleanPath) ? cleanPath : path.join(appRootDir(), cleanPath);
           if (fs.existsSync(fullPath)) {
             return fs.readFileSync(fullPath, 'utf8');
           }
@@ -90,9 +152,11 @@
         if (val !== null) return val;
       }
 
-      // Web Fetch fallback for static files (e.g. content/*.txt, xml/*.xml)
+      // Web Fetch fallback for static files (e.g. content/*.txt, xml/*.xml).
+      // Native absolute paths (Windows backslashes/drive letters) must be
+      // converted to file:// URLs or fetch cannot parse them.
       try {
-        const res = await fetch(filePath);
+        const res = await fetch(fileUrlFromPath(filePath));
         if (res.ok) {
           return await res.text();
         }
@@ -113,7 +177,7 @@
           const fs = require('fs');
           const path = require('path');
           const cleanPath = filePath.startsWith('file://') ? filePath.replace('file://', '') : filePath;
-          const fullPath = path.isAbsolute(cleanPath) ? cleanPath : path.join(__dirname || '', cleanPath);
+          const fullPath = path.isAbsolute(cleanPath) ? cleanPath : path.join(appRootDir(), cleanPath);
           fs.mkdirSync(path.dirname(fullPath), { recursive: true });
           fs.writeFileSync(fullPath, content, 'utf8');
         } catch (e) {
@@ -186,7 +250,7 @@
     resolvePath(...parts) {
       if (isNode) {
         const path = require('path');
-        return path.join(__dirname || process.cwd(), ...parts);
+        return path.join(appRootDir(), ...parts);
       }
       return parts.join('/').replace(/\/+/g, '/');
     },
@@ -205,8 +269,10 @@
       if (isNode) {
         try {
           const fs = require('fs');
+          const path = require('path');
           const cleanPath = filePath.startsWith('file://') ? filePath.replace('file://', '') : filePath;
-          return fs.existsSync(cleanPath);
+          const fullPath = path.isAbsolute(cleanPath) ? cleanPath : path.join(appRootDir(), cleanPath);
+          return fs.existsSync(fullPath);
         } catch (e) {
           return false;
         }
@@ -223,8 +289,13 @@
         try {
           const fs = require('fs');
           const path = require('path');
-          const cleanSrc = src.startsWith('file://') ? src.replace('file://', '') : src;
-          const cleanDest = dest.startsWith('file://') ? dest.replace('file://', '') : dest;
+          const anchor = (f) => {
+            let c = f.startsWith('file://') ? f.replace('file://', '') : f;
+            if (!path.isAbsolute(c)) c = path.join(appRootDir(), c);
+            return c;
+          };
+          const cleanSrc = anchor(src);
+          const cleanDest = anchor(dest);
           if (!overwrite && fs.existsSync(cleanDest)) return false;
           fs.mkdirSync(path.dirname(cleanDest), { recursive: true });
           fs.copyFileSync(cleanSrc, cleanDest);

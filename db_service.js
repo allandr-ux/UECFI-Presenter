@@ -150,7 +150,8 @@
         try {
           const path = require('path');
           const fs = require('fs');
-          const fullPath = path.isAbsolute(cleanPath) ? cleanPath : path.join(__dirname || process.cwd(), cleanPath);
+          const appBase = (typeof AppStorage !== "undefined" && AppStorage.appDir) ? AppStorage.appDir() : ((typeof __dirname === "string" && __dirname) ? __dirname : process.cwd());
+          const fullPath = path.isAbsolute(cleanPath) ? cleanPath : path.join(appBase, cleanPath);
           fs.mkdirSync(path.dirname(fullPath), { recursive: true });
           rawDb = new Database(fullPath);
         } catch (err) {

@@ -162,28 +162,7 @@ function configInit() {
   try { fillIP_address(); } catch (e) { console.warn("[CONFIG] fillIP_address failed:", e); }
   
   // Restore ports and sync UI
-  try {
-    const pp = localStorage.getItem("remoteVVPresenterPort");
-    if (pp) setVal("configPresenterPort", pp);
-    const ap = localStorage.getItem("remoteVVAudiencePort");
-    if (ap) setVal("configAudiencePort", ap);
-    
-    if (typeof webServerObj !== "undefined" && webServerObj && typeof webServerObj.remoteVVStatus === "function") {
-      if (webServerObj.remoteVVStatus()) {
-        remoteCfgSet("saveRemoteVVSettings", "value", " Disable Remote Access ");
-        remoteCfgSet("configPresenterPort", "disabled", true);
-        remoteCfgSet("configAudiencePort", "disabled", true);
-        remoteCfgSet("configIPaddr", "disabled", true);
-        refreshRemoteVVStatus();
-      } else {
-        remoteCfgSet("saveRemoteVVSettings", "value", " Enable Remote Access ");
-        try { document.getElementById("remoteVVStatus").innerHTML = "Remote Access Disabled"; } catch (e) {}
-        remoteCfgSet("configPresenterPort", "disabled", false);
-        remoteCfgSet("configAudiencePort", "disabled", false);
-        remoteCfgSet("configIPaddr", "disabled", false);
-      }
-    }
-  } catch(e) {}
+  try { syncRemoteVVStatusUI(); } catch (e) {}
 
   on("saveRemoteVVSettings", "click", toggleRemoteVV);
   on("remoteBtnAdd", "click", addRemoteButton);
@@ -247,6 +226,42 @@ function remoteCfgSet(id, prop, val) {
   try {
     const el = document.getElementById(id);
     if (el) el[prop] = val;
+  } catch (e) {}
+}
+// Re-reads the live server state into the Remote Access modal (button
+// label, field locks, status URLs). Called at init AND every time the
+// modal opens, so it can never show a stale status.
+function syncRemoteVVStatusUI() {
+  try {
+    // Local guarded setter: the setVal helper lives inside configInit()
+    // and is not visible at module scope (that scoping gap is exactly what
+    // used to abort this sync with a silent ReferenceError).
+    const setV = (id, v) => {
+      try {
+        const el = document.getElementById(id);
+        if (el) el.value = v;
+      } catch (e) {}
+    };
+    const pp = localStorage.getItem("remoteVVPresenterPort");
+    if (pp) setV("configPresenterPort", pp);
+    const ap = localStorage.getItem("remoteVVAudiencePort");
+    if (ap) setV("configAudiencePort", ap);
+
+    if (typeof webServerObj !== "undefined" && webServerObj && typeof webServerObj.remoteVVStatus === "function") {
+      if (webServerObj.remoteVVStatus()) {
+        remoteCfgSet("saveRemoteVVSettings", "value", " Disable Remote Access ");
+        remoteCfgSet("configPresenterPort", "disabled", true);
+        remoteCfgSet("configAudiencePort", "disabled", true);
+        remoteCfgSet("configIPaddr", "disabled", true);
+        refreshRemoteVVStatus();
+      } else {
+        remoteCfgSet("saveRemoteVVSettings", "value", " Enable Remote Access ");
+        try { document.getElementById("remoteVVStatus").innerHTML = "Remote Access Disabled"; } catch (e) {}
+        remoteCfgSet("configPresenterPort", "disabled", false);
+        remoteCfgSet("configAudiencePort", "disabled", false);
+        remoteCfgSet("configIPaddr", "disabled", false);
+      }
+    }
   } catch (e) {}
 }
 let presenterPortNumber = 50000;

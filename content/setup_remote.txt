@@ -20,6 +20,14 @@
 		<div class="mt-2">
 		  	<input name="saveRemoteVVSettings" type="button" id="saveRemoteVVSettings" value=" Enable Remote Access " class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold transition cursor-pointer">
 		</div>
+		<div class="mt-2 px-3 py-2 bg-brand-50 border border-brand-500 rounded-lg flex items-start gap-2">
+			<i class="fa-brands fa-android text-brand-600 text-base mt-0.5"></i>
+			<div class="flex-1 min-w-0">
+				<div class="text-[11px] font-bold text-slate-700">Android app available</div>
+				<div class="text-[11px] text-slate-500">Control slides from your phone with the UECFI Remote app — no browser needed.</div>
+				<button type="button" onclick="if(window.electronBridge&&window.electronBridge.openExternal)window.electronBridge.openExternal('https://downloads.uecfi.net/Apps/uecfi-remote.apk');else window.open('https://downloads.uecfi.net/Apps/uecfi-remote.apk','_blank');" class="mt-1.5 px-3 py-1 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-[11px] font-bold transition cursor-pointer">Download APK</button>
+			</div>
+		</div>
 	</div>
 
 	<div>

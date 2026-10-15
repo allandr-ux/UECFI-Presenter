@@ -16,10 +16,11 @@
                class="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-500 focus:bg-white transition">
       </div>
 
-      <!-- Search Style (Contains vs Exact Phrase) -->
+      <!-- Search Style (Contains vs Exact Phrase vs Exact Word) -->
       <select id="searchStyle" class="w-28 shrink-0 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none focus:border-brand-500 focus:bg-white transition">
         <option value="0" selected>Contains</option>
         <option value="1">Exact Phrase</option>
+        <option value="2">Exact Word</option>
       </select>
 
       <!-- Book Filter -->
@@ -41,7 +42,7 @@
         <div class="text-center py-16 text-slate-400">
           <i class="fa-solid fa-book-bible text-4xl mb-3 text-slate-300"></i>
           <h3 class="text-sm font-bold text-slate-600">No Search Results Yet</h3>
-          <p class="text-xs text-slate-400 mt-1">Enter a word or phrase above and press Search to find scriptures.</p>
+          <p class="text-xs text-slate-400 mt-1">Results appear as you type (3+ letters).</p>
         </div>
       </div>
     </div>

@@ -84,31 +84,10 @@ class ProgramManager {
       }
     }
 
-    if (!loaded || !Array.isArray(this.items) || this.items.length === 0) {
-      // Default initial starter items to guide users
-      this.items = [
-        {
-          id: "item_" + Date.now() + "_1",
-          type: "tema",
-          title: "(Tema)",
-          data: {
-            tema: "Ang Matibay na Pananampalataya sa Panahon ng Pagsubok",
-            batayan: [
-              { bookIndex: 18, bookName: "Mga Awit/Psalms", chapter: 23, fromVerse: 1, toVerse: 6 }
-            ]
-          }
-        },
-        {
-          id: "item_" + Date.now() + "_2",
-          type: "person",
-          title: "Panauhing Tagapagsalita",
-          data: {
-            personType: "Panauhing Tagapagsalita",
-            name: "Kapatid na Juan dela Cruz",
-            centro: "Centro General Mariano Alvarez"
-          }
-        }
-      ];
+    if (!loaded || !Array.isArray(this.items)) {
+      // Fresh installs start with an empty program; the operator builds it
+      // with "+ Add Item". (An intentionally emptied program stays empty.)
+      this.items = [];
       this.saveProgramData();
     }
   }
@@ -997,9 +976,10 @@ class ProgramManager {
         const Database = require("better-sqlite3");
         const path = require("path");
         const fs = require("fs");
-        let dbPath = path.join(__dirname, "storage", "song", "default.db");
+        const appBase = (typeof AppStorage !== "undefined" && AppStorage.appDir) ? AppStorage.appDir() : ((typeof __dirname === "string" && __dirname) ? __dirname : process.cwd());
+        let dbPath = path.join(appBase, "storage", "song", "default.db");
         if (!fs.existsSync(dbPath)) {
-          dbPath = path.join(process.cwd(), "storage", "song", "default.db");
+          dbPath = path.join(appBase, "song", "default.db");
         }
         if (fs.existsSync(dbPath)) {
           const db = new Database(dbPath, { readonly: true });

@@ -73,6 +73,12 @@ function vvWebServer() {
 
   function getAppRoot() {
     try {
+      if (typeof AppStorage !== "undefined" && AppStorage.appDir) {
+        const d = AppStorage.appDir();
+        if (d) return d;
+      }
+    } catch (e) {}
+    try {
       if (typeof __dirname === "string" && __dirname) return __dirname;
     } catch (e) {}
     try {
