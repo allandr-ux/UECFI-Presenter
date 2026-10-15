@@ -1,0 +1,62 @@
+<div id="helpID" class="generalDIV">
+
+	<div class="generalheading2">About UECFI Presenter 5</div><br>
+	
+	<div class="generaltext">
+		UECFI Presenter 5<br>
+		http://www.uecfipresenter.info/ <br>
+		1/24/2011<br><br>
+		The UECFI PRESENTER software is available for free. No part of the code should be modified.
+		Register with your email on the website for notices of future releases and support for UECFI Presenter.<br>
+	</div><br>
+	
+	<div class="generalheading2">Disclaimer</div>
+	<div class="generaltext">
+	The use of the UECFI PRESENTER software downloaded through the uecfipresenter.info 
+	site is done at your own discretion and risk and with agreement that 
+	you will be solely responsible for any damage to your computer system 
+	or loss of data that results from such activities. No advice or information, 
+	whether oral or written, obtained by you from UECFI PRESENTER or from the 
+	UECFI PRESENTER web site shall create any warranty for the software.
+	</div> <br>
+	
+	<div class="generalheading2">Copyright</div>
+	<div class="generaltext">
+	<u>Software</u> : Binu Ariyappallil Joseph <br>
+	<u>Software Library</u> : Electron, Node.js, better-sqlite3, and Tailwind CSS.<br>
+	</div><br>
+
+
+<div class="generalheading2">Getting started with UECFI Presenter 5</div>
+
+<div class="generaltext"><p>UECFI Presenter 5 is a software that will allow displaying Bible verses and Song lyrics in a presentation format.
+Additional information are available on the UECFI Presenter website.</p></div><br>
+
+<div class="generalheading2" style="font-weight: normal;">Tabs</div>
+
+<div class="generaltext">
+
+  <p><u>Bible</u> - This tab contains controls for slecting a specific verse and presenting it.This includes
+    quick reference text boxes, recently selected verses, word search, buttons for navigating verses and scheduling. </p><br>
+
+  <p><u>Songs</u> - This tab contains controls for slecting a songs and presenting it. This includes
+    song list with pages, lyrics search, buttons for navigating verses and scheduling. </p><br>
+
+  <p><u>Verses</u> - This tab lists the verses of the selected chapter. Also provides an icon for notes.</p><br>
+
+  <p><u>Lyrics</u> - This tab lists the lyrics of the selected song.</p><br>
+
+  <p><u>Notes</u> - This tab is for reviewing the notes taken for the selected chapter.</p><br>
+
+  <p><u>Search</u> - This tab displays the search results and parameters for advanced search.</p><br>
+
+  <p><u>Schedule</u> - This tab displays controls to manage schedule.</p><br>
+ 
+  <p><u>Graphics</u> - This tab is for selecting the foreground color and background images.</p><br>
+
+  <p><u>Menu</u> - This manages setup options for navigation, presentation, song and Bible database management. </p><br>
+
+<p>Binu Ariyappallil Joseph</p>
+http://www.uecfipresenter.info/
+</div>
+</div>

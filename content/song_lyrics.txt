@@ -1,0 +1,23 @@
+<div class="flex-1 min-h-0 flex flex-col bg-slate-50 w-full relative">
+    
+    <!-- Top Song Header Bar (compact single-row, matches Schedule header height) -->
+    <div class="shrink-0 bg-white border-b border-slate-200 p-4 shadow-sm z-10">
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex-1 min-w-0">
+                <h2 id="ly_name" class="text-base font-bold text-slate-800 tracking-tight leading-tight truncate">Song Name</h2>
+                <p class="text-[11px] text-slate-400 mt-0.5 truncate"><span id="ly_cat">Category</span> &bull; Key: <span id="ly_key">C</span> &bull; <span id="ly_copy">Copyright</span> &mdash; <span class="italic">Notes: <span id="ly_notes">None</span></span></p>
+            </div>
+            <button onclick="document.getElementById('songnav_presentbutton').click()" class="px-3.5 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg shadow-xs text-xs font-bold transition flex items-center gap-1.5 shrink-0">
+                <i class="fa-solid fa-play text-[10px]"></i> Present
+            </button>
+        </div>
+        <span id="ly_font" style="display: none !important;"></span>
+    </div>
+    
+    <!-- Lyrics Content Area -->
+    <div id="ly" class="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 bg-slate-50 custom-scrollbar">
+        <!-- The legacy code injects divs into ly_slide, and then writes HTML into them -->
+        <div id="ly_slide" class="max-w-3xl mx-auto space-y-4 pb-12"></div>
+    </div>
+
+</div>

@@ -1,0 +1,114 @@
+<html>
+<head>
+	<title>Remote UECFI Presenter</title>
+	<script>
+		var command;
+		var items;
+		function getBibleRef(){
+			//alert("Presenting remotly...");
+			var ref = document.getElementById('remote_bibleRefID').value;
+			ref = ref.replace(/%20/g," ");
+			var str = 'test.txt?command=1&value=' + ref + '?';
+			command = 1;
+			//alert(str);
+			ajax(str);
+		}
+		
+		function getNextBibleRef(){
+			//document.getElementById('remote_nextButtonID').disabled = true;
+			var str = 'test.txt?command=2&value=0?';
+			command = 2;
+			ajax(str);
+		}
+		
+		function getPrevBibleRef(){
+			var str = 'test.txt?command=3&value=0?';
+			command = 3;
+			ajax(str);
+		}
+		
+		function blankPresentWindow(){
+			var str = 'test.txt?command=4&value=0?';
+			command = 4;
+			ajax(str);
+		}
+		
+		function getSch(){
+			var str = 'test.txt?command=6&value=0?';
+			command = 6;
+			ajax(str);
+		}
+		
+		function presentSch(){
+			var schIndex = document.getElementById('schID').selectedIndex;
+			var val = document.getElementById('schID').options[schIndex].value;
+			var str = 'test.txt?command=7&value=' +val+ '?';		//Might just need the index
+			command = 7;
+			ajax(str);
+		}
+		
+		function fillSch(str){
+			items = str.split("|");
+			var itemsLength = items.length;
+			for(var i=0; i< itemsLength; i++){
+				document.getElementById('schID').options[i] = new Option(items[i],i);
+			}
+		}
+		
+		function ajax(str){
+			xmlhttp = new XMLHttpRequest();
+	 		xmlhttp.onreadystatechange=function() {
+  				if (xmlhttp.readyState==4 && xmlhttp.status==200) {
+   					if (command == 5) {
+						fillRecent(xmlhttp.responseText);
+					}
+  					if (command == 6) {
+						fillSch(xmlhttp.responseText);
+					}					
+					else {
+						document.getElementById("resultID").innerHTML = xmlhttp.responseText;
+					}
+  				}
+ 			}
+			xmlhttp.open("GET",str,true);
+ 			xmlhttp.send();
+		}
+	</script>
+	<style>
+		.remotestyle{
+			font-family: Arial, Helvetica, sans-serif;
+			font-size:10px;
+			height:auto;
+			width:300px;
+			background-color: #edf5ff;
+			border: medium double #cccccc;
+		}
+		.listStyle{
+			font-family: Arial, Helvetica, sans-serif;
+			font-size: 11px;
+			width: 250px;
+		}
+	</style>
+</head>
+<body>
+	<div class="remotestyle">
+		<h2 style{font-size:12px;}>Remote UECFI Presenter</h2>
+		<input type="text" size="20" id="remote_bibleRefID">
+		<input type="button" value="PRESENT" id="remote_bibleRefButtonID" onClick="getBibleRef()">
+		<br><br>
+		
+		<div id="resultID"></div><hr>
+		
+		<h2>Schedule</h2><br>
+		<select id="schID" size=5 class="listStyle"></select><br>
+		<input type="button" value="GET SCHEDULE" id="remote_getschID" onclick="getSch()">
+		<input type="button" value="PRESENT" id="remote_schpresentID" onclick="presentSch()">
+		
+		<hr>
+		<input type="button" value="<<" id="remote_previousButtonID" onclick="getPrevBibleRef()">
+		<input type="button" value=">>" id="remote_nextButtonID" onClick="getNextBibleRef()">
+		<input type="button" value="BLANK" id="remote_blankID" onclick="blankPresentWindow()">		
+	</div>
+	UECFI Presenter 5 (12/17/2010)
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#000000">
+<title>UECFI Live</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; background: #000; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  #fsBtn { position: fixed; top: 10px; right: 10px; z-index: 5; background: rgba(255,255,255,0.14); color: #fff; border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; font-size: 13px; font-weight: bold; padding: 8px 10px; font-family: Arial, Helvetica, sans-serif; }
+  #engineBox { position: relative; width: 100vw; overflow: hidden; background: #000; }
+  #engine { border: 0; pointer-events: none; transform-origin: top left; display: block; position: absolute; left: 0; top: 0; }
+  #offair { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 10px; align-items: center; justify-content: center; color: #475569; background: #000; font-family: Arial, Helvetica, sans-serif; z-index: 2; }
+  #offair .big { font-size: 22px; font-weight: bold; letter-spacing: 4px; }
+  #offair .sub { font-size: 13px; color: #334155; }
+</style>
+</head>
+<body>
+  <button id="fsBtn" type="button">&#9966;</button>
+  <div id="engineBox">
+    <iframe id="engine" title="Live projection" src="presentation.htm" scrolling="no" width="800" height="600"></iframe>
+    <div id="offair">
+      <div class="big">OFF AIR</div>
+      <div class="sub">UECFI Presenter</div>
+    </div>
+  </div>
+<script src="remote_engine.js"></script>
+<script>
+  if (window.RemoteEngine) window.RemoteEngine.start(1000);
+</script>
+</body>
+</html>

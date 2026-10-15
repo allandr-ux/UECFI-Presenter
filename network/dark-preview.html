@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#f1f5f9">
+<title>UECFI Presenter — Speaker Remote</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root, :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f1f5f9; --fg: #0f172a; --muted: #64748b;
+    --card: #ffffff; --card-border: #e2e8f0;
+    --btn-bg: #ffffff; --btn-fg: #0f172a; --btn-border: #cbd5e1; --btn-active: #e2e8f0;
+    --field-bg: #ffffff; --field-fg: #0f172a; --field-border: #cbd5e1;
+    --row-fg: #0f172a; --row-sub: #64748b;
+    --engine-bg: #020617; --engine-border: #cbd5e1;
+    --offair-bg: #e2e8f0; --offair-fg: #64748b;
+    --float-bg: rgba(255,255,255,.92); --float-fg: #334155; --float-border: #cbd5e1;
+    --meta: #f1f5f9;
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0f172a; --fg: #f1f5f9; --muted: #94a3b8;
+    --card: #1e293b; --card-border: #334155;
+    --btn-bg: #1e293b; --btn-fg: #f1f5f9; --btn-border: #1e293b; --btn-active: #334155;
+    --field-bg: #0f172a; --field-fg: #f1f5f9; --field-border: #334155;
+    --row-fg: #e2e8f0; --row-sub: #94a3b8;
+    --engine-bg: #020617; --engine-border: #334155;
+    --offair-bg: #020617; --offair-fg: #64748b;
+    --float-bg: rgba(30,41,59,.85); --float-fg: #cbd5e1; --float-border: #334155;
+    --meta: #0f172a;
+  }
+  html, body { height: 100%; }
+  body { margin: 0; padding: 12px; background: var(--bg); color: var(--fg); font-family: Arial, Helvetica, sans-serif; min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; overflow-x: hidden; }
+  #fsBtn { position: fixed; top: 10px; right: 10px; z-index: 5; background: var(--float-bg); color: var(--float-fg); border: 1px solid var(--float-border); border-radius: 8px; font-size: 12px; font-weight: bold; padding: 6px 10px; }
+  #themeBtn { position: fixed; top: 10px; left: 10px; z-index: 5; background: var(--float-bg); color: var(--float-fg); border: 1px solid var(--float-border); border-radius: 8px; font-size: 12px; font-weight: bold; padding: 6px 10px; }
+  #remoteLayout { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 100%; }
+  #colLive, #colCtl { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  #colCtl { flex: 1 1 auto; min-height: 0; }
+  #engineBox { position: relative; width: 100%; max-width: 100%; overflow: hidden; background: var(--engine-bg); border: 1px solid var(--engine-border); border-radius: 10px; min-height: 120px; }
+  #engine { border: 0; pointer-events: none; transform-origin: top left; display: block; position: absolute; left: 0; top: 0; }
+  #offair { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: bold; letter-spacing: 2px; color: var(--offair-fg); background: var(--offair-bg); z-index: 2; }
+  .strip { display: flex; gap: 10px; }
+  .strip button { flex: 1; min-width: 0; padding: 16px 0; font-size: 16px; font-weight: bold; border: 1px solid var(--btn-border); border-radius: 10px; background: var(--btn-bg); color: var(--btn-fg); }
+  .strip button:active { background: var(--btn-active); }
+  .strip button:disabled { opacity: .35; }
+  #customStrip { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  #customStrip button { padding: 14px 6px; font-size: 14px; font-weight: bold; border: 0; border-radius: 10px; background: #4c1d95; color: #fff; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #customStrip button:active { background: #6d28d9; }
+  #scriptCard { background: var(--card); border: 1px solid var(--card-border); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+  .cardTitle { font-size: 12px; font-weight: bold; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; flex-shrink: 0; }
+  .selCols { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 6px; flex: 1 1 auto; min-height: 120px; }
+  .selCol { display: flex; flex-direction: column; min-height: 0; background: var(--field-bg); border: 1px solid var(--field-border); border-radius: 8px; overflow: hidden; }
+  .selColHead { font-size: 10px; font-weight: bold; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; padding: 6px 4px; text-align: center; border-bottom: 1px solid var(--field-border); flex-shrink: 0; }
+  .selColBody { flex: 1; overflow-y: auto; padding: 4px; min-height: 0; -webkit-overflow-scrolling: touch; }
+  .rowBook, .rowNum { display: block; width: 100%; border: 0; background: transparent; color: var(--row-fg); border-radius: 6px; padding: 9px 10px; font-size: 14px; text-align: left; }
+  .rowBook .p2 { font-size: 11px; color: var(--row-sub); line-height: 1.2; }
+  .rowBook.on { background: #7c3aed; color: #fff; font-weight: bold; }
+  .rowBook.on .p2 { color: #e9d5ff; }
+  .rowNum { text-align: center; font-size: 16px; padding: 9px 4px; }
+  .rowNum.onB { background: #7c3aed; color: #fff; font-weight: bold; }
+  .rowNum.onG { background: #16a34a; color: #fff; font-weight: bold; }
+  #scrGo { display: block; width: 100%; margin-top: 8px; background: #4c1d95; color: #fff; border: 0; border-radius: 8px; font-weight: bold; font-size: 14px; padding: 12px 6px; flex-shrink: 0; }
+  #scrGo:active { background: #6d28d9; }
+  #scrMsg { font-size: 12px; color: var(--muted); min-height: 14px; margin-top: 6px; text-align: center; flex-shrink: 0; }
+  /* Landscape: two columns, app-height layout, internal scroll only */
+  @media (orientation: landscape) {
+    body { height: 100vh; height: 100dvh; overflow: hidden; }
+    #remoteLayout { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 12px; overflow: hidden; }
+    #colLive, #colCtl { min-height: 0; overflow-y: auto; overflow-x: hidden; }
+    #colCtl { padding-top: 30px; }
+    .strip button { padding: 12px 0; font-size: 15px; }
+    #customStrip { flex-shrink: 0; }
+    #scriptCard { flex: 1 1 auto; min-height: 0; }
+    #scriptCard .cardTitle, #scrGo, #scrMsg { flex-shrink: 0; }
+    .selCols { flex: 1 1 auto; min-height: 0; }
+    #customStrip button { padding: 10px 6px; font-size: 13px; }
+    #scriptCard { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+    #scriptCard .cardTitle, #scrGo, #scrMsg { flex-shrink: 0; }
+    .selCols { flex: 1 1 auto; height: auto; min-height: 140px; }
+    #scrGo { padding: 10px 6px; font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+  <button id="fsBtn" type="button">&#9966; Full</button>
+  <button id="themeBtn" type="button" title="Toggle dark theme">&#127769;</button>
+  <main id="remoteLayout">
+    <section id="colLive">
+      <div id="engineBox">
+        <iframe id="engine" title="Live projection" src="presentation.htm" scrolling="no" width="800" height="600"></iframe>
+        <div id="offair">OFF AIR</div>
+      </div>
+      <div class="strip">
+        <button id="rmPrev" type="button" onclick="sendCmd('3')">&#9664; Prev</button>
+        <button id="rmNext" type="button" onclick="sendCmd('2')">Next &#9654;</button>
+      </div>
+      <div id="customStrip"></div>
+    </section>
+    <section id="colCtl">
+      <div id="scriptCard">
+        <div class="cardTitle">Scripture</div>
+        <div class="selCols">
+          <div class="selCol">
+            <div class="selColHead">Book</div>
+            <div class="selColBody" id="scrBookBody"></div>
+          </div>
+          <div class="selCol">
+            <div class="selColHead">Chapter</div>
+            <div class="selColBody" id="scrChBody"></div>
+          </div>
+          <div class="selCol">
+            <div class="selColHead">Verse</div>
+            <div class="selColBody" id="scrVBody"></div>
+          </div>
+        </div>
+        <button id="scrGo" type="button">Present</button>
+        <div id="scrMsg"></div>
+      </div>
+    </section>
+  </main>
+<script src="remote_engine.js"></script>
+<script>
+  /* Light by default, dark on toggle. Choice persists per device. */
+  function applyRemoteTheme(t) {
+    if (t !== 'dark') t = 'light';
+    try { document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+    try { localStorage.setItem('uecfi_speaker_theme', t); } catch (e) {}
+    try {
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.content = (t === 'dark') ? '#0f172a' : '#f1f5f9';
+    } catch (e) {}
+    try {
+      var b = document.getElementById('themeBtn');
+      if (b) b.textContent = (t === 'dark') ? '\u2600' : '\ud83c\udf19';
+    } catch (e) {}
+  }
+  function toggleRemoteTheme() {
+    var cur = 'light';
+    try { cur = document.documentElement.getAttribute('data-theme') || 'light'; } catch (e) {}
+    applyRemoteTheme(cur === 'dark' ? 'light' : 'dark');
+  }
+  (function initRemoteTheme() {
+    var saved = 'light';
+    try { saved = "dark"; } catch (e) {}
+    applyRemoteTheme(saved);
+    try { document.getElementById('themeBtn').addEventListener('click', toggleRemoteTheme); } catch (e) {}
+  })();
+  function sendCmd(cmd, value) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', 'test.txt?command=' + encodeURIComponent(cmd) + '&value=' + encodeURIComponent(value || '0') + '?', true);
+    xhr.send();
+  }
+  // Transport rules from the server disable Prev/Next (tema/person live,
+  // song/program at an end). Called by remote_engine on every state poll.
+  window.onRemoteNav = function(nav) {
+    try {
+      var p = document.getElementById('rmPrev');
+      var n = document.getElementById('rmNext');
+      var canPrev = !!(nav && nav.canPrev);
+      var canNext = !!(nav && nav.canNext);
+      if (p) p.disabled = !canPrev;
+      if (n) n.disabled = !canNext;
+    } catch (e) {}
+  };
+  function sendCmdFeedback(cmd, value, msgId) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', 'test.txt?command=' + encodeURIComponent(cmd) + '&value=' + encodeURIComponent(value || '0') + '?', true);
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState !== 4) return;
+      var host = document.getElementById(msgId);
+      if (!host) return;
+      host.textContent = (xhr.status === 200) ? xhr.responseText : 'Request failed';
+    };
+    xhr.send();
+  }
+  function apiGet(path, cb) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', path, true);
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState !== 4 || xhr.status !== 200) return;
+      try { cb(JSON.parse(xhr.responseText)); } catch (e) {}
+    };
+    xhr.send();
+  }
+  function loadButtons() {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', 'api/buttons', true);
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState !== 4 || xhr.status !== 200) return;
+      try {
+        var list = JSON.parse(xhr.responseText) || [];
+        var host = document.getElementById('customStrip');
+        host.innerHTML = '';
+        list.forEach(function(b) {
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.textContent = b.label;
+          btn.title = b.label;
+          btn.onclick = (function(cmd, val) {
+            return function() { sendCmd(cmd, val); };
+          })(b.command, b.value);
+          host.appendChild(btn);
+        });
+      } catch (e) {}
+    };
+    xhr.send();
+  }
+  /* Scripture selector (mirrors the dashboard Bible tab columns) */
+  var scrBooks = [];
+  var scrBook = 0, scrCh = 1, scrV = 1, scrChCount = 0, scrVCount = 0;
+  function scrEsc(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function scrScrollOn(hostId) {
+    try {
+      var host = document.getElementById(hostId);
+      if (!host) return;
+      var on = host.querySelector('.on,.onB,.onG');
+      if (on && typeof on.scrollIntoView === 'function') on.scrollIntoView({ block: 'nearest' });
+    } catch (e) {}
+  }
+  function scrBookName(i) {
+    for (var k = 0; k < scrBooks.length; k++) {
+      if (scrBooks[k] && scrBooks[k].i === i) return String(scrBooks[k].name);
+    }
+    return '';
+  }
+  function renderScrBooks() {
+    var host = document.getElementById('scrBookBody');
+    if (!host) return;
+    var html = '';
+    scrBooks.forEach(function(b) {
+      var parts = String(b.name).split('/');
+      var p1 = parts[0] || '';
+      var p2 = parts[1] || parts[0] || '';
+      html += '<button type="button" class="rowBook' + (b.i === scrBook ? ' on' : '') + '" onclick="onScrBook(' + b.i + ')">'
+        + '<div>' + scrEsc(p1) + '</div>'
+        + '<div class="p2">' + scrEsc(p2) + '</div></button>';
+    });
+    host.innerHTML = html;
+    scrScrollOn('scrBookBody');
+  }
+  function renderScrNums(hostId, count, active, cls, fn) {
+    var host = document.getElementById(hostId);
+    if (!host) return;
+    var html = '';
+    for (var n = 1; n <= count; n++) {
+      html += '<button type="button" class="rowNum' + (n === active ? ' ' + cls : '') + '" onclick="' + fn + '(' + n + ')">' + n + '</button>';
+    }
+    host.innerHTML = html;
+    scrScrollOn(hostId);
+  }
+  function onScrBook(i) {
+    scrBook = i;
+    scrCh = 1; scrV = 1;
+    renderScrBooks();
+    loadScrChapters();
+  }
+  function onScrCh(n) {
+    scrCh = n; scrV = 1;
+    renderScrNums('scrChBody', scrChCount, scrCh, 'onB', 'onScrCh');
+    loadScrVerses();
+  }
+  function onScrV(n) {
+    scrV = n;
+    renderScrNums('scrVBody', scrVCount, scrV, 'onG', 'onScrV');
+  }
+  function loadScrBooks() {
+    apiGet('api/books', function(list) {
+      scrBooks = list || [];
+      if (scrBooks.length === 0) return;
+      scrBook = scrBooks[0].i;
+      scrCh = 1; scrV = 1;
+      renderScrBooks();
+      loadScrChapters();
+    });
+  }
+  function loadScrChapters() {
+    apiGet('api/chapters?book=' + scrBook, function(r) {
+      scrChCount = (r && r.count > 0) ? r.count : 0;
+      if (scrCh > scrChCount) scrCh = 1;
+      renderScrNums('scrChBody', scrChCount, scrCh, 'onB', 'onScrCh');
+      loadScrVerses();
+    });
+  }
+  function loadScrVerses() {
+    apiGet('api/verses?book=' + scrBook + '&chapter=' + scrCh, function(r) {
+      scrVCount = (r && r.count > 0) ? r.count : 0;
+      if (scrV > scrVCount) scrV = 1;
+      renderScrNums('scrVBody', scrVCount, scrV, 'onG', 'onScrV');
+    });
+  }
+  function presentScripture() {
+    var name = scrBookName(scrBook).split('/')[0];
+    if (!name) return;
+    sendCmdFeedback('1', name + ' ' + scrCh + ':' + scrV, 'scrMsg');
+  }
+  loadButtons();
+  setInterval(loadButtons, 15000);
+  loadScrBooks();
+  document.getElementById('scrGo').addEventListener('click', presentScripture);
+  if (window.RemoteEngine) window.RemoteEngine.start(1000);
+</script>
+</body>
+</html>

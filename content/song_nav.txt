@@ -1,0 +1,83 @@
+
+<div class="flex flex-col h-full bg-white w-full" style="height: 100%;">
+<!-- Dummy div to force Tailwind to compile dynamic classes -->
+<div class="hidden bg-brand-600 border-brand-600 shadow-sm text-white bg-slate-50 border-slate-200 hover:border-brand-500 hover:shadow-sm text-slate-800 p-2 border rounded-lg cursor-pointer transition text-xs font-bold"></div>
+
+    <div id="legacySongNav" style="position: absolute; opacity: 0; pointer-events: none; z-index: -100; width: 1px; height: 1px; overflow: hidden;">
+        <div class="style2">
+  <b>Category</b>
+  <select id="songnav_category" class="selectboxStyle">
+  </select>
+</div>
+<br>
+<div class="style2">
+	<b>Song Title</b><br>
+	
+	<div id="songnav_songlistnew"></div>
+	
+	<!--
+  <select size="2" id="songnav_songlist" class="wideselectboxStyle" >
+  </select>
+  -->
+  
+  <br>
+  <span class="iconImageStyle"><img id="songnav_presentbutton"></span>
+  <span class="iconImageStyle"><img id="songnav_prevbutton"></span>
+  <span class="iconImageStyle"><img id="songnav_nextbutton"></span>
+  <span class="iconImageStyle"><img id="songnav_closebutton"></span>  
+  <span class="iconImageStyle"><img id="songnav_add2schedule_button"></span>  
+  <br>
+  <!--<input type="button" id="songnav_add2schedule_button" value=" Add to Schedule ">
+  <input type="button" id="songnav_presentbutton" value=" PRESENT "> |
+  <input type="button" id="songnav_prevbutton" value=" << PREV "> | 
+  <input type="button" id="songnav_nextbutton" value=" NEXT >> "> | 
+  <input type="button" id="songnav_closebutton" value=" CLOSE "> | --> 
+
+<!-- 	<br>
+  <input type="button" id="songnav_newbutton" value=" NEW "> | 
+  <input type="button" id="songnav_editbutton" value=" EDIT "> | 
+  <input type="button" id="songnav_loadbutton" value=" LOAD "> | 
+  <input type="button" id="songnav_deletebutton" value=" DELETE ">-->
+</div>
+<br>
+<hr>
+
+<div class="style2">
+<b>Search</b>
+  <input type="text" id="songnav_editbox" size="20">
+  <span class="iconImageStyle"><img id="songnav_searchbutton"></span>
+  <span class="iconImageStyle"><img id="songnav_clearbutton"></span>
+
+ <!--  <input type="button" id="songnav_searchbutton" value=" SEARCH "> | 
+  <input type="button" id="songnav_clearbutton" value=" CLEAR "> -->
+  <br>&nbsp;
+</div>
+    </div>
+    
+    <div class="flex flex-col h-full bg-white p-3 space-y-3 min-h-0 flex-1">
+        <div class="flex items-center gap-1.5 shrink-0">
+            <div class="relative flex-1">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs z-10"></i>
+                <input id="modernSongSearch" type="text" placeholder="Search song title..." style="padding-left: 32px !important;"
+                       class="w-full pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition">
+                <button id="modernSongSearchBtn" class="absolute right-1 top-1 bottom-1 px-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-md text-[11px] font-medium transition">
+                    Search
+                </button>
+            </div>
+            <div class="has-tooltip shrink-0">
+                <button id="modernSongAddScheduleBtn" onclick="var btn = document.getElementById('songnav_add2schedule_button'); if(btn) btn.click();" class="p-2 bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200 rounded-lg text-sm flex items-center justify-center transition">
+                    <i class="fa-regular fa-calendar-plus"></i>
+                </button>
+                <div class="tooltip-content tooltip-bottom">Add Song to Schedule</div>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-2 shrink-0">
+             <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Category:</label>
+             <select id="modernSongCategory" class="flex-1 text-xs bg-slate-50 border border-slate-200 rounded p-1 text-slate-700 focus:outline-none focus:border-brand-500"></select>
+        </div>
+
+        <div id="modernSongList" class="space-y-1.5 custom-scrollbar pr-1 py-2" style="height: calc(100vh - 200px); overflow-y: scroll; display: block;">
+        </div>
+    </div>
+</div>

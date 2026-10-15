@@ -1,0 +1,84 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build and Distribution Outputs
+dist/
+out/
+build/
+release/
+*.dmg
+*.exe
+*.blockmap
+*.zip
+
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs and Debugging
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment and Local Secrets
+.env
+.env*.local
+.env.development
+.env.production
+
+# IDE and Editor Files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temporary & Cache Files
+*.tmp
+*.temp
+.cache/
+.antigravity/
+.gemini/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# User Data (runtime-generated; never commit)
+storage/
+
+# Unused / Orphaned Assets (audit: zero references in code or content)
+Philippine_Bibles/
+bible/kjv.db
+bible/lbla.xml
+bible/malabible.xml
+Grapevine.jpg
+splash.htm
+test_strip.js
+xml/schedule.db
+storage/network/
+graphics/f.png
+graphics/banner4.png
+graphics/banner41.png
+graphics/margin_stand.jpg
+graphics/marginbig.jpg
+graphics/hue_thumb.png
+graphics/picker_thumb.png
+graphics/loader.gif
+graphics/loadcomplete.gif
+graphics/margin.gif
+graphics/icon/add_bkg.png
+graphics/icon/del_bkg.png
