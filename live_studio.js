@@ -73,7 +73,35 @@ class LiveStudioManager {
     this.initAudioContext();
     this.enumerateCameras();
     this.updateHeaderBadge();
+    this.setupKeyboardShortcuts();
     console.log('[LIVE STUDIO] Initialized.');
+  }
+
+  setupKeyboardShortcuts() {
+    // Hold Spacebar to Talk (Push-to-Talk) when studio modal is active
+    window.addEventListener('keydown', (e) => {
+      const modal = document.getElementById('liveStudioModal');
+      if (!modal || modal.classList.contains('hidden')) return;
+
+      const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+      if (activeTag === 'input' || activeTag === 'textarea') return;
+
+      if (e.code === 'Space' && !e.repeat && !this.isOperatorTalking) {
+        e.preventDefault();
+        this.startOperatorTalkback();
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'Space') {
+        const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+        if (activeTag === 'input' || activeTag === 'textarea') return;
+        if (this.isOperatorTalking) {
+          e.preventDefault();
+          this.stopOperatorTalkback();
+        }
+      }
+    });
   }
 
   initAudioContext() {
@@ -150,6 +178,19 @@ class LiveStudioManager {
   }
 
   /**
+   * Toggle camera capture ON / OFF
+   */
+  toggleCamera() {
+    if (this.cameraStream) {
+      this.stopCamera();
+    } else {
+      const select = document.getElementById('studioCameraSelect');
+      const devId = (select && select.value) ? select.value : this.cameraDeviceId;
+      this.startCamera(devId);
+    }
+  }
+
+  /**
    * Start capturing selected camera feed with automatic fallback
    */
   async startCamera(deviceId = null) {
@@ -157,13 +198,15 @@ class LiveStudioManager {
       this.stopCamera();
     }
 
-    const targetDeviceId = deviceId || document.getElementById('studioCameraSelect')?.value || this.cameraDeviceId;
+    const selectEl = document.getElementById('studioCameraSelect');
+    // Grab explicit deviceId parameter, or current select value, or saved deviceId
+    const targetDeviceId = deviceId || (selectEl && selectEl.value) || this.cameraDeviceId || null;
 
     try {
-      // First attempt: Ideal 1080p without strict min bounds (handles webcams and USB HDMI capture cards)
+      // First attempt: Ideal 1080p with ideal deviceId (never strict exact, so USB capture cards and webcams always connect)
       const constraints = {
         video: targetDeviceId
-          ? { deviceId: { exact: targetDeviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+          ? { deviceId: { ideal: targetDeviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
           : { width: { ideal: 1920 }, height: { ideal: 1080 } },
         audio: false // Church house audio is managed independently by soundboard
       };
@@ -172,21 +215,32 @@ class LiveStudioManager {
       console.warn('[LIVE STUDIO] Ideal camera constraints failed, attempting fallback { video: true }:', idealErr);
       try {
         const fallbackConstraints = {
-          video: targetDeviceId ? { deviceId: { exact: targetDeviceId } } : true,
+          video: targetDeviceId ? { deviceId: { ideal: targetDeviceId } } : true,
           audio: false
         };
         this.cameraStream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
       } catch (fallbackErr) {
-        console.error('[LIVE STUDIO] All camera constraints failed:', fallbackErr);
-        alert('Could not start camera: ' + (fallbackErr.message || fallbackErr.name));
-        this.updateCameraStatusUI(false);
-        return;
+        console.warn('[LIVE STUDIO] Device-specific fallback failed, attempting generic video:', fallbackErr);
+        try {
+          this.cameraStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        } catch (finalErr) {
+          console.error('[LIVE STUDIO] All camera constraints failed:', finalErr);
+          alert('Could not start camera: ' + (finalErr.message || finalErr.name));
+          this.updateCameraStatusUI(false);
+          return;
+        }
       }
     }
 
-    this.cameraDeviceId = targetDeviceId;
-    if (targetDeviceId) {
-      localStorage.setItem(this.STORAGE_KEYS.selectedCameraId, targetDeviceId);
+    // Determine actual active camera deviceId from track settings
+    const activeVideoTrack = this.cameraStream.getVideoTracks()[0];
+    const actualDeviceId = activeVideoTrack?.getSettings()?.deviceId || targetDeviceId;
+    if (actualDeviceId) {
+      this.cameraDeviceId = actualDeviceId;
+      localStorage.setItem(this.STORAGE_KEYS.selectedCameraId, actualDeviceId);
+      if (selectEl && selectEl.value !== actualDeviceId) {
+        selectEl.value = actualDeviceId;
+      }
     }
 
     const previewEl = document.getElementById('studioCameraPreview');
@@ -202,6 +256,8 @@ class LiveStudioManager {
     }
 
     this.updateCameraStatusUI(true);
+    // Refresh device list in case labels were previously unpopulated before getUserMedia permission
+    this.enumerateCameras().catch(() => {});
     console.log('[LIVE STUDIO] Camera started successfully.');
   }
 
@@ -734,13 +790,13 @@ class LiveStudioManager {
     if (btn) {
       btn.className = isLive
         ? 'px-4 py-2 text-xs font-bold rounded-xl bg-rose-600 text-white shadow-lg shadow-rose-600/30 flex items-center gap-2 select-none animate-pulse cursor-pointer'
-        : 'px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-2 select-none transition cursor-pointer shadow-xs';
+        : 'px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-2 select-none transition cursor-pointer shadow-xs active:scale-95';
     }
     if (icon) {
       icon.className = isLive ? 'fa-solid fa-microphone-lines text-white' : 'fa-solid fa-microphone text-slate-300';
     }
     if (btnText) {
-      btnText.textContent = isLive ? 'Mute Intercom' : 'Tap to Talk (Intercom)';
+      btnText.textContent = isLive ? 'Talking to Backstage...' : 'Hold to Talk';
     }
     if (statusText) {
       statusText.textContent = isLive ? 'TALKING (Live to Green Room)' : 'Intercom: Muted';
@@ -952,9 +1008,9 @@ class LiveStudioManager {
         : 'bg-white border border-slate-200 rounded-2xl p-3 shadow-xs hover:border-slate-300 transition flex flex-col gap-2 relative';
 
       card.innerHTML = `
-        <!-- Video Feed Thumbnail -->
-        <div class="relative w-full aspect-video bg-black rounded-xl overflow-hidden border border-slate-800">
-          <video id="guestVideo_${guest.guestId}" autoplay playsinline class="w-full h-full object-cover"></video>
+        <!-- Video Feed Thumbnail (Bounded height so it never blows up) -->
+        <div style="height: 140px; max-height: 140px;" class="relative w-full bg-black rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center">
+          <video id="guestVideo_${guest.guestId}" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover; display: block;"></video>
           
           <!-- Tally Overlay Badge -->
           <div class="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide ${

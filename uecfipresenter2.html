@@ -440,19 +440,25 @@
           <div class="mt-2 p-3 bg-white border border-slate-200 rounded-2xl shadow-xs flex flex-col gap-2 shrink-0">
             <div class="flex items-center justify-between gap-3 flex-wrap">
               <div class="flex items-center gap-2 flex-1 min-w-[280px]">
-                <!-- Push-to-Talk / Tap-to-Talk Button -->
+                <!-- Push-to-Talk (Hold to Talk) Button -->
                 <button id="btnStudioTalkback" type="button"
-                  onclick="window.liveStudio.toggleOperatorTalkback()"
-                  class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-2 select-none transition cursor-pointer shadow-xs active:scale-98">
+                  onmousedown="window.liveStudio.startOperatorTalkback()"
+                  onmouseup="window.liveStudio.stopOperatorTalkback()"
+                  onmouseleave="window.liveStudio.stopOperatorTalkback()"
+                  ontouchstart="event.preventDefault(); window.liveStudio.startOperatorTalkback()"
+                  ontouchend="event.preventDefault(); window.liveStudio.stopOperatorTalkback()"
+                  ontouchcancel="event.preventDefault(); window.liveStudio.stopOperatorTalkback()"
+                  class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-2 select-none transition cursor-pointer shadow-xs active:scale-95"
+                  title="Hold mouse down or press Spacebar to talk privately to Green Room">
                   <i id="studioTalkbackIcon" class="fa-solid fa-microphone"></i>
-                  <span id="studioTalkbackBtnText">Tap to Talk (Intercom)</span>
+                  <span id="studioTalkbackBtnText">Hold to Talk</span>
                 </button>
 
                 <!-- Status & Live VU Meter -->
                 <div class="flex flex-col flex-1 min-w-[120px]">
                   <div class="flex items-center justify-between">
                     <span id="studioTalkbackStatus" class="text-[11px] font-bold text-slate-600">Intercom: Muted</span>
-                    <span class="text-[10px] text-slate-400">Private to Green Room</span>
+                    <span class="text-[10px] text-slate-400">Hold button or Spacebar</span>
                   </div>
                   <!-- Operator Mic Live VU Meter Bar -->
                   <div class="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1">
@@ -494,14 +500,14 @@
               <option value="">Loading cameras...</option>
             </select>
 
-            <!-- Camera Video Preview -->
-            <div class="relative w-full aspect-video bg-black rounded-xl overflow-hidden border border-slate-800 mb-2">
-              <video id="studioCameraPreview" autoplay playsinline muted class="w-full h-full object-cover"></video>
+            <!-- Camera Video Preview (Bounded height so it never blows up to 1080p) -->
+            <div style="height: 155px; max-height: 155px;" class="relative w-full bg-black rounded-xl overflow-hidden border border-slate-800 mb-2 flex items-center justify-center">
+              <video id="studioCameraPreview" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; display: block;"></video>
             </div>
 
             <!-- Camera Action Buttons -->
             <div class="flex items-center gap-2">
-              <button id="btnStudioToggleCamera" type="button" onclick="if(window.liveStudio.cameraStream) window.liveStudio.stopCamera(); else window.liveStudio.startCamera();"
+              <button id="btnStudioToggleCamera" type="button" onclick="window.liveStudio.toggleCamera()"
                 class="flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition shadow-2xs cursor-pointer text-center">
                 Start Camera
               </button>
