@@ -339,8 +339,8 @@
   <!-- ========================================================================= -->
   <!-- LIVE STUDIO & REMOTE GUESTS GREEN ROOM OVERLAY MODAL -->
   <!-- ========================================================================= -->
-  <div id="liveStudioModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden animate-scale-in">
+  <div id="liveStudioModal" class="hidden" style="position: fixed; inset: 0; z-index: 99999; display: none; align-items: center; justify-content: center; background: rgba(2, 6, 23, 0.75); backdrop-filter: blur(4px); padding: 16px;">
+    <div style="background: #ffffff; border-radius: 16px; border: 1px solid #cbd5e1; width: 96vw; max-width: 1200px; height: 90vh; max-height: 850px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);">
       
       <!-- Studio Header -->
       <div class="px-6 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
@@ -404,10 +404,10 @@
       </div>
 
       <!-- Studio Workspace (2 Columns) -->
-      <div class="flex-1 min-h-0 flex overflow-hidden">
+      <div style="flex: 1; min-height: 0; display: flex; flex-direction: row; overflow: hidden;">
         
         <!-- LEFT COLUMN: Remote Speakers Green Room (Backstage) -->
-        <div class="flex-1 flex flex-col border-r border-slate-200 bg-slate-50/50 p-4 overflow-hidden">
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; border-right: 1px solid #e2e8f0; background: #f8fafc; padding: 16px; overflow: hidden;">
           <div class="flex items-center justify-between pb-3 border-b border-slate-200 shrink-0">
             <div class="flex items-center gap-2">
               <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Remote Guests (Green Room)</span>
@@ -431,7 +431,8 @@
               </button>
             </div>
 
-            <div id="studioGuestGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Responsive 16:9 Grid for Guest Cards -->
+            <div id="studioGuestGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 360px)); gap: 16px; align-items: start;">
               <!-- Dynamically populated by liveStudio.renderGuestList() -->
             </div>
           </div>
@@ -440,7 +441,7 @@
           <div class="mt-2 p-3 bg-white border border-slate-200 rounded-2xl shadow-xs flex flex-col gap-2 shrink-0">
             <div class="flex items-center justify-between gap-3 flex-wrap">
               <div class="flex items-center gap-2 flex-1 min-w-[280px]">
-                <!-- Push-to-Talk (Hold to Talk) Button -->
+                <!-- Push-to-Talk (Hold to Talk) Button with rock-solid inline styling -->
                 <button id="btnStudioTalkback" type="button"
                   onmousedown="window.liveStudio.startOperatorTalkback()"
                   onmouseup="window.liveStudio.stopOperatorTalkback()"
@@ -448,9 +449,9 @@
                   ontouchstart="event.preventDefault(); window.liveStudio.startOperatorTalkback()"
                   ontouchend="event.preventDefault(); window.liveStudio.stopOperatorTalkback()"
                   ontouchcancel="event.preventDefault(); window.liveStudio.stopOperatorTalkback()"
-                  class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-2 select-none transition cursor-pointer shadow-xs active:scale-95"
+                  style="padding: 8px 16px; font-size: 12px; font-weight: 700; border-radius: 12px; background-color: #1e293b; color: #f8fafc; border: 1px solid #334155; display: flex; align-items: center; gap: 8px; user-select: none; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.05);"
                   title="Hold mouse down or press Spacebar to talk privately to Green Room">
-                  <i id="studioTalkbackIcon" class="fa-solid fa-microphone"></i>
+                  <i id="studioTalkbackIcon" class="fa-solid fa-microphone text-slate-300"></i>
                   <span id="studioTalkbackBtnText">Hold to Talk</span>
                 </button>
 
@@ -482,15 +483,15 @@
           </div>
         </div>
 
-        <!-- RIGHT COLUMN: Sanctuary Camera & Operator Chat -->
-        <div class="w-80 flex flex-col bg-white p-4 overflow-hidden shrink-0">
+        <!-- RIGHT COLUMN: Sanctuary Camera & Operator Chat (Fixed 320px column) -->
+        <div style="width: 320px; min-width: 320px; max-width: 340px; display: flex; flex-direction: column; background: #ffffff; padding: 16px; overflow: hidden; flex-shrink: 0;">
           
           <!-- Church Camera Section -->
           <div class="pb-4 border-b border-slate-200 shrink-0">
             <div class="flex items-center justify-between mb-2">
               <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Sanctuary Camera</span>
               <div class="flex items-center gap-1.5 text-[10px]">
-                <span id="studioCameraDot" class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+                <span id="studioCameraDot" class="w-2.5 h-2.5 rounded-full" style="background-color: #94a3b8;"></span>
                 <span id="studioCameraStatusText" class="text-slate-500">Inactive</span>
               </div>
             </div>
@@ -500,19 +501,20 @@
               <option value="">Loading cameras...</option>
             </select>
 
-            <!-- Camera Video Preview (Bounded height so it never blows up to 1080p) -->
-            <div style="height: 155px; max-height: 155px;" class="relative w-full bg-black rounded-xl overflow-hidden border border-slate-800 mb-2 flex items-center justify-center">
-              <video id="studioCameraPreview" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover; display: block;"></video>
+            <!-- Camera Video Preview (True 16:9 aspect ratio, object-fit contain so it's never distorted or cropped) -->
+            <div style="width: 100%; aspect-ratio: 16 / 9; max-height: 190px; background: #000000; position: relative; border-radius: 12px; overflow: hidden; border: 1px solid #1e293b; margin-bottom: 8px; display: flex; align-items: center; justify-content: center;">
+              <video id="studioCameraPreview" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: contain; background: #000000; display: block;"></video>
             </div>
 
             <!-- Camera Action Buttons -->
-            <div class="flex items-center gap-2">
+            <div style="display: flex; align-items: center; gap: 8px;">
               <button id="btnStudioToggleCamera" type="button" onclick="window.liveStudio.toggleCamera()"
-                class="flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition shadow-2xs cursor-pointer text-center">
-                Start Camera
+                style="flex: 1; padding: 8px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; background-color: #2563eb; color: #ffffff; border: 1px solid #1d4ed8; cursor: pointer; text-align: center; transition: all 0.15s ease;">
+                <i class="fa-solid fa-video mr-1"></i> Start Camera
               </button>
               <button id="btnStudioCameraToStage" type="button" onclick="window.liveStudio.putCameraOnStage()"
-                class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 hover:bg-rose-50 hover:text-rose-600 border border-slate-200 transition cursor-pointer text-center" title="Route camera to projection screen">
+                style="padding: 8px 12px; font-size: 12px; font-weight: 700; border-radius: 8px; background-color: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; cursor: pointer; text-align: center; transition: all 0.15s ease;"
+                title="Route camera to projection screen">
                 <i class="fa-solid fa-tower-broadcast text-[11px] mr-1"></i> Stage
               </button>
             </div>

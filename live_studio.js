@@ -279,13 +279,26 @@ class LiveStudioManager {
     const statusText = document.getElementById('studioCameraStatusText');
     const btnToggle = document.getElementById('btnStudioToggleCamera');
 
-    if (statusDot) statusDot.className = isActive ? 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse' : 'w-2.5 h-2.5 rounded-full bg-slate-400';
-    if (statusText) statusText.textContent = isActive ? 'Active (Ready)' : 'Inactive';
+    if (statusDot) {
+      statusDot.style.backgroundColor = isActive ? '#10b981' : '#94a3b8';
+      statusDot.className = isActive ? 'w-2.5 h-2.5 rounded-full animate-pulse' : 'w-2.5 h-2.5 rounded-full';
+    }
+    if (statusText) {
+      statusText.textContent = isActive ? 'Active (Ready)' : 'Inactive';
+      statusText.style.color = isActive ? '#059669' : '#64748b';
+    }
     if (btnToggle) {
-      btnToggle.textContent = isActive ? 'Stop Camera' : 'Start Camera';
-      btnToggle.className = isActive
-        ? 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition'
-        : 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition shadow-sm';
+      if (isActive) {
+        btnToggle.innerHTML = '<i class="fa-solid fa-video-slash mr-1"></i> Stop Camera';
+        btnToggle.style.backgroundColor = '#ffe4e6'; // Rose 100
+        btnToggle.style.color = '#be123c';           // Rose 700
+        btnToggle.style.border = '1px solid #fda4af';
+      } else {
+        btnToggle.innerHTML = '<i class="fa-solid fa-video mr-1"></i> Start Camera';
+        btnToggle.style.backgroundColor = '#2563eb'; // Blue 600
+        btnToggle.style.color = '#ffffff';
+        btnToggle.style.border = '1px solid #1d4ed8';
+      }
     }
   }
 
@@ -788,9 +801,19 @@ class LiveStudioManager {
     const statusText = document.getElementById('studioTalkbackStatus');
 
     if (btn) {
-      btn.className = isLive
-        ? 'px-4 py-2 text-xs font-bold rounded-xl bg-rose-600 text-white shadow-lg shadow-rose-600/30 flex items-center gap-2 select-none animate-pulse cursor-pointer'
-        : 'px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-2 select-none transition cursor-pointer shadow-xs active:scale-95';
+      if (isLive) {
+        btn.style.backgroundColor = '#e11d48'; // Vivid red
+        btn.style.color = '#ffffff';
+        btn.style.borderColor = '#be123c';
+        btn.style.boxShadow = '0 0 16px rgba(225, 29, 72, 0.45)';
+        btn.style.transform = 'scale(0.97)';
+      } else {
+        btn.style.backgroundColor = '#1e293b'; // Slate 800
+        btn.style.color = '#f8fafc';
+        btn.style.borderColor = '#334155';
+        btn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
+        btn.style.transform = 'scale(1)';
+      }
     }
     if (icon) {
       icon.className = isLive ? 'fa-solid fa-microphone-lines text-white' : 'fa-solid fa-microphone text-slate-300';
@@ -800,7 +823,7 @@ class LiveStudioManager {
     }
     if (statusText) {
       statusText.textContent = isLive ? 'TALKING (Live to Green Room)' : 'Intercom: Muted';
-      statusText.className = isLive ? 'text-[11px] font-bold text-rose-600' : 'text-[11px] font-bold text-slate-600';
+      statusText.style.color = isLive ? '#e11d48' : '#475569';
     }
   }
 
@@ -969,9 +992,10 @@ class LiveStudioManager {
   toggleModal() {
     const modal = document.getElementById('liveStudioModal');
     if (!modal) return;
-    const isHidden = modal.classList.contains('hidden');
+    const isHidden = modal.classList.contains('hidden') || modal.style.display === 'none';
     if (isHidden) {
       modal.classList.remove('hidden');
+      modal.style.display = 'flex';
       this.enumerateCameras();
       // Auto-connect if not connected
       if (!this.isConnected && !this.socket) {
@@ -979,12 +1003,16 @@ class LiveStudioManager {
       }
     } else {
       modal.classList.add('hidden');
+      modal.style.display = 'none';
     }
   }
 
   closeModal() {
     const modal = document.getElementById('liveStudioModal');
-    if (modal) modal.classList.add('hidden');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.style.display = 'none';
+    }
   }
 
   renderGuestList() {
@@ -1003,19 +1031,19 @@ class LiveStudioManager {
 
     this.guests.forEach((guest) => {
       const card = document.createElement('div');
-      card.className = guest.onStage
-        ? 'bg-rose-50/70 border-2 border-rose-500 rounded-2xl p-3 shadow-md transition flex flex-col gap-2 relative'
-        : 'bg-white border border-slate-200 rounded-2xl p-3 shadow-xs hover:border-slate-300 transition flex flex-col gap-2 relative';
+      card.style.cssText = guest.onStage
+        ? 'background: #fff1f2; border: 2px solid #e11d48; border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 8px; position: relative; box-shadow: 0 4px 6px -1px rgba(225, 29, 72, 0.2);'
+        : 'background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 8px; position: relative; box-shadow: 0 1px 3px rgba(0,0,0,0.05);';
 
       card.innerHTML = `
-        <!-- Video Feed Thumbnail (Bounded height so it never blows up) -->
-        <div style="height: 140px; max-height: 140px;" class="relative w-full bg-black rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center">
-          <video id="guestVideo_${guest.guestId}" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover; display: block;"></video>
+        <!-- Video Feed Thumbnail (True 16:9 Aspect Ratio) -->
+        <div style="width: 100%; aspect-ratio: 16 / 9; max-height: 200px; background: #000000; position: relative; border-radius: 12px; overflow: hidden; border: 1px solid #1e293b; display: flex; align-items: center; justify-content: center;">
+          <video id="guestVideo_${guest.guestId}" autoplay playsinline style="width: 100%; height: 100%; object-fit: contain; background: #000000; display: block;"></video>
           
           <!-- Tally Overlay Badge -->
-          <div class="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide ${
-            guest.onStage ? 'bg-rose-600 text-white animate-pulse' : 'bg-amber-500/90 text-white'
-          }">
+          <div class="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide" style="background-color: ${
+            guest.onStage ? '#e11d48' : 'rgba(245, 158, 11, 0.95)'
+          }; color: #ffffff;">
             ${guest.onStage ? '● LIVE ON STAGE' : 'Standby (Green Room)'}
           </div>
 
@@ -1035,10 +1063,10 @@ class LiveStudioManager {
           <div class="flex items-center gap-1.5">
             ${
               guest.onStage
-                ? `<button onclick="window.liveStudio.putGuestBackstage('${guest.guestId}')" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition shadow-xs">
+                ? `<button onclick="window.liveStudio.putGuestBackstage('${guest.guestId}')" style="padding: 6px 12px; font-size: 11px; font-weight: 700; border-radius: 8px; background-color: #f59e0b; color: #ffffff; border: none; cursor: pointer;">
                      Backstage
                    </button>`
-                : `<button onclick="window.liveStudio.putGuestOnStage('${guest.guestId}')" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-rose-600 text-white hover:bg-rose-500 transition shadow-xs flex items-center gap-1">
+                : `<button onclick="window.liveStudio.putGuestOnStage('${guest.guestId}')" style="padding: 6px 12px; font-size: 11px; font-weight: 700; border-radius: 8px; background-color: #e11d48; color: #ffffff; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px;">
                      <i class="fa-solid fa-tower-broadcast text-[10px]"></i> Go Live
                    </button>`
             }
