@@ -3,14 +3,22 @@
  * Opened from the Help menu (menu/menu.xml -> showAboutDialog).
  */
 function getAppVersion() {
+  // Prefer preload bridge so renderer avoids direct Node require and
+  // works reliably in packaged macOS/Windows installers where process.cwd() varies.
   try {
+    if (window.electronBridge && typeof window.electronBridge.getAppVersion === "function") {
+      return window.electronBridge.getAppVersion();
+    }
     if (typeof require === "function") {
       const path = require("path");
-      const pkg = require(path.join(process.cwd(), "package.json"));
+      const baseDir = (typeof AppStorage !== "undefined" && typeof AppStorage.appDir === "function")
+        ? AppStorage.appDir()
+        : __dirname;
+      const pkg = require(path.join(baseDir, "package.json"));
       if (pkg && pkg.version) return String(pkg.version);
     }
   } catch (e) {}
-  return "1.0.0";
+  return "1.1.0";
 }
 function openUecfiWebsite() {
   try {

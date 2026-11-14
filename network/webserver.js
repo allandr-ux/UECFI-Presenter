@@ -6,6 +6,12 @@
  *     dashboard-configurable custom buttons) + command API.
  *   - Audience port:  live projection ONLY (no commands accepted).
  *
+ * The servers also advertise `_uecfi-presenter._tcp` via mDNS
+ * (bonjour-service, best-effort) so the Android remote can auto-discover
+ * the PC without manual IP entry. TXT carries both ports; the SRV port is
+ * the presenter port (command API), or the audience port when only the
+ * audience server is up. mDNS failure never breaks the HTTP servers.
+ *
  * The "live feed" is NOT a JPEG snapshot: remote pages embed the same
  * projection engine the sidebar Live Output Preview uses (presentation.htm
  * in an <iframe>) and drive it through its previewState injection point.
@@ -29,6 +35,114 @@ function vvWebServer() {
   let presenterRunning = false;
   let audienceRunning = false;
   let canProcessCommand = true;
+  // Always listen on all interfaces so phones on the LAN can connect.
+  // The IP selected in Settings is display-only (shown in status URLs).
+  let displayHost = "";
+
+  // mDNS advertisement (_uecfi-presenter._tcp) for Android auto-discovery.
+  // Best-effort: any failure only logs, the HTTP servers keep working.
+  const MDNS_SERVICE_TYPE = "uecfi-presenter";
+  let bonjour = null;
+  let mdnsService = null;
+  let mdnsPort = -1;
+
+  function mdnsTxt() {
+    return {
+      app: "UECFI Presenter",
+      presenter: String(presenterPort),
+      audience: String(audiencePort),
+      ver: "1"
+    };
+  }
+
+  // bonjour-service runs in the Electron renderer, where the global
+  // setTimeout is the browser version (returns a number, no .unref()).
+  // Its registry.js calls timer.unref() / setTimeout().unref(), which
+  // throws "timer.unref is not a function" as an uncaught Browser Window
+  // error. Swap in Node's timers once so mDNS never breaks the servers.
+  let nodeTimersPatched = false;
+  function ensureNodeTimers() {
+    if (nodeTimersPatched) return;
+    try {
+      if (typeof require !== "function") return;
+      const nt = require("timers");
+      if (!nt || typeof nt.setTimeout !== "function") return;
+      let needsPatch = false;
+      try {
+        const probe = global.setTimeout(function () {}, 0);
+        if (typeof probe === "number" || (probe && typeof probe.unref !== "function")) needsPatch = true;
+        try { global.clearTimeout(probe); } catch (e) {}
+      } catch (e) { needsPatch = true; }
+      if (needsPatch) {
+        const w = (typeof window !== "undefined") ? window : global;
+        w.setTimeout = nt.setTimeout.bind(nt);
+        w.clearTimeout = nt.clearTimeout.bind(nt);
+        if (typeof nt.setInterval === "function") w.setInterval = nt.setInterval.bind(nt);
+        if (typeof nt.clearInterval === "function") w.clearInterval = nt.clearInterval.bind(nt);
+        global.setTimeout = w.setTimeout;
+        global.clearTimeout = w.clearTimeout;
+      }
+      nodeTimersPatched = true;
+    } catch (e) {}
+  }
+
+  // (Re)advertise when servers start, unadvertise when all are stopped.
+  // bonjour-service has no updateTxt, so a port change republishes.
+  function refreshMdnsAdvertisement() {
+    try {
+      if (typeof require !== "function") return;
+      if (!isAnyRunning()) { stopMdnsAdvertisement(); return; }
+      const port = presenterRunning ? presenterPort : audiencePort;
+      if (mdnsService && mdnsPort === port) return; // already advertised
+      stopMdnsAdvertisement();
+      ensureNodeTimers();
+      let BonjourCtor = null;
+      try {
+        const mod = require("bonjour-service");
+        BonjourCtor = (mod && (mod.Bonjour || mod.default)) || mod;
+        if (typeof BonjourCtor !== "function") throw new Error("bad bonjour-service export");
+      } catch (e) {
+        console.warn("[MDNS] bonjour-service unavailable, skipping advertisement.");
+        return;
+      }
+      try {
+        bonjour = new BonjourCtor();
+        if (bonjour && typeof bonjour.on === "function") {
+          bonjour.on("error", (err) => console.warn("[MDNS] error:", err && err.message));
+        }
+        mdnsService = bonjour.publish({
+          name: "UECFI Presenter",
+          type: MDNS_SERVICE_TYPE,
+          port: port,
+          txt: mdnsTxt()
+        });
+        if (mdnsService && typeof mdnsService.on === "function") {
+          mdnsService.on("error", (err) => console.warn("[MDNS] service error:", err && err.message));
+        }
+        mdnsPort = port;
+        console.log(`[MDNS] Advertising _${MDNS_SERVICE_TYPE}._tcp on port ${port}`);
+      } catch (e) {
+        console.warn("[MDNS] advertisement failed:", e && e.message);
+        stopMdnsAdvertisement();
+      }
+    } catch (e) {}
+  }
+
+  function stopMdnsAdvertisement() {
+    const b = bonjour;
+    bonjour = null;
+    mdnsService = null;
+    mdnsPort = -1;
+    try {
+      if (b) {
+        if (typeof b.unpublishAll === "function") {
+          b.unpublishAll(() => { try { b.destroy(); } catch (e) {} });
+        } else {
+          try { b.destroy(); } catch (e) {}
+        }
+      }
+    } catch (e) {}
+  }
 
   // Files the remote engine pages need (presentation.htm iframe + theme).
   // Everything else on disk stays unreachable from the network.
@@ -42,7 +156,7 @@ function vvWebServer() {
     "/storage_service.js": { file: "storage_service.js", type: "text/javascript; charset=utf-8" },
     "/uecfipresenter.css": { file: "uecfipresenter.css", type: "text/css; charset=utf-8" }
   };
-  const STATIC_DIRS = ["background", "graphics", "fonts", "font"];
+  const STATIC_DIRS = ["background", "graphics", "fonts", "font", "audio", "storage/audio"];
   const MIME_BY_EXT = {
     ".htm": "text/html; charset=utf-8",
     ".html": "text/html; charset=utf-8",
@@ -54,6 +168,11 @@ function vvWebServer() {
     ".gif": "image/gif",
     ".webp": "image/webp",
     ".svg": "image/svg+xml",
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".m4a": "audio/mp4",
+    ".ogg": "audio/ogg",
+    ".aac": "audio/aac",
     ".woff": "font/woff",
     ".woff2": "font/woff2",
     ".ttf": "font/ttf",
@@ -66,9 +185,10 @@ function vvWebServer() {
   }
 
   function getStatus() {
+    const shown = displayHost || bindHost;
     return {
-      presenter: { running: presenterRunning, port: presenterPort, url: presenterRunning ? `http://${bindHost}:${presenterPort}/` : null },
-      audience: { running: audienceRunning, port: audiencePort, url: audienceRunning ? `http://${bindHost}:${audiencePort}/` : null }
+      presenter: { running: presenterRunning, port: presenterPort, url: presenterRunning ? `http://${shown}:${presenterPort}/` : null },
+      audience: { running: audienceRunning, port: audiencePort, url: audienceRunning ? `http://${shown}:${audiencePort}/` : null }
     };
   }
 
@@ -109,6 +229,7 @@ function vvWebServer() {
     if (!wantPresenter && !wantAudience) {
       stopServer("presenter");
       stopServer("audience");
+      refreshMdnsAdvertisement();
       return true;
     }
 
@@ -117,7 +238,11 @@ function vvWebServer() {
       return false;
     }
 
-    if (host) bindHost = host;
+    if (host) displayHost = host;
+    // Never bind to a single IP (e.g. 127.0.0.1 fallback): that makes the
+    // server loopback-only and undiscoverable from phones. Always listen on
+    // all interfaces; the selected IP is display-only.
+    bindHost = "0.0.0.0";
     if (wantPresenter && wantAudience && wantPresenter === wantAudience) {
       alert("Presenter and audience ports must be different.");
       return false;
@@ -128,6 +253,7 @@ function vvWebServer() {
     let ok = true;
     if (wantPresenter) ok = startServer("presenter", presenterPort) && ok;
     if (wantAudience) ok = startServer("audience", audiencePort) && ok;
+    refreshMdnsAdvertisement();
     return ok;
   }
 
@@ -153,7 +279,7 @@ function vvWebServer() {
           }
 
           // Projection-engine assets for the remote live view (both roles).
-          if (serveStatic(urlPath, res, fs, path)) return;
+          if (serveStatic(urlPath, res, fs, path, req)) return;
 
           if (role === "audience") {
             // Audience is view-only: the page, the engine assets above and
@@ -161,7 +287,7 @@ function vvWebServer() {
             if (urlPath === "/" || urlPath === "/index.html") {
               servePage("audience.html", "UECFI Live", res, fs, path);
             } else if (urlPath === "/api/state") {
-              sendJson(res, buildProjectionPayload());
+              sendJson(res, buildProjectionPayload("audience"));
             } else {
               res.writeHead(403, { "Content-Type": "text/plain" });
               res.end("Forbidden");
@@ -181,7 +307,9 @@ function vvWebServer() {
           }
 
           if (urlPath === "/api/state") {
-            sendJson(res, buildProjectionPayload());
+            const clientType = (qs(reqUrl, "client") || (req.headers && req.headers["x-client-device"]) || "").toLowerCase();
+            const payloadRole = (clientType === "tv") ? "audience" : "presenter";
+            sendJson(res, buildProjectionPayload(payloadRole));
             return;
           }
 
@@ -196,6 +324,28 @@ function vvWebServer() {
           }
           if (urlPath === "/api/verses") {
             sendJson(res, getBibleVerses(qs(reqUrl, "book"), qs(reqUrl, "chapter")));
+            return;
+          }
+
+          // Song / program pickers for Slides + Songs modals.
+          // [{id,name}] / [{id,title,type}]. Empty array (never 404) when
+          // managers are not loaded yet, so older remotes keep working.
+          if (urlPath === "/api/songs") {
+            sendJson(res, getSongList());
+            return;
+          }
+          if (urlPath === "/api/program") {
+            sendJson(res, getProgramList());
+            return;
+          }
+
+          if (urlPath === "/api/nav/verse") {
+            const dir = qs(reqUrl, "dir") || "next";
+            const fn = (dir === "prev")
+              ? (typeof call_prevVerse === "function" ? call_prevVerse : (typeof window !== "undefined" ? window.call_prevVerse : null))
+              : (typeof call_nextVerse === "function" ? call_nextVerse : (typeof window !== "undefined" ? window.call_nextVerse : null));
+            const ok = (typeof fn === "function") ? fn() : false;
+            sendJson(res, { ok: ok, dir: dir });
             return;
           }
 
@@ -256,6 +406,7 @@ function vvWebServer() {
         console.error(`[HTTP SERVER] ${role} server error:`, err);
         if (role === "presenter") { presenterRunning = false; presenterServer = null; }
         else { audienceRunning = false; audienceServer = null; }
+        refreshMdnsAdvertisement();
         alert(`Remote ${role} server error: ` + err.message);
       });
 
@@ -274,57 +425,80 @@ function vvWebServer() {
   }
 
   // Serves the projection-engine files remote live views need.
+  // Static assets (backgrounds, graphics, media) get long-lived caching headers (7 days)
+  // and ETag / 304 validation. Dynamic files (.htm, .js, .css) remain no-store.
   // Returns true when the path was handled (served or rejected as 404).
-  function serveStatic(urlPath, res, fs, path) {
+  function serveStatic(urlPath, res, fs, path, req) {
     try {
       let decoded = urlPath;
       try { decoded = decodeURIComponent(urlPath); } catch (e) { return false; }
       if (decoded.indexOf("..") !== -1 || decoded.indexOf("\\") !== -1 || decoded.indexOf("\0") !== -1) return false;
 
       const root = getAppRoot();
+      let full = null;
+      let contentType = null;
+      let isCacheableAsset = false;
 
       if (Object.prototype.hasOwnProperty.call(STATIC_FILES, decoded)) {
         const entry = STATIC_FILES[decoded];
-        const full = path.join(root, entry.file);
-        try {
-          if (fs.existsSync(full) && fs.statSync(full).isFile()) {
-            res.writeHead(200, { "Content-Type": entry.type, "Cache-Control": "no-store" });
-            res.end(fs.readFileSync(full));
-          } else {
-            res.writeHead(404, { "Content-Type": "text/plain" });
-            res.end("Not found");
-          }
-        } catch (e) {
-          res.writeHead(404, { "Content-Type": "text/plain" });
-          res.end("Not found");
+        full = path.join(root, entry.file);
+        contentType = entry.type;
+        const ext = path.extname(entry.file).toLowerCase();
+        isCacheableAsset = /^\.(png|jpe?g|webp|gif|bmp|mp4|webm|woff2?|ttf|otf)$/.test(ext);
+      } else {
+        const segs = decoded.replace(/^\/+/, "").split("/");
+        if (segs.length >= 2 && STATIC_DIRS.indexOf(segs[0]) !== -1) {
+          const ext = path.extname(segs[segs.length - 1]).toLowerCase();
+          if (!Object.prototype.hasOwnProperty.call(MIME_BY_EXT, ext)) return false;
+          full = path.join(root, ...segs);
+          // Confine to the app root even after normalization.
+          const normRoot = path.normalize(root + path.sep);
+          const normFull = path.normalize(full);
+          if (normFull !== normRoot.slice(0, -1) && normFull.indexOf(normRoot) !== 0) return false;
+          contentType = MIME_BY_EXT[ext];
+          isCacheableAsset = /^\.(png|jpe?g|webp|gif|bmp|mp4|webm|woff2?|ttf|otf)$/.test(ext);
         }
-        return true;
       }
 
-      const segs = decoded.replace(/^\/+/, "").split("/");
-      if (segs.length >= 2 && STATIC_DIRS.indexOf(segs[0]) !== -1) {
-        const ext = path.extname(segs[segs.length - 1]).toLowerCase();
-        if (!Object.prototype.hasOwnProperty.call(MIME_BY_EXT, ext)) return false;
-        const full = path.join(root, ...segs);
-        // Confine to the app root even after normalization.
-        const normRoot = path.normalize(root + path.sep);
-        const normFull = path.normalize(full);
-        if (normFull !== normRoot.slice(0, -1) && normFull.indexOf(normRoot) !== 0) return false;
-        try {
-          if (fs.existsSync(full) && fs.statSync(full).isFile()) {
-            res.writeHead(200, { "Content-Type": MIME_BY_EXT[ext], "Cache-Control": "no-store" });
-            res.end(fs.readFileSync(full));
-          } else {
-            res.writeHead(404, { "Content-Type": "text/plain" });
-            res.end("Not found");
+      if (!full || !contentType) return false;
+
+      try {
+        if (fs.existsSync(full) && fs.statSync(full).isFile()) {
+          const stat = fs.statSync(full);
+          const etag = `"${stat.size}-${Math.round(stat.mtimeMs)}"`;
+          const lastModified = stat.mtime.toUTCString();
+
+          const reqHeaders = (req && req.headers) || {};
+          if (isCacheableAsset && (reqHeaders["if-none-match"] === etag || reqHeaders["if-modified-since"] === lastModified)) {
+            res.writeHead(304, {
+              "ETag": etag,
+              "Last-Modified": lastModified,
+              "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400",
+              "Access-Control-Allow-Origin": "*"
+            });
+            res.end();
+            return true;
           }
-        } catch (e) {
+
+          const headers = {
+            "Content-Type": contentType,
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": isCacheableAsset ? "public, max-age=604800, stale-while-revalidate=86400" : "no-store",
+            "ETag": etag,
+            "Last-Modified": lastModified
+          };
+
+          res.writeHead(200, headers);
+          res.end(fs.readFileSync(full));
+        } else {
           res.writeHead(404, { "Content-Type": "text/plain" });
           res.end("Not found");
         }
-        return true;
+      } catch (e) {
+        res.writeHead(404, { "Content-Type": "text/plain" });
+        res.end("Not found");
       }
-      return false;
+      return true;
     } catch (e) {
       return false;
     }
@@ -402,15 +576,55 @@ function vvWebServer() {
     }
   }
 
-  // Book catalogue for the remote scripture selector: stored display
-  // names ("Juan/John"); clients send the first variant as the reference.
+  // Book catalogue for the remote scripture selector: resolves both active
+  // Bible versions (version1 / version2) from the loaded Bible XMLs just like
+  // renderBookList() in uecfipresenter.js, returning "Primary/Secondary" in
+  // `name` (plus explicit `primary` and `secondary` fields). Clients send the
+  // first variant (`primary`) as the command=1 reference.
   function getBibleBooks() {
     try {
       const names = gv("booknames", null);
       if (!Array.isArray(names)) return [];
+      const bibleArr = gv("bible", null);
+      const defNames = gv("default_booknames", null);
+      const v1 = gv("version1", 1);
+      const v2 = gv("version2", 2);
+
+      // Helper matching getBookNameSafely() in uecfipresenter.js so the remote
+      // book list always mirrors the desktop app's active dual versions.
+      function resolveBookName(vIndex, bIndex) {
+        try {
+          if (bibleArr && bibleArr[vIndex]) {
+            const bnNode = bibleArr[vIndex].getElementsByTagName("booknames")[0];
+            if (bnNode && bnNode.textContent) {
+              const arr = bnNode.textContent.split(",");
+              if (arr[bIndex] && arr[bIndex].trim()) return arr[bIndex].trim();
+            }
+            const books = bibleArr[vIndex].getElementsByTagName("b");
+            if (books && books[bIndex] && typeof books[bIndex].getAttribute === "function") {
+              const nm = books[bIndex].getAttribute("n");
+              if (nm && nm.trim()) return nm.trim();
+            }
+          }
+          if (Array.isArray(defNames) && defNames[bIndex]) {
+            const parts = String(defNames[bIndex]).split("/");
+            if (vIndex === v2) {
+              return (parts.length > 1 ? parts[1] : parts[0]).trim();
+            }
+            return parts[0].trim();
+          }
+        } catch (e) {}
+        return String(names[bIndex] || "").split("/")[0].trim();
+      }
+
       const out = [];
       for (let i = 0; i < names.length; i++) {
-        if (typeof names[i] === "string" && names[i] !== "") out.push({ i: i, name: names[i] });
+        if (typeof names[i] === "string" && names[i] !== "") {
+          const p1 = resolveBookName(v1, i) || String(names[i]).split("/")[0].trim();
+          const p2 = resolveBookName(v2, i) || p1;
+          const combined = (p2 && p2 !== p1) ? `${p1}/${p2}` : `${p1}/${p2}`;
+          out.push({ i: i, name: combined, primary: p1, secondary: p2 });
+        }
       }
       return out;
     } catch (e) {
@@ -448,6 +662,39 @@ function vvWebServer() {
     } catch (e) {
       return { book: 0, chapter: 1, count: 0 };
     }
+  }
+
+  // Slides/Songs modals: stable id lists. Never throws, never 404s —
+  // remotes fall back to /api/buttons cmd 8/9 when these are empty.
+  function getSongList() {
+    try {
+      const mgr = gv("songManagerObj", null);
+      if (mgr && typeof mgr.getAllSongs === "function") {
+        const list = mgr.getAllSongs();
+        if (Array.isArray(list)) {
+          return list
+            .filter(s => s && s.name != null)
+            .map(s => ({ id: String(s.id), name: String(s.name) }));
+        }
+      }
+    } catch (e) {}
+    return [];
+  }
+
+  function getProgramList() {
+    try {
+      let pm = null;
+      try { pm = gv("programManager", null); } catch (e) { pm = null; }
+      if ((!pm || !Array.isArray(pm.items)) && typeof window !== "undefined" && window.programManager) {
+        pm = window.programManager;
+      }
+      if (pm && Array.isArray(pm.items)) {
+        return pm.items
+          .filter(it => it && it.title != null)
+          .map(it => ({ id: String(it.id), title: String(it.title), type: String(it.type || "") }));
+      }
+    } catch (e) {}
+    return [];
   }
 
   // JSON-safe deep clone (drops functions/circular refs instead of throwing).
@@ -502,12 +749,12 @@ function vvWebServer() {
   // previewState injection point (see initPresentation in presentation.js),
   // so remote pages can render through the exact same renderer. The object
   // is timestamp-free so clients can diff it with a plain string compare.
-  // Output state (Logo / Black Screen toolbar buttons) rides along too:
+  // Output state (Logo / Attention toolbar buttons) rides along too:
   // liveOutputMode is the controller source of truth, p_logo_mode + the
   // p_logo_* config drive the logoLayer overlay, p_output_mode drives the
   // blackLayer overlay. Without these the remote engine always renders
   // plain live content.
-  function buildProjectionPayload() {
+  function buildProjectionPayload(role) {
     try {
       const live = !!gv("presentWindowOpen", false);
       let theme = null;
@@ -522,10 +769,37 @@ function vvWebServer() {
       let outputMode = "live";
       try {
         outputMode = String(gv("liveOutputMode", gv("p_output_mode", "live")) || "live");
-        if (outputMode !== "live" && outputMode !== "logo" && outputMode !== "black") outputMode = "live";
+        if (outputMode !== "live" && outputMode !== "logo" && outputMode !== "black" && outputMode !== "attention") outputMode = "live";
       } catch (e) { outputMode = "live"; }
+
+      const rawAttentionMode = !!gv("p_attention_mode", outputMode === "attention" || outputMode === "black");
+      const attentionSpeakerShow = !!gv("p_attention_speaker_show", false);
+      const isAttentionActive = (outputMode === "attention" || rawAttentionMode);
+
+      let effectiveOutputMode = outputMode;
+      let effectiveAttentionMode = rawAttentionMode;
+      if (role === "presenter" && isAttentionActive && !attentionSpeakerShow) {
+        effectiveOutputMode = "live";
+        effectiveAttentionMode = false;
+      }
+      let isVerse = false;
+      try {
+        if (typeof isLiveVerseActive === "function") {
+          isVerse = isLiveVerseActive();
+        } else if (typeof window !== "undefined" && typeof window.isLiveVerseActive === "function") {
+          isVerse = window.isLiveVerseActive();
+        } else {
+          const projType = String(gv("liveProjectionType", "") || "");
+          isVerse = live && (projType === "verses" || (theme && theme.context === "verses"));
+        }
+      } catch (e) {
+        isVerse = false;
+      }
+
       return {
         live: live,
+        projectionType: String(gv("liveProjectionType", "") || ""),
+        isVerse: !!isVerse,
         text1: jsonSafe(gv("p_text1_arr", [])) || [],
         text2: jsonSafe(gv("p_text2_arr", [])) || [],
         titleArr: jsonSafe(gv("p_title_arr", [])) || [],
@@ -552,9 +826,13 @@ function vvWebServer() {
         ver2: num(gv("p_ver2ScaleFactor", 1), 1),
         align: String(gv("p_align", "center") || "center"),
         theme: theme,
+        syncEnabled: (typeof window !== "undefined" && window.songAudioEngine) ? (window.songAudioEngine.syncEnabled !== false) : true,
+        syncActiveLineIndex: (typeof window !== "undefined" && window.songAudioEngine && typeof window.songAudioEngine.activeLineIndex === "number") ? window.songAudioEngine.activeLineIndex : -1,
+        syncActiveColor: (theme && theme.syncActiveColor) || "#F59E0B",
+        syncInactiveColor: (theme && theme.syncInactiveColor) || "#94A3B8",
         status: indicator,
         nav: remoteNav(),
-        outputMode: outputMode,
+        outputMode: effectiveOutputMode,
         logoMode: !!gv("p_logo_mode", outputMode === "logo"),
         logoImage: String(gv("p_logo_image", "") || ""),
         logoTitle: String(gv("p_logo_title", "") || ""),
@@ -569,7 +847,41 @@ function vvWebServer() {
         logoSubBold: !!gv("p_logo_sub_bold", false),
         logoSubItalic: !!gv("p_logo_sub_italic", false),
         logoBgImage: String(gv("p_logo_bgimage", "") || ""),
-        logoBgDim: num(gv("p_logo_bgdim", 50), 50)
+        logoBgDim: num(gv("p_logo_bgdim", 50), 50),
+        attentionActive: isAttentionActive,
+        attentionMode: effectiveAttentionMode,
+        attentionImage: String(gv("p_attention_image", "") || ""),
+        attentionTitle: String(gv("p_attention_title", "ATTENTION") || "ATTENTION"),
+        attentionSub: String(gv("p_attention_sub", "") || ""),
+        attentionBg: String(gv("p_attention_bg", "#000000") || "#000000"),
+        attentionColor: String(gv("p_attention_color", "#ffffff") || "#ffffff"),
+        attentionImgSize: num(gv("p_attention_imgsize", 35), 35),
+        attentionTitleSize: num(gv("p_attention_titlesize", 10), 10),
+        attentionSubSize: num(gv("p_attention_subsize", 5), 5),
+        attentionTitleBold: gv("p_attention_title_bold", true) !== false,
+        attentionTitleItalic: !!gv("p_attention_title_italic", false),
+        attentionTitleCaps: gv("p_attention_title_caps", true) !== false,
+        attentionTitleColor: String(gv("p_attention_title_color", "") || gv("p_attention_color", "#ffffff") || "#ffffff"),
+        attentionTitleBorderColor: String(gv("p_attention_title_border_color", "#000000") || "#000000"),
+        attentionTitleBorderThickness: num(gv("p_attention_title_border_thickness", 0), 0),
+        attentionTitlePaddingV: num(gv("p_attention_title_padding_v", 0), 0),
+        attentionTitlePaddingH: num(gv("p_attention_title_padding_h", 0), 0),
+        attentionSubBold: !!gv("p_attention_sub_bold", false),
+        attentionSubItalic: !!gv("p_attention_sub_italic", false),
+        attentionSubCaps: !!gv("p_attention_sub_caps", false),
+        attentionSubColor: String(gv("p_attention_sub_color", "") || gv("p_attention_color", "#ffffff") || "#ffffff"),
+        attentionSubBorderColor: String(gv("p_attention_sub_border_color", "#000000") || "#000000"),
+        attentionSubBorderThickness: num(gv("p_attention_sub_border_thickness", 0), 0),
+        attentionSubPaddingV: num(gv("p_attention_sub_padding_v", 0), 0),
+        attentionSubPaddingH: num(gv("p_attention_sub_padding_h", 0), 0),
+        attentionBorderColor: String(gv("p_attention_border_color", "#ffffff") || "#ffffff"),
+        attentionBorderThickness: num(gv("p_attention_border_thickness", 0), 0),
+        attentionPaddingV: num(gv("p_attention_padding_v", 5), 5),
+        attentionPaddingH: num(gv("p_attention_padding_h", 5), 5),
+        attentionSpeakerShow: !!gv("p_attention_speaker_show", false),
+        attentionBgImage: String(gv("p_attention_bgimage", "") || ""),
+        attentionBgDim: num(gv("p_attention_bgdim", 60), 60),
+        customSlide: jsonSafe(gv("p_custom_slide", null))
       };
     } catch (e) {
       return { live: false };
@@ -614,10 +926,62 @@ function vvWebServer() {
               responseText = call_prevSlide() ? "OK: Previous Slide" : "Ignored: Previous unavailable";
             }
             break;
-          case "4": // Close / Blank Presentation
+          case "20": // Next Verse (verses only)
+            if (typeof call_nextVerse === "function") {
+              responseText = call_nextVerse() ? "OK: Next Verse" : "Ignored: Verse navigation unavailable";
+            } else if (typeof window !== "undefined" && typeof window.call_nextVerse === "function") {
+              responseText = window.call_nextVerse() ? "OK: Next Verse" : "Ignored: Verse navigation unavailable";
+            } else {
+              responseText = "Verse navigation unavailable";
+            }
+            break;
+          case "21": // Previous Verse (verses only)
+            if (typeof call_prevVerse === "function") {
+              responseText = call_prevVerse() ? "OK: Previous Verse" : "Ignored: Verse navigation unavailable";
+            } else if (typeof window !== "undefined" && typeof window.call_prevVerse === "function") {
+              responseText = window.call_prevVerse() ? "OK: Previous Verse" : "Ignored: Verse navigation unavailable";
+            } else {
+              responseText = "Verse navigation unavailable";
+            }
+            break;
+          case "4": // Stop / Close Presentation (ends live, shows OFF AIR)
             if (typeof call_closePresentation === "function") call_closePresentation();
             responseText = "OK: Closed Presentation";
             break;
+          case "10": { // Show Logo overlay (keeps live content underneath)
+            if (typeof setLiveMonitorMode === "function") {
+              setLiveMonitorMode("logo");
+              responseText = "OK: Logo Screen";
+            } else {
+              responseText = "Logo unavailable";
+            }
+            break;
+          }
+          case "11": { // Attention / Black overlay (keeps live content underneath)
+            if (typeof setLiveMonitorMode === "function") {
+              setLiveMonitorMode("attention");
+              responseText = "OK: Attention";
+            } else {
+              responseText = "Attention unavailable";
+            }
+            break;
+          }
+          case "12": { // Restore live content from logo/black overlay
+            try {
+              if (typeof reRenderLiveMonitor === "function") {
+                reRenderLiveMonitor();
+                responseText = "OK: Live Restored";
+              } else if (typeof setLiveMonitorMode === "function") {
+                setLiveMonitorMode("live");
+                responseText = "OK: Live Restored";
+              } else {
+                responseText = "Live restore unavailable";
+              }
+            } catch (e) {
+              responseText = "Live restore unavailable";
+            }
+            break;
+          }
           case "5": // Get Recent
             if (typeof recent !== "undefined" && recent && typeof recent.data2string === "function") {
               responseText = recent.data2string();

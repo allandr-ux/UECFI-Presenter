@@ -1,0 +1,24 @@
+<resources>
+    <string name="app_name">UECFI Presenter</string>
+    <string name="searching_presenter">Searching for UECFI Presenter…</string>
+    <string name="off_air">OFF AIR</string>
+    <string name="manual_connect_title">Connect to UECFI Presenter</string>
+    <string name="manual_connect_subtitle">Auto-discovery is active on your local network, or enter the server address below.</string>
+    <string name="ip_address_label">IP Address / Host</string>
+    <string name="ip_address_placeholder">192.168.1.100</string>
+    <string name="port_label">Presenter Port</string>
+    <string name="port_placeholder">50000</string>
+    <string name="connect_button">Connect</string>
+    <string name="retry_auto_detect">Retry Auto-Detect</string>
+    <string name="connecting_status">Connecting…</string>
+    <string name="connection_failed_error">Unable to reach UECFI Presenter at %1$s:%2$d</string>
+    <string name="attention_on_projector">Attention Screen on Projector</string>
+    <string name="next_verse">Next Verse</string>
+    <string name="prev_verse">Prev Verse</string>
+    <string name="next_slide">Next Slide</string>
+    <string name="prev_slide">Prev Slide</string>
+    <string name="verse_navigation">Verse Navigation</string>
+    <string name="quick_buttons">Quick Buttons</string>
+    <string name="no_custom_buttons">No custom buttons configured on the presenter.</string>
+    <string name="tv_remote_hint">TV Remote: Left/Right switches slides • Menu opens connection settings</string>
+</resources>

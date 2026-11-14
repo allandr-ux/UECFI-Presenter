@@ -1,0 +1,6 @@
+{
+  "name": "UECFI Presenter",
+  "description": "Full-screen 16:9 live projection companion and swipe slide controller for UECFI Presenter over local Wi-Fi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

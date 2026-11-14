@@ -188,6 +188,18 @@
     try { win = frame.contentWindow; } catch (e) { return false; }
     if (!win || typeof win.updatePresentation !== "function") return false;
     try {
+      var isSpeaker = !!(window.isSpeakerRemote || el("scrGo") || (document.title && document.title.indexOf("Speaker Remote") >= 0));
+      var isAttentionActive = (st.outputMode === "attention" || !!st.attentionMode);
+      var hideOnSpeaker = isSpeaker && !st.attentionSpeakerShow;
+
+      var attNotice = el("attNotice");
+      if (attNotice) {
+        attNotice.style.display = (hideOnSpeaker && isAttentionActive) ? "flex" : "none";
+      }
+
+      var effectiveOutputMode = (hideOnSpeaker && isAttentionActive) ? "live" : st.outputMode;
+      var effectiveAttentionMode = (hideOnSpeaker && isAttentionActive) ? false : !!st.attentionMode;
+
       win.previewState = {
         text1: st.text1, text2: st.text2, titleArr: st.titleArr,
         font1: st.font1, font2: st.font2, title: st.title,
@@ -199,13 +211,33 @@
         maxFS: st.maxFS, transition: st.transition, showTitle: st.showTitle,
         shadow: st.shadow, ver1: st.ver1, ver2: st.ver2, align: st.align,
         theme: st.theme,
-        outputMode: st.outputMode, logoMode: st.logoMode,
+        outputMode: effectiveOutputMode, logoMode: st.logoMode,
         logoImage: st.logoImage, logoTitle: st.logoTitle, logoSub: st.logoSub,
         logoBg: st.logoBg, logoColor: st.logoColor,
         logoImgSize: st.logoImgSize, logoTitleSize: st.logoTitleSize, logoSubSize: st.logoSubSize,
         logoTitleBold: st.logoTitleBold, logoTitleItalic: st.logoTitleItalic,
         logoSubBold: st.logoSubBold, logoSubItalic: st.logoSubItalic,
-        logoBgImage: st.logoBgImage, logoBgDim: st.logoBgDim
+        logoBgImage: st.logoBgImage, logoBgDim: st.logoBgDim,
+        attentionMode: effectiveAttentionMode,
+        attentionImage: st.attentionImage, attentionTitle: st.attentionTitle, attentionSub: st.attentionSub,
+        attentionBg: st.attentionBg, attentionColor: st.attentionColor,
+        attentionImgSize: st.attentionImgSize, attentionTitleSize: st.attentionTitleSize, attentionSubSize: st.attentionSubSize,
+        attentionTitleBold: st.attentionTitleBold, attentionTitleItalic: st.attentionTitleItalic, attentionTitleCaps: st.attentionTitleCaps,
+        attentionTitleColor: st.attentionTitleColor,
+        attentionTitleBorderColor: st.attentionTitleBorderColor, attentionTitleBorderThickness: st.attentionTitleBorderThickness,
+        attentionTitlePaddingV: st.attentionTitlePaddingV, attentionTitlePaddingH: st.attentionTitlePaddingH,
+        attentionSubBold: st.attentionSubBold, attentionSubItalic: st.attentionSubItalic, attentionSubCaps: st.attentionSubCaps,
+        attentionSubColor: st.attentionSubColor,
+        attentionSubBorderColor: st.attentionSubBorderColor, attentionSubBorderThickness: st.attentionSubBorderThickness,
+        attentionSubPaddingV: st.attentionSubPaddingV, attentionSubPaddingH: st.attentionSubPaddingH,
+        attentionBorderColor: st.attentionBorderColor, attentionBorderThickness: st.attentionBorderThickness,
+        attentionPaddingV: st.attentionPaddingV, attentionPaddingH: st.attentionPaddingH,
+        attentionBgImage: st.attentionBgImage, attentionBgDim: st.attentionBgDim,
+        syncEnabled: st.syncEnabled !== undefined ? st.syncEnabled : true,
+        syncActiveLineIndex: (typeof st.syncActiveLineIndex === "number") ? st.syncActiveLineIndex : -1,
+        syncActiveColor: st.syncActiveColor || "#F59E0B",
+        syncInactiveColor: st.syncInactiveColor || "#94A3B8",
+        customSlide: st.customSlide
       };
       if (st.winX > 0 && st.winY > 0) {
         frame.setAttribute("width", st.winX);
@@ -217,6 +249,9 @@
       win.updatePresentation();
       if (typeof win.updateContent2 === "function") win.updateContent2();
       else if (typeof win.updateContent === "function") win.updateContent();
+      if (typeof win.applySongLineHighlight === "function") {
+        try { win.applySongLineHighlight(st.syncActiveLineIndex, st.syncEnabled); } catch (e) {}
+      }
       fitEngine();
       return true;
     } catch (e) {

@@ -70,8 +70,9 @@ function processScreenSelChange() {
 }
 
 function presentation() {
-  // Fresh projection always owns the screen: drop any logo overlay first.
+  // Fresh projection always owns the screen: drop any logo/attention overlay first.
   window.p_logo_mode = false;
+  window.p_attention_mode = false;
   const screens = getScreensArray();
   let targetBounds;
   if (dualScreen && screens[1]) {
@@ -151,8 +152,12 @@ function closePresentWindow() {
 
 function presentWindowClosed() {
   presentWindowOpen = false;
-  // A closed projector must not reopen onto a stale logo overlay.
+  if (typeof window !== "undefined" && window.songAudioEngine) {
+    try { window.songAudioEngine.stop(); } catch (e) {}
+  }
+  // A closed projector must not reopen onto a stale logo or attention overlay.
   window.p_logo_mode = false;
+  window.p_attention_mode = false;
   if (typeof setLiveProjectionType === "function") setLiveProjectionType(null);
   if (typeof window !== "undefined") window.liveProgramActive = false;
   if (typeof disableNavButtons === "function") {
@@ -199,6 +204,8 @@ function DOMIntializeCallback(a) {
 function passVariable() {
   this.p_text1_arr = p_text1_arr;
   this.p_text2_arr = p_text2_arr;
+  this.p_person_title_arr = (typeof p_person_title_arr !== "undefined") ? p_person_title_arr : [];
+  this.p_person_title = (typeof p_person_title !== "undefined") ? p_person_title : "";
   this.p_title_arr = p_title_arr;
   this.p_text1_font = p_text1_font;
   this.p_text2_font = p_text2_font;
@@ -236,7 +243,44 @@ function passVariable() {
   this.p_logo_sub_italic = (typeof p_logo_sub_italic !== "undefined") ? p_logo_sub_italic : false;
   this.p_logo_bgimage = (typeof p_logo_bgimage !== "undefined") ? p_logo_bgimage : "";
   this.p_logo_bgdim = (typeof p_logo_bgdim !== "undefined") ? p_logo_bgdim : 50;
+  this.p_attention_mode = (typeof p_attention_mode !== "undefined") ? p_attention_mode : false;
+  this.p_attention_image = (typeof p_attention_image !== "undefined") ? p_attention_image : "";
+  this.p_attention_title = (typeof p_attention_title !== "undefined") ? p_attention_title : "ATTENTION";
+  this.p_attention_sub = (typeof p_attention_sub !== "undefined") ? p_attention_sub : "";
+  this.p_attention_bg = (typeof p_attention_bg !== "undefined") ? p_attention_bg : "#000000";
+  this.p_attention_color = (typeof p_attention_color !== "undefined") ? p_attention_color : "#ffffff";
+  this.p_attention_imgsize = (typeof p_attention_imgsize !== "undefined") ? p_attention_imgsize : 35;
+  this.p_attention_titlesize = (typeof p_attention_titlesize !== "undefined") ? p_attention_titlesize : 10;
+  this.p_attention_subsize = (typeof p_attention_subsize !== "undefined") ? p_attention_subsize : 5;
+  this.p_attention_title_bold = (typeof p_attention_title_bold !== "undefined") ? p_attention_title_bold : true;
+  this.p_attention_title_italic = (typeof p_attention_title_italic !== "undefined") ? p_attention_title_italic : false;
+  this.p_attention_title_caps = (typeof p_attention_title_caps !== "undefined") ? p_attention_title_caps : true;
+  this.p_attention_title_color = (typeof p_attention_title_color !== "undefined") ? p_attention_title_color : (typeof p_attention_color !== "undefined" ? p_attention_color : "#ffffff");
+  this.p_attention_title_border_color = (typeof p_attention_title_border_color !== "undefined") ? p_attention_title_border_color : "#000000";
+  this.p_attention_title_border_thickness = (typeof p_attention_title_border_thickness !== "undefined") ? p_attention_title_border_thickness : 0;
+  this.p_attention_title_padding_v = (typeof p_attention_title_padding_v !== "undefined") ? p_attention_title_padding_v : 0;
+  this.p_attention_title_padding_h = (typeof p_attention_title_padding_h !== "undefined") ? p_attention_title_padding_h : 0;
+  this.p_attention_sub_bold = (typeof p_attention_sub_bold !== "undefined") ? p_attention_sub_bold : false;
+  this.p_attention_sub_italic = (typeof p_attention_sub_italic !== "undefined") ? p_attention_sub_italic : false;
+  this.p_attention_sub_caps = (typeof p_attention_sub_caps !== "undefined") ? p_attention_sub_caps : false;
+  this.p_attention_sub_color = (typeof p_attention_sub_color !== "undefined") ? p_attention_sub_color : (typeof p_attention_color !== "undefined" ? p_attention_color : "#ffffff");
+  this.p_attention_sub_border_color = (typeof p_attention_sub_border_color !== "undefined") ? p_attention_sub_border_color : "#000000";
+  this.p_attention_sub_border_thickness = (typeof p_attention_sub_border_thickness !== "undefined") ? p_attention_sub_border_thickness : 0;
+  this.p_attention_sub_padding_v = (typeof p_attention_sub_padding_v !== "undefined") ? p_attention_sub_padding_v : 0;
+  this.p_attention_sub_padding_h = (typeof p_attention_sub_padding_h !== "undefined") ? p_attention_sub_padding_h : 0;
+  this.p_attention_border_color = (typeof p_attention_border_color !== "undefined") ? p_attention_border_color : "#ffffff";
+  this.p_attention_border_thickness = (typeof p_attention_border_thickness !== "undefined") ? p_attention_border_thickness : 0;
+  this.p_attention_padding_v = (typeof p_attention_padding_v !== "undefined") ? p_attention_padding_v : 5;
+  this.p_attention_padding_h = (typeof p_attention_padding_h !== "undefined") ? p_attention_padding_h : 5;
+  this.p_attention_speaker_show = (typeof p_attention_speaker_show !== "undefined") ? p_attention_speaker_show : false;
+  this.p_attention_bgimage = (typeof p_attention_bgimage !== "undefined") ? p_attention_bgimage : "";
+  this.p_attention_bgdim = (typeof p_attention_bgdim !== "undefined") ? p_attention_bgdim : 60;
+  this.p_custom_slide = (typeof p_custom_slide !== "undefined") ? p_custom_slide : null;
   this.p_output_mode = (typeof liveOutputMode !== "undefined") ? liveOutputMode : "live";
+  this.p_sync_enabled = (typeof window.songAudioEngine !== "undefined") ? window.songAudioEngine.syncEnabled : true;
+  this.p_sync_active_line_index = (typeof window.songAudioEngine !== "undefined") ? window.songAudioEngine.activeLineIndex : -1;
+  this.p_sync_active_color = (window.themeManager && typeof window.themeManager.getStyleBundle === "function" && window.themeManager.getStyleBundle("songs") && window.themeManager.getStyleBundle("songs").syncActiveColor) || "#F59E0B";
+  this.p_sync_inactive_color = (window.themeManager && typeof window.themeManager.getStyleBundle === "function" && window.themeManager.getStyleBundle("songs") && window.themeManager.getStyleBundle("songs").syncInactiveColor) || "#94A3B8";
   this.activeThemeObj = (typeof window !== "undefined" && window.activeThemeObj) ? window.activeThemeObj : null;
   // Shadow globals must follow the theme too: the projection renderer reads
   // module-level blur/shadowColor (not activeThemeObj directly), so without
@@ -678,9 +722,22 @@ function openLogoDesigner() {
   } catch (e) {}
 }
 // Downscale uploads (max 960px) so the data URL stays localStorage-safe.
+// For animated GIFs, preserve full multi-frame animation instead of rasterizing on canvas.
 function handleLogoDesignerFile(file) {
   try {
+    const isGif = file && (file.type === "image/gif" || /\.gif$/i.test(file.name || ""));
     const reader = new FileReader();
+    if (isGif) {
+      reader.onload = () => {
+        try {
+          window.logoDesignerImageData = reader.result;
+          const prev = document.getElementById("logoDesignerPreview");
+          if (prev) { prev.src = window.logoDesignerImageData; prev.style.display = "block"; }
+        } catch (e) {}
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
     reader.onload = () => {
       try {
         const img = new Image();
@@ -741,12 +798,713 @@ function saveLogoDesigner() {
   } catch (e) {}
 }
 // ---------------------------------------------------------------------------
+// Custom attention screen (Attention toolbar button).
+// Config persists in localStorage ("uecfi_attention_screen"); the projector
+// + sidebar preview render it through the shared presentation.htm engine.
+// ---------------------------------------------------------------------------
+window.p_attention_mode = false;
+window.p_attention_image = "";
+window.p_attention_title = "ATTENTION";
+window.p_attention_sub = "Panalangin / Silence Please";
+window.p_attention_bg = "#000000";
+window.p_attention_color = "#ffffff";
+window.p_attention_imgsize = 35;
+window.p_attention_titlesize = 10;
+window.p_attention_subsize = 5;
+window.p_attention_title_bold = true;
+window.p_attention_title_italic = false;
+window.p_attention_title_caps = true;
+window.p_attention_title_color = "#ffffff";
+window.p_attention_title_border_color = "#000000";
+window.p_attention_title_border_thickness = 0;
+window.p_attention_title_padding_v = 0;
+window.p_attention_title_padding_h = 0;
+window.p_attention_sub_bold = false;
+window.p_attention_sub_italic = false;
+window.p_attention_sub_caps = false;
+window.p_attention_sub_color = "#ffffff";
+window.p_attention_sub_border_color = "#000000";
+window.p_attention_sub_border_thickness = 0;
+window.p_attention_sub_padding_v = 0;
+window.p_attention_sub_padding_h = 0;
+window.p_attention_border_color = "#ffffff";
+window.p_attention_border_thickness = 0;
+window.p_attention_padding_v = 5;
+window.p_attention_padding_h = 5;
+window.p_attention_play_chime = true;
+window.p_attention_chime_volume = 100;
+window.p_attention_speaker_show = false;
+window.p_attention_bgimage = "";
+window.p_attention_bgdim = 60;
+window.p_custom_slide = null;
+
+function playAttentionChime(volumeOverride) {
+  try {
+    if (!window.attentionAudio) {
+      window.attentionAudio = new Audio("attention.mp3");
+    }
+    const rawVol = (volumeOverride !== undefined && volumeOverride !== null)
+      ? logoNum(volumeOverride, 100)
+      : logoNum(window.p_attention_chime_volume, 100);
+    window.attentionAudio.volume = Math.min(1, Math.max(0, rawVol / 100));
+    window.attentionAudio.currentTime = 0;
+    const playPromise = window.attentionAudio.play();
+    if (playPromise && typeof playPromise.catch === "function") {
+      playPromise.catch((e) => {
+        console.warn("[ATTENTION] Audio playback error:", e);
+      });
+    }
+  } catch (e) {
+    console.warn("[ATTENTION] Error playing chime:", e);
+  }
+}
+
+function stopAttentionChime() {
+  try {
+    if (window.attentionAudio) {
+      window.attentionAudio.pause();
+      window.attentionAudio.currentTime = 0;
+    }
+  } catch (e) {}
+}
+
+function loadAttentionScreenConfig() {
+  try {
+    const raw = localStorage.getItem("uecfi_attention_screen");
+    if (raw) {
+      const c = JSON.parse(raw);
+      if (c && typeof c === "object") {
+        window.p_attention_image = (typeof c.image === "string") ? c.image : "";
+        window.p_attention_title = (typeof c.title === "string") ? c.title : "ATTENTION";
+        window.p_attention_sub = (typeof c.subtitle === "string") ? c.subtitle : "Panalangin / Silence Please";
+        window.p_attention_bg = (typeof c.bg === "string") ? c.bg : "#000000";
+        window.p_attention_color = (typeof c.color === "string") ? c.color : "#ffffff";
+        window.p_attention_imgsize = Math.min(95, Math.max(5, logoNum(c.imgPct, 35)));
+        window.p_attention_titlesize = Math.min(25, Math.max(1, logoNum(c.titlePct, 10)));
+        window.p_attention_subsize = Math.min(15, Math.max(1, logoNum(c.subPct, 5)));
+        window.p_attention_title_bold = (c.titleBold === undefined) ? true : !!c.titleBold;
+        window.p_attention_title_italic = !!c.titleItalic;
+        window.p_attention_title_caps = (c.titleCaps === undefined) ? true : !!c.titleCaps;
+        window.p_attention_title_color = (typeof c.titleColor === "string") ? c.titleColor : (window.p_attention_color || "#ffffff");
+        window.p_attention_title_border_color = (typeof c.titleBorderColor === "string") ? c.titleBorderColor : "#000000";
+        window.p_attention_title_border_thickness = Math.min(20, Math.max(0, logoNum(c.titleBorderThickness, 0)));
+        window.p_attention_title_padding_v = Math.min(50, Math.max(0, logoNum(c.titlePaddingV, 0)));
+        window.p_attention_title_padding_h = Math.min(50, Math.max(0, logoNum(c.titlePaddingH, 0)));
+        window.p_attention_sub_bold = !!c.subBold;
+        window.p_attention_sub_italic = !!c.subItalic;
+        window.p_attention_sub_caps = !!c.subCaps;
+        window.p_attention_sub_color = (typeof c.subColor === "string") ? c.subColor : (window.p_attention_color || "#ffffff");
+        window.p_attention_sub_border_color = (typeof c.subBorderColor === "string") ? c.subBorderColor : "#000000";
+        window.p_attention_sub_border_thickness = Math.min(20, Math.max(0, logoNum(c.subBorderThickness, 0)));
+        window.p_attention_sub_padding_v = Math.min(50, Math.max(0, logoNum(c.subPaddingV, 0)));
+        window.p_attention_sub_padding_h = Math.min(50, Math.max(0, logoNum(c.subPaddingH, 0)));
+        window.p_attention_border_color = (typeof c.borderColor === "string") ? c.borderColor : "#ffffff";
+        window.p_attention_border_thickness = Math.min(50, Math.max(0, logoNum(c.borderThickness, 0)));
+        window.p_attention_play_chime = (c.playChime === undefined) ? true : !!c.playChime;
+        window.p_attention_chime_volume = Math.min(100, Math.max(0, logoNum(c.chimeVolume, 100)));
+        window.p_attention_speaker_show = !!c.speakerShow;
+        const fallbackPad = logoNum(c.padding, 5);
+        window.p_attention_padding_v = Math.min(25, Math.max(0, logoNum(c.paddingV !== undefined ? c.paddingV : fallbackPad, 5)));
+        window.p_attention_padding_h = Math.min(25, Math.max(0, logoNum(c.paddingH !== undefined ? c.paddingH : fallbackPad, 5)));
+        window.p_attention_bgimage = (typeof c.bgImage === "string") ? c.bgImage : "";
+        window.p_attention_bgdim = Math.min(90, Math.max(0, logoNum(c.bgDim, 60)));
+        return;
+      }
+    }
+  } catch (e) {}
+  saveAttentionScreenConfig();
+}
+
+function saveAttentionScreenConfig() {
+  try {
+    localStorage.setItem("uecfi_attention_screen", JSON.stringify({
+      image: window.p_attention_image || "",
+      title: (typeof window.p_attention_title === "string") ? window.p_attention_title : "ATTENTION",
+      subtitle: (typeof window.p_attention_sub === "string") ? window.p_attention_sub : "",
+      bg: window.p_attention_bg || "#000000",
+      color: window.p_attention_color || "#ffffff",
+      imgPct: logoNum(window.p_attention_imgsize, 35),
+      titlePct: logoNum(window.p_attention_titlesize, 10),
+      subPct: logoNum(window.p_attention_subsize, 5),
+      titleBold: window.p_attention_title_bold !== false,
+      titleItalic: !!window.p_attention_title_italic,
+      titleCaps: window.p_attention_title_caps !== false,
+      titleColor: window.p_attention_title_color || window.p_attention_color || "#ffffff",
+      titleBorderColor: window.p_attention_title_border_color || "#000000",
+      titleBorderThickness: logoNum(window.p_attention_title_border_thickness, 0),
+      titlePaddingV: logoNum(window.p_attention_title_padding_v, 0),
+      titlePaddingH: logoNum(window.p_attention_title_padding_h, 0),
+      subBold: !!window.p_attention_sub_bold,
+      subItalic: !!window.p_attention_sub_italic,
+      subCaps: !!window.p_attention_sub_caps,
+      subColor: window.p_attention_sub_color || window.p_attention_color || "#ffffff",
+      subBorderColor: window.p_attention_sub_border_color || "#000000",
+      subBorderThickness: logoNum(window.p_attention_sub_border_thickness, 0),
+      subPaddingV: logoNum(window.p_attention_sub_padding_v, 0),
+      subPaddingH: logoNum(window.p_attention_sub_padding_h, 0),
+      borderColor: window.p_attention_border_color || "#ffffff",
+      borderThickness: logoNum(window.p_attention_border_thickness, 0),
+      playChime: window.p_attention_play_chime !== false,
+      chimeVolume: Math.min(100, Math.max(0, logoNum(window.p_attention_chime_volume, 100))),
+      speakerShow: !!window.p_attention_speaker_show,
+      paddingV: logoNum(window.p_attention_padding_v, 5),
+      paddingH: logoNum(window.p_attention_padding_h, 5),
+      padding: logoNum(window.p_attention_padding_v, 5),
+      bgImage: (typeof window.p_attention_bgimage === "string") ? window.p_attention_bgimage : "",
+      bgDim: logoNum(window.p_attention_bgdim, 60)
+    }));
+  } catch (e) {}
+}
+
+// WYSIWYG content for the sidebar attention overlay.
+function renderAttentionOverlay() {
+  try {
+    const content = document.getElementById("attentionOverlayContent");
+    if (content) {
+      const padV = Math.min(25, Math.max(0, logoNum(window.p_attention_padding_v, 5)));
+      const padH = Math.min(25, Math.max(0, logoNum(window.p_attention_padding_h, 5)));
+      const borderThick = Math.max(0, logoNum(window.p_attention_border_thickness, 0));
+      const borderColor = window.p_attention_border_color || "#ffffff";
+
+      content.style.position = "absolute";
+      content.style.left = `${padH}%`;
+      content.style.top = `${padV}%`;
+      content.style.width = `calc(100% - ${padH * 2}%)`;
+      content.style.height = `calc(100% - ${padV * 2}%)`;
+      content.style.boxSizing = "border-box";
+      if (borderThick > 0) {
+        const previewBorderPx = Math.max(1, Math.min(4, Math.round(borderThick * 0.25)));
+        content.style.border = `${previewBorderPx}px solid ${borderColor}`;
+        content.style.borderRadius = `${Math.min(6, Math.max(0, previewBorderPx * 2))}px`;
+        content.style.padding = "8px";
+      } else {
+        content.style.border = "none";
+        content.style.borderRadius = "0px";
+        content.style.padding = "0px";
+      }
+    }
+    const img = document.getElementById("attentionOverlayImg");
+    if (img) {
+      if (window.p_attention_image) {
+        if (img.getAttribute("src") !== window.p_attention_image) img.setAttribute("src", window.p_attention_image);
+        img.style.display = "block";
+      } else {
+        img.style.display = "none";
+      }
+    }
+    const t = document.getElementById("attentionOverlayTitle");
+    if (t) {
+      t.textContent = window.p_attention_title || "";
+      t.style.display = window.p_attention_title ? "block" : "none";
+      t.style.color = window.p_attention_title_color || window.p_attention_color || "#ffffff";
+      t.style.fontWeight = window.p_attention_title_bold === false ? "normal" : "bold";
+      t.style.fontStyle = window.p_attention_title_italic ? "italic" : "normal";
+      t.style.textTransform = (window.p_attention_title_caps !== false) ? "uppercase" : "none";
+      const tBorderThick = Math.max(0, logoNum(window.p_attention_title_border_thickness, 0));
+      const tBorderColor = window.p_attention_title_border_color || "#000000";
+      const tPadV = Math.max(0, logoNum(window.p_attention_title_padding_v, 0));
+      const tPadH = Math.max(0, logoNum(window.p_attention_title_padding_h, 0));
+      const previewTStroke = Math.max(0, Math.round(tBorderThick * 0.25));
+      if (previewTStroke > 0) {
+        t.style.webkitTextStroke = `${previewTStroke}px ${tBorderColor}`;
+        t.style.paintOrder = "stroke fill";
+      } else {
+        t.style.webkitTextStroke = "0px transparent";
+        t.style.paintOrder = "normal";
+      }
+      t.style.padding = `${Math.round(tPadV * 0.25)}px ${Math.round(tPadH * 0.25)}px`;
+    }
+    const s = document.getElementById("attentionOverlaySub");
+    if (s) {
+      s.textContent = window.p_attention_sub || "";
+      s.style.display = window.p_attention_sub ? "block" : "none";
+      s.style.color = window.p_attention_sub_color || window.p_attention_color || "#ffffff";
+      s.style.fontWeight = window.p_attention_sub_bold ? "bold" : "normal";
+      s.style.fontStyle = window.p_attention_sub_italic ? "italic" : "normal";
+      s.style.textTransform = window.p_attention_sub_caps ? "uppercase" : "none";
+      const sBorderThick = Math.max(0, logoNum(window.p_attention_sub_border_thickness, 0));
+      const sBorderColor = window.p_attention_sub_border_color || "#000000";
+      const sPadV = Math.max(0, logoNum(window.p_attention_sub_padding_v, 0));
+      const sPadH = Math.max(0, logoNum(window.p_attention_sub_padding_h, 0));
+      const previewSStroke = Math.max(0, Math.round(sBorderThick * 0.25));
+      if (previewSStroke > 0) {
+        s.style.webkitTextStroke = `${previewSStroke}px ${sBorderColor}`;
+        s.style.paintOrder = "stroke fill";
+      } else {
+        s.style.webkitTextStroke = "0px transparent";
+        s.style.paintOrder = "normal";
+      }
+      s.style.padding = `${Math.round(sPadV * 0.25)}px ${Math.round(sPadH * 0.25)}px`;
+    }
+    const att = document.getElementById("attentionOverlay") || document.getElementById("blackoutOverlay");
+    if (att) att.style.background = window.p_attention_bg || "#000000";
+    // Sidebar mirror of the engine background photo + dimming overlay.
+    try {
+      const bg = document.getElementById("attentionOverlayBg");
+      if (bg) {
+        if (window.p_attention_bgimage) {
+          const primary = `./background/${window.p_attention_bgimage}`;
+          const fallback = `storage/background/${window.p_attention_bgimage}`;
+          if (bg.getAttribute("data-file") !== window.p_attention_bgimage) {
+            bg.setAttribute("data-file", window.p_attention_bgimage);
+            bg.onerror = () => {
+              bg.onerror = null;
+              if (bg.getAttribute("src") !== fallback) bg.setAttribute("src", fallback);
+            };
+            bg.setAttribute("src", primary);
+          }
+          bg.style.display = "block";
+        } else {
+          bg.removeAttribute("data-file");
+          bg.style.display = "none";
+        }
+      }
+      const dimPct = Math.min(90, Math.max(0, logoNum(window.p_attention_bgdim, 60)));
+      const dim = document.getElementById("attentionOverlayDim");
+      if (dim) {
+        if (window.p_attention_bgimage && dimPct > 0) {
+          dim.style.display = "block";
+          dim.style.opacity = String(dimPct / 100);
+        } else {
+          dim.style.display = "none";
+        }
+      }
+    } catch (e) {}
+  } catch (e) {}
+}
+
+function renderAttentionBgGallery() {
+  try {
+    const host = document.getElementById("attentionBgGallery");
+    if (!host) return;
+    const current = String(window.attentionDesignerBgImage || "").toLowerCase();
+    const ring = (on) => on
+      ? "ring-2 ring-brand-600 border-brand-500 shadow-sm bg-brand-50/30"
+      : "border-slate-200 hover:border-slate-400 bg-white";
+    const badge = (on) => on
+      ? `<span class="absolute top-1 right-1 w-4 h-4 rounded-full bg-brand-600 text-white flex items-center justify-center text-[9px]"><i class="fa-solid fa-check"></i></span>`
+      : "";
+    let html = `
+      <div onclick="selectAttentionBackground('')" title="Solid color (no photo)"
+           class="relative flex flex-col p-1 rounded-lg border transition text-left cursor-pointer ${ring(current === "")}">
+        <div class="w-full aspect-video rounded bg-slate-900 border border-slate-100/50 flex items-center justify-center relative">
+          <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">None</span>
+          ${badge(current === "")}
+        </div>
+        <div class="mt-1 px-0.5 truncate text-[10px] font-semibold text-slate-700 leading-tight">Solid color</div>
+      </div>`;
+    logoBackgroundList().forEach((img) => {
+      if (!img || !img.file) return;
+      const on = String(img.file).toLowerCase() === current;
+      const safeFile = String(img.file).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+      html += `
+      <div onclick="selectAttentionBackground('${safeFile}')" title="${escapeNotepadHtml(img.name || img.file)} (${escapeNotepadHtml(img.file)})"
+           class="relative flex flex-col p-1 rounded-lg border transition text-left cursor-pointer ${ring(on)}">
+        <div class="w-full aspect-video rounded overflow-hidden bg-slate-900 border border-slate-100/50 flex items-center justify-center relative">
+          <img src="./background/${escapeNotepadHtml(img.file)}" onerror="this.onerror=null;this.src='storage/background/${escapeNotepadHtml(img.file)}'" alt="${escapeNotepadHtml(img.name || "")}" class="w-full h-full object-cover" />
+          ${badge(on)}
+        </div>
+        <div class="mt-1 px-0.5 truncate text-[10px] font-semibold text-slate-700 leading-tight">${escapeNotepadHtml(img.name || img.file)}</div>
+      </div>`;
+    });
+    host.innerHTML = html;
+  } catch (e) {}
+}
+
+function selectAttentionBackground(file) {
+  try {
+    window.attentionDesignerBgImage = file || "";
+    window.p_attention_bgimage = file || "";
+    saveAttentionScreenConfig();
+    renderAttentionBgGallery();
+    renderAttentionOverlay();
+    if (window.liveOutputMode === "attention" || window.liveOutputMode === "black") {
+      refreshProjectorEngine();
+      pushSidebarPreview();
+    }
+  } catch (e) {}
+}
+
+function uploadAttentionBackground(event) {
+  try {
+    const input = event ? event.target : null;
+    if (!input || !input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    const fileName = file.name || "";
+    const ext = ("." + (fileName.split(".").pop() || "")).toLowerCase();
+    if ([".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif"].indexOf(ext) < 0) {
+      alert("Unsupported file format. Please upload JPG, PNG, WEBP, BMP, or GIF images.");
+      return;
+    }
+    if (typeof require !== "undefined") {
+      try {
+        const fs = require("fs");
+        const path = require("path");
+        const dir1 = path.join(process.cwd(), "background");
+        const dir2 = path.join(process.cwd(), "storage", "background");
+        if (!fs.existsSync(dir1)) fs.mkdirSync(dir1, { recursive: true });
+        if (!fs.existsSync(dir2)) fs.mkdirSync(dir2, { recursive: true });
+        if (file.path) {
+          fs.copyFileSync(file.path, path.join(dir1, fileName));
+          fs.copyFileSync(file.path, path.join(dir2, fileName));
+        } else if (typeof Buffer !== "undefined") {
+          const reader = new FileReader();
+          reader.onload = () => {
+            try {
+              const buffer = Buffer.from(reader.result);
+              fs.writeFileSync(path.join(dir1, fileName), buffer);
+              fs.writeFileSync(path.join(dir2, fileName), buffer);
+            } catch (e2) {}
+          };
+          reader.readAsArrayBuffer(file);
+        }
+      } catch (err) {
+        console.error("[ATTENTION] Error saving uploaded background to disk:", err);
+      }
+    }
+    try {
+      let storedCustom = [];
+      const raw = localStorage.getItem("uecfi_custom_backgrounds");
+      if (raw) storedCustom = JSON.parse(raw);
+      const baseName = fileName.replace(/\.[^/.]+$/, "");
+      const cleanName = baseName.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      if (!storedCustom.some((x) => x && x.file && x.file.toLowerCase() === fileName.toLowerCase())) {
+        storedCustom.push({ name: cleanName || fileName, file: fileName });
+        localStorage.setItem("uecfi_custom_backgrounds", JSON.stringify(storedCustom));
+      }
+    } catch (e) {
+      console.warn("[ATTENTION] Error persisting uploaded background to registry:", e);
+    }
+    try {
+      if (window.themeManager && typeof window.themeManager.loadAvailableImages === "function") {
+        window.themeManager.loadAvailableImages();
+      }
+    } catch (e) {}
+    try { input.value = ""; } catch (e) {}
+    selectAttentionBackground(fileName);
+  } catch (e) {}
+}
+
+window.attentionDesignerImageData = null;
+function openAttentionDesigner() {
+  try {
+    if (typeof AppUI === "undefined" || !AppUI.Modal) return;
+    loadAttentionScreenConfig();
+    if (!window.attentionDesignerModal) {
+      window.attentionDesignerModal = new AppUI.Modal("attentionScreenDialog");
+      window.attentionDesignerModal.render();
+    }
+    window.attentionDesignerImageData = window.p_attention_image || null;
+    window.attentionDesignerBgImage = window.p_attention_bgimage || "";
+    window.attentionDesignerModal.setHeader("Attention Screen");
+    window.attentionDesignerModal.setBody(
+      `<div class="flex flex-col gap-3">`
+      + `<div class="flex items-start gap-3">`
+      + `<img id="attentionDesignerPreview" src="${window.p_attention_image || ""}" style="display:${window.p_attention_image ? "block" : "none"};width:96px;height:96px;object-fit:contain;background:#0f172a;border-radius:12px;border:1px solid #e2e8f0;">`
+      + `<div class="flex-1 min-w-0 flex flex-col gap-2">`
+      + `<input id="attentionDesignerFile" type="file" accept="image/*" class="w-full text-xs text-slate-600">`
+      + `<button type="button" id="attentionDesignerRemoveBtn" class="px-2.5 py-1 text-[11px] font-semibold text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition self-start" style="background:none;border:0;cursor:pointer;">Remove image</button>`
+      + `</div></div>`
+      + `<div class="p-3 bg-slate-50/70 border border-slate-200 rounded-xl space-y-2">`
+      + `<div class="flex items-center justify-between"><span class="text-[11px] font-bold uppercase tracking-wider text-slate-700">Title / Header</span>`
+      + `<span class="flex items-center gap-1">`
+      + `<button type="button" id="attentionDesignerTitleBold" title="Bold title" style="width:28px;height:28px;border-radius:8px;border:1px solid #cbd5e1;font-size:13px;cursor:pointer;background:#fff;"><b>B</b></button>`
+      + `<button type="button" id="attentionDesignerTitleItalic" title="Italic title" style="width:28px;height:28px;border-radius:8px;border:1px solid #cbd5e1;font-size:13px;cursor:pointer;background:#fff;"><i>I</i></button>`
+      + `<button type="button" id="attentionDesignerTitleCaps" title="All caps title" style="width:28px;height:28px;border-radius:8px;border:1px solid #cbd5e1;font-size:11px;font-weight:bold;cursor:pointer;background:#fff;">AA</button>`
+      + `</span></div>`
+      + `<input id="attentionDesignerTitle" type="text" maxlength="60" value="${escapeNotepadHtml(window.p_attention_title || "")}" placeholder="ATTENTION" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 font-sans bg-white">`
+      + `<label class="block"><span class="block text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Title size (<span id="attentionDesignerTitleVal">${Math.round(logoNum(window.p_attention_titlesize, 10))}%</span> of screen height)</span>`
+      + `<input id="attentionDesignerTitleSize" type="range" min="1" max="25" step="0.5" value="${logoNum(window.p_attention_titlesize, 10)}" class="w-full"></label>`
+      + `<div class="flex items-center gap-3 pt-1 border-t border-slate-200/60 flex-wrap">`
+      + `<label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600">Color <input id="attentionDesignerTitleColor" type="color" value="${escapeNotepadHtml(window.p_attention_title_color || window.p_attention_color || "#ffffff")}" style="width:30px;height:24px;padding:0;border:1px solid #cbd5e1;border-radius:5px;cursor:pointer;"></label>`
+      + `<label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600">Border <input id="attentionDesignerTitleBorderColor" type="color" value="${escapeNotepadHtml(window.p_attention_title_border_color || "#000000")}" style="width:30px;height:24px;padding:0;border:1px solid #cbd5e1;border-radius:5px;cursor:pointer;"></label>`
+      + `<label class="flex-1 min-w-[140px] block"><span class="block text-[10px] font-semibold text-slate-500 mb-0.5">Thickness (<span id="attentionDesignerTitleBorderVal">${logoNum(window.p_attention_title_border_thickness, 0)}px</span>)</span>`
+      + `<input id="attentionDesignerTitleBorder" type="range" min="0" max="15" step="1" value="${logoNum(window.p_attention_title_border_thickness, 0)}" class="w-full"></label>`
+      + `</div>`
+      + `<div class="grid grid-cols-2 gap-2 pt-1">`
+      + `<label class="block"><span class="block text-[10px] font-semibold text-slate-500 mb-0.5">V-Padding (<span id="attentionDesignerTitlePadVVal">${logoNum(window.p_attention_title_padding_v, 0)}px</span>)</span>`
+      + `<input id="attentionDesignerTitlePadV" type="range" min="0" max="40" step="1" value="${logoNum(window.p_attention_title_padding_v, 0)}" class="w-full"></label>`
+      + `<label class="block"><span class="block text-[10px] font-semibold text-slate-500 mb-0.5">H-Padding (<span id="attentionDesignerTitlePadHVal">${logoNum(window.p_attention_title_padding_h, 0)}px</span>)</span>`
+      + `<input id="attentionDesignerTitlePadH" type="range" min="0" max="40" step="1" value="${logoNum(window.p_attention_title_padding_h, 0)}" class="w-full"></label>`
+      + `</div>`
+      + `</div>`
+      + `<div class="p-3 bg-slate-50/70 border border-slate-200 rounded-xl space-y-2">`
+      + `<div class="flex items-center justify-between"><span class="text-[11px] font-bold uppercase tracking-wider text-slate-700">Subtitle / Notice Message</span>`
+      + `<span class="flex items-center gap-1">`
+      + `<button type="button" id="attentionDesignerSubBold" title="Bold subtitle" style="width:28px;height:28px;border-radius:8px;border:1px solid #cbd5e1;font-size:13px;cursor:pointer;background:#fff;"><b>B</b></button>`
+      + `<button type="button" id="attentionDesignerSubItalic" title="Italic subtitle" style="width:28px;height:28px;border-radius:8px;border:1px solid #cbd5e1;font-size:13px;cursor:pointer;background:#fff;"><i>I</i></button>`
+      + `<button type="button" id="attentionDesignerSubCaps" title="All caps subtitle" style="width:28px;height:28px;border-radius:8px;border:1px solid #cbd5e1;font-size:11px;font-weight:bold;cursor:pointer;background:#fff;">AA</button>`
+      + `</span></div>`
+      + `<input id="attentionDesignerSub" type="text" maxlength="120" value="${escapeNotepadHtml(window.p_attention_sub || "")}" placeholder="Panalangin / Silence Please" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 font-sans bg-white">`
+      + `<label class="block"><span class="block text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">Subtitle size (<span id="attentionDesignerSubVal">${Math.round(logoNum(window.p_attention_subsize, 5))}%</span> of screen height)</span>`
+      + `<input id="attentionDesignerSubSize" type="range" min="1" max="15" step="0.5" value="${logoNum(window.p_attention_subsize, 5)}" class="w-full"></label>`
+      + `<div class="flex items-center gap-3 pt-1 border-t border-slate-200/60 flex-wrap">`
+      + `<label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600">Color <input id="attentionDesignerSubColor" type="color" value="${escapeNotepadHtml(window.p_attention_sub_color || window.p_attention_color || "#ffffff")}" style="width:30px;height:24px;padding:0;border:1px solid #cbd5e1;border-radius:5px;cursor:pointer;"></label>`
+      + `<label class="flex items-center gap-1.5 text-xs font-semibold text-slate-600">Border <input id="attentionDesignerSubBorderColor" type="color" value="${escapeNotepadHtml(window.p_attention_sub_border_color || "#000000")}" style="width:30px;height:24px;padding:0;border:1px solid #cbd5e1;border-radius:5px;cursor:pointer;"></label>`
+      + `<label class="flex-1 min-w-[140px] block"><span class="block text-[10px] font-semibold text-slate-500 mb-0.5">Thickness (<span id="attentionDesignerSubBorderVal">${logoNum(window.p_attention_sub_border_thickness, 0)}px</span>)</span>`
+      + `<input id="attentionDesignerSubBorder" type="range" min="0" max="15" step="1" value="${logoNum(window.p_attention_sub_border_thickness, 0)}" class="w-full"></label>`
+      + `</div>`
+      + `<div class="grid grid-cols-2 gap-2 pt-1">`
+      + `<label class="block"><span class="block text-[10px] font-semibold text-slate-500 mb-0.5">V-Padding (<span id="attentionDesignerSubPadVVal">${logoNum(window.p_attention_sub_padding_v, 0)}px</span>)</span>`
+      + `<input id="attentionDesignerSubPadV" type="range" min="0" max="40" step="1" value="${logoNum(window.p_attention_sub_padding_v, 0)}" class="w-full"></label>`
+      + `<label class="block"><span class="block text-[10px] font-semibold text-slate-500 mb-0.5">H-Padding (<span id="attentionDesignerSubPadHVal">${logoNum(window.p_attention_sub_padding_h, 0)}px</span>)</span>`
+      + `<input id="attentionDesignerSubPadH" type="range" min="0" max="40" step="1" value="${logoNum(window.p_attention_sub_padding_h, 0)}" class="w-full"></label>`
+      + `</div>`
+      + `</div>`
+      + `<label class="block"><span class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Image size (<span id="attentionDesignerImgVal">${Math.round(logoNum(window.p_attention_imgsize, 35))}%</span> of screen height)</span>`
+      + `<input id="attentionDesignerImg" type="range" min="5" max="95" step="1" value="${Math.round(logoNum(window.p_attention_imgsize, 35))}" class="w-full"></label>`
+      + `<label class="block"><span class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Card border thickness (<span id="attentionDesignerBorderThicknessVal">${logoNum(window.p_attention_border_thickness, 0)}px</span>)</span>`
+      + `<input id="attentionDesignerBorderThickness" type="range" min="0" max="25" step="1" value="${logoNum(window.p_attention_border_thickness, 0)}" class="w-full"></label>`
+      + `<div class="grid grid-cols-2 gap-3">`
+      + `<label class="block"><span class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Card V-padding (<span id="attentionDesignerPaddingVVal">${logoNum(window.p_attention_padding_v, 5)}%</span>)</span>`
+      + `<input id="attentionDesignerPaddingV" type="range" min="0" max="25" step="1" value="${logoNum(window.p_attention_padding_v, 5)}" class="w-full"></label>`
+      + `<label class="block"><span class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Card H-padding (<span id="attentionDesignerPaddingHVal">${logoNum(window.p_attention_padding_h, 5)}%</span>)</span>`
+      + `<input id="attentionDesignerPaddingH" type="range" min="0" max="25" step="1" value="${logoNum(window.p_attention_padding_h, 5)}" class="w-full"></label>`
+      + `</div>`
+      + `<div class="flex items-center gap-4 flex-wrap">`
+      + `<label class="flex items-center gap-2 text-xs font-semibold text-slate-600">Background <input id="attentionDesignerBg" type="color" value="${escapeNotepadHtml(window.p_attention_bg || "#000000")}" style="width:36px;height:26px;padding:0;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;"></label>`
+      + `<label class="flex items-center gap-2 text-xs font-semibold text-slate-600">Card Border <input id="attentionDesignerBorderColor" type="color" value="${escapeNotepadHtml(window.p_attention_border_color || "#ffffff")}" style="width:36px;height:26px;padding:0;border:1px solid #cbd5e1;border-radius:6px;cursor:pointer;"></label>`
+      + `</div>`
+      + `<div class="block"><div class="flex items-center justify-between mb-1"><span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Background photo</span>`
+      + `<span class="flex items-center gap-2">`
+      + `<input type="file" id="attentionBgUploadInput" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp" class="hidden" onchange="uploadAttentionBackground(event)">`
+      + `<button type="button" onclick="document.getElementById('attentionBgUploadInput').click()" class="px-2.5 py-1 bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200 rounded-lg text-[11px] font-bold transition flex items-center gap-1.5"><i class="fa-solid fa-cloud-arrow-up"></i> Upload</button>`
+      + `</span></div>`
+      + `<div id="attentionBgGallery" class="grid grid-cols-4 gap-2 max-h-56 overflow-y-auto p-1.5 bg-slate-50 border border-slate-200 rounded-xl"></div>`
+      + `</div>`
+      + `<label class="block"><span class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Photo dimming (<span id="attentionDesignerDimVal">${Math.round(logoNum(window.p_attention_bgdim, 60))}%</span>)</span>`
+      + `<input id="attentionDesignerDim" type="range" min="0" max="90" step="1" value="${Math.round(logoNum(window.p_attention_bgdim, 60))}" class="w-full"></label>`
+      + `<div class="p-3 bg-slate-50/70 border border-slate-200 rounded-xl space-y-2.5">`
+      + `<div class="flex items-center justify-between">`
+      + `<div><span class="block text-xs font-bold text-slate-700">Audio chime (attention.mp3)</span>`
+      + `<span class="block text-[11px] text-slate-500">Play chime automatically when attention screen opens</span></div>`
+      + `<label class="relative inline-flex items-center cursor-pointer">`
+      + `<input type="checkbox" id="attentionDesignerPlayChime" class="sr-only peer" ${window.p_attention_play_chime !== false ? "checked" : ""}>`
+      + `<div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-600"></div>`
+      + `</label>`
+      + `</div>`
+      + `<div class="pt-2 border-t border-slate-200/80 flex items-center gap-3">`
+      + `<div class="flex-1">`
+      + `<div class="flex items-center justify-between mb-1"><span class="text-[11px] font-semibold text-slate-600">Chime volume</span><span id="attentionDesignerChimeVolumeVal" class="text-[11px] font-bold text-brand-600">${Math.min(100, Math.max(0, logoNum(window.p_attention_chime_volume, 100)))}%</span></div>`
+      + `<input type="range" id="attentionDesignerChimeVolume" min="0" max="100" step="1" value="${Math.min(100, Math.max(0, logoNum(window.p_attention_chime_volume, 100)))}" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-brand-600">`
+      + `</div>`
+      + `<button type="button" id="attentionDesignerChimeTestBtn" class="px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 shrink-0">Test</button>`
+      + `</div>`
+      + `</div>`
+      + `<div class="p-3 bg-slate-50/70 border border-slate-200 rounded-xl flex items-center justify-between">`
+      + `<div><span class="block text-xs font-bold text-slate-700">Remote speaker screen</span>`
+      + `<span class="block text-[11px] text-slate-500">Keep current slide visible on speaker remote (do not override)</span></div>`
+      + `<label class="relative inline-flex items-center cursor-pointer">`
+      + `<input type="checkbox" id="attentionDesignerSpeakerKeepSlide" class="sr-only peer" ${window.p_attention_speaker_show ? "" : "checked"}>`
+      + `<div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-600"></div>`
+      + `</label>`
+      + `</div>`
+      + `<div class="flex items-center justify-end gap-2 pt-1">`
+      + `<button type="button" id="attentionDesignerCancelBtn" class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition">Cancel</button>`
+      + `<button type="button" id="attentionDesignerSaveBtn" class="px-4 py-1.5 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-lg transition">Save</button>`
+      + `</div></div>`
+    );
+    const fileInput = document.getElementById("attentionDesignerFile");
+    if (fileInput) fileInput.addEventListener("change", () => {
+      const f = fileInput.files && fileInput.files[0];
+      if (f) handleAttentionDesignerFile(f);
+    });
+    const removeBtn = document.getElementById("attentionDesignerRemoveBtn");
+    if (removeBtn) removeBtn.onclick = () => {
+      window.attentionDesignerImageData = "";
+      const prev = document.getElementById("attentionDesignerPreview");
+      if (prev) { prev.removeAttribute("src"); prev.style.display = "none"; }
+      if (fileInput) fileInput.value = "";
+    };
+    const cancelBtn = document.getElementById("attentionDesignerCancelBtn");
+    if (cancelBtn) cancelBtn.onclick = () => { try { window.attentionDesignerModal.hide(); } catch (e) {} };
+    const saveBtn = document.getElementById("attentionDesignerSaveBtn");
+    if (saveBtn) saveBtn.onclick = saveAttentionDesigner;
+    const bindAttentionRange = (rangeId, valId, unit = "%") => {
+      const r = document.getElementById(rangeId);
+      const v = document.getElementById(valId);
+      if (r && v) r.addEventListener("input", () => { v.textContent = `${r.value}${unit}`; });
+    };
+    bindAttentionRange("attentionDesignerImg", "attentionDesignerImgVal", "%");
+    bindAttentionRange("attentionDesignerTitleSize", "attentionDesignerTitleVal", "%");
+    bindAttentionRange("attentionDesignerTitleBorder", "attentionDesignerTitleBorderVal", "px");
+    bindAttentionRange("attentionDesignerTitlePadV", "attentionDesignerTitlePadVVal", "px");
+    bindAttentionRange("attentionDesignerTitlePadH", "attentionDesignerTitlePadHVal", "px");
+    bindAttentionRange("attentionDesignerSubSize", "attentionDesignerSubVal", "%");
+    bindAttentionRange("attentionDesignerSubBorder", "attentionDesignerSubBorderVal", "px");
+    bindAttentionRange("attentionDesignerSubPadV", "attentionDesignerSubPadVVal", "px");
+    bindAttentionRange("attentionDesignerSubPadH", "attentionDesignerSubPadHVal", "px");
+    bindAttentionRange("attentionDesignerBorderThickness", "attentionDesignerBorderThicknessVal", "px");
+    bindAttentionRange("attentionDesignerPaddingV", "attentionDesignerPaddingVVal", "%");
+    bindAttentionRange("attentionDesignerPaddingH", "attentionDesignerPaddingHVal", "%");
+    bindAttentionRange("attentionDesignerDim", "attentionDesignerDimVal", "%");
+    bindAttentionRange("attentionDesignerChimeVolume", "attentionDesignerChimeVolumeVal", "%");
+    const chimeVolEl = document.getElementById("attentionDesignerChimeVolume");
+    if (chimeVolEl) {
+      chimeVolEl.addEventListener("input", () => {
+        if (window.attentionAudio) {
+          window.attentionAudio.volume = Math.min(1, Math.max(0, logoNum(chimeVolEl.value, 100) / 100));
+        }
+      });
+    }
+    const chimeTestBtn = document.getElementById("attentionDesignerChimeTestBtn");
+    if (chimeTestBtn) {
+      chimeTestBtn.onclick = () => {
+        playAttentionChime(chimeVolEl ? chimeVolEl.value : window.p_attention_chime_volume);
+      };
+    }
+    renderAttentionBgGallery();
+    // Formatting toggles seed from the saved config.
+    window.attentionDesignerTitleBold = window.p_attention_title_bold !== false;
+    window.attentionDesignerTitleItalic = !!window.p_attention_title_italic;
+    window.attentionDesignerTitleCaps = window.p_attention_title_caps !== false;
+    window.attentionDesignerSubBold = !!window.p_attention_sub_bold;
+    window.attentionDesignerSubItalic = !!window.p_attention_sub_italic;
+    window.attentionDesignerSubCaps = !!window.p_attention_sub_caps;
+    const paintAttentionFmt = (btn, on) => {
+      if (!btn) return;
+      btn.style.background = on ? "#7c3aed" : "#ffffff";
+      btn.style.color = on ? "#ffffff" : "#64748b";
+      btn.style.borderColor = on ? "#7c3aed" : "#cbd5e1";
+    };
+    const fmtPairs = [
+      ["attentionDesignerTitleBold", "TitleBold"],
+      ["attentionDesignerTitleItalic", "TitleItalic"],
+      ["attentionDesignerTitleCaps", "TitleCaps"],
+      ["attentionDesignerSubBold", "SubBold"],
+      ["attentionDesignerSubItalic", "SubItalic"],
+      ["attentionDesignerSubCaps", "SubCaps"]
+    ];
+    fmtPairs.forEach(([id, key]) => {
+      const btn = document.getElementById(id);
+      const stateKey = `attentionDesigner${key}`;
+      paintAttentionFmt(btn, !!window[stateKey]);
+      if (btn) btn.onclick = () => {
+        window[stateKey] = !window[stateKey];
+        paintAttentionFmt(btn, !!window[stateKey]);
+      };
+    });
+    window.attentionDesignerModal.show();
+  } catch (e) {}
+}
+
+function handleAttentionDesignerFile(file) {
+  try {
+    const isGif = file && (file.type === "image/gif" || /\.gif$/i.test(file.name || ""));
+    const reader = new FileReader();
+    if (isGif) {
+      reader.onload = () => {
+        try {
+          window.attentionDesignerImageData = reader.result;
+          const prev = document.getElementById("attentionDesignerPreview");
+          if (prev) { prev.src = window.attentionDesignerImageData; prev.style.display = "block"; }
+        } catch (e) {}
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+    reader.onload = () => {
+      try {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const maxSide = 960;
+            const scale = Math.min(1, maxSide / Math.max(img.width || 1, img.height || 1));
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.max(1, Math.round(img.width * scale));
+            canvas.height = Math.max(1, Math.round(img.height * scale));
+            canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+            const isJpeg = /jpe?g/i.test(file.type || "");
+            window.attentionDesignerImageData = canvas.toDataURL(isJpeg ? "image/jpeg" : "image/png", 0.9);
+            const prev = document.getElementById("attentionDesignerPreview");
+            if (prev) { prev.src = window.attentionDesignerImageData; prev.style.display = "block"; }
+          } catch (e) {}
+        };
+        img.src = reader.result;
+      } catch (e) {}
+    };
+    reader.readAsDataURL(file);
+  } catch (e) {}
+}
+
+function saveAttentionDesigner() {
+  try {
+    const titleEl = document.getElementById("attentionDesignerTitle");
+    const subEl = document.getElementById("attentionDesignerSub");
+    const titleColorEl = document.getElementById("attentionDesignerTitleColor");
+    const titleBorderColorEl = document.getElementById("attentionDesignerTitleBorderColor");
+    const titleBorderRange = document.getElementById("attentionDesignerTitleBorder");
+    const titlePadVRange = document.getElementById("attentionDesignerTitlePadV");
+    const titlePadHRange = document.getElementById("attentionDesignerTitlePadH");
+    const subColorEl = document.getElementById("attentionDesignerSubColor");
+    const subBorderColorEl = document.getElementById("attentionDesignerSubBorderColor");
+    const subBorderRange = document.getElementById("attentionDesignerSubBorder");
+    const subPadVRange = document.getElementById("attentionDesignerSubPadV");
+    const subPadHRange = document.getElementById("attentionDesignerSubPadH");
+    const bgEl = document.getElementById("attentionDesignerBg");
+    const borderColorEl = document.getElementById("attentionDesignerBorderColor");
+    const borderThickRange = document.getElementById("attentionDesignerBorderThickness");
+    const padVRange = document.getElementById("attentionDesignerPaddingV");
+    const padHRange = document.getElementById("attentionDesignerPaddingH");
+    const chimeEl = document.getElementById("attentionDesignerPlayChime");
+    const chimeVolEl = document.getElementById("attentionDesignerChimeVolume");
+    const imgRange = document.getElementById("attentionDesignerImg");
+    const titleRange = document.getElementById("attentionDesignerTitleSize");
+    const subRange = document.getElementById("attentionDesignerSubSize");
+    const dimRange = document.getElementById("attentionDesignerDim");
+    window.p_attention_image = (typeof window.attentionDesignerImageData === "string") ? window.attentionDesignerImageData : (window.p_attention_image || "");
+    window.p_attention_title = titleEl ? (titleEl.value || "").trim().slice(0, 60) : (window.p_attention_title || "");
+    window.p_attention_sub = subEl ? (subEl.value || "").trim().slice(0, 120) : (window.p_attention_sub || "");
+    window.p_attention_title_color = (titleColorEl && titleColorEl.value) ? titleColorEl.value : "#ffffff";
+    window.p_attention_title_border_color = (titleBorderColorEl && titleBorderColorEl.value) ? titleBorderColorEl.value : "#000000";
+    window.p_attention_title_border_thickness = titleBorderRange ? Math.min(20, Math.max(0, Math.round(logoNum(titleBorderRange.value, 0)))) : 0;
+    window.p_attention_title_padding_v = titlePadVRange ? Math.min(50, Math.max(0, Math.round(logoNum(titlePadVRange.value, 0)))) : 0;
+    window.p_attention_title_padding_h = titlePadHRange ? Math.min(50, Math.max(0, Math.round(logoNum(titlePadHRange.value, 0)))) : 0;
+    window.p_attention_sub_color = (subColorEl && subColorEl.value) ? subColorEl.value : "#ffffff";
+    window.p_attention_sub_border_color = (subBorderColorEl && subBorderColorEl.value) ? subBorderColorEl.value : "#000000";
+    window.p_attention_sub_border_thickness = subBorderRange ? Math.min(20, Math.max(0, Math.round(logoNum(subBorderRange.value, 0)))) : 0;
+    window.p_attention_sub_padding_v = subPadVRange ? Math.min(50, Math.max(0, Math.round(logoNum(subPadVRange.value, 0)))) : 0;
+    window.p_attention_sub_padding_h = subPadHRange ? Math.min(50, Math.max(0, Math.round(logoNum(subPadHRange.value, 0)))) : 0;
+    window.p_attention_bg = (bgEl && bgEl.value) ? bgEl.value : "#000000";
+    window.p_attention_color = window.p_attention_title_color || "#ffffff";
+    window.p_attention_border_color = (borderColorEl && borderColorEl.value) ? borderColorEl.value : "#ffffff";
+    window.p_attention_border_thickness = borderThickRange ? Math.min(50, Math.max(0, Math.round(logoNum(borderThickRange.value, 0)))) : 0;
+    window.p_attention_padding_v = padVRange ? Math.min(25, Math.max(0, Math.round(logoNum(padVRange.value, 5)))) : 5;
+    window.p_attention_padding_h = padHRange ? Math.min(25, Math.max(0, Math.round(logoNum(padHRange.value, 5)))) : 5;
+    window.p_attention_play_chime = chimeEl ? !!chimeEl.checked : true;
+    window.p_attention_chime_volume = chimeVolEl ? Math.min(100, Math.max(0, logoNum(chimeVolEl.value, 100))) : 100;
+    const speakerKeepEl = document.getElementById("attentionDesignerSpeakerKeepSlide");
+    window.p_attention_speaker_show = speakerKeepEl ? !speakerKeepEl.checked : false;
+    window.p_attention_imgsize = imgRange ? Math.min(95, Math.max(5, Math.round(logoNum(imgRange.value, 35)))) : 35;
+    window.p_attention_titlesize = titleRange ? Math.min(25, Math.max(1, logoNum(titleRange.value, 10))) : 10;
+    window.p_attention_subsize = subRange ? Math.min(15, Math.max(1, logoNum(subRange.value, 5))) : 5;
+    window.p_attention_bgdim = dimRange ? Math.min(90, Math.max(0, Math.round(logoNum(dimRange.value, 60)))) : 60;
+    window.p_attention_bgimage = (typeof window.attentionDesignerBgImage === "string") ? window.attentionDesignerBgImage : (window.p_attention_bgimage || "");
+    window.p_attention_title_bold = (typeof window.attentionDesignerTitleBold === "boolean") ? window.attentionDesignerTitleBold : (window.p_attention_title_bold !== false);
+    window.p_attention_title_italic = (typeof window.attentionDesignerTitleItalic === "boolean") ? window.attentionDesignerTitleItalic : !!window.p_attention_title_italic;
+    window.p_attention_title_caps = (typeof window.attentionDesignerTitleCaps === "boolean") ? window.attentionDesignerTitleCaps : (window.p_attention_title_caps !== false);
+    window.p_attention_sub_bold = (typeof window.attentionDesignerSubBold === "boolean") ? window.attentionDesignerSubBold : !!window.p_attention_sub_bold;
+    window.p_attention_sub_italic = (typeof window.attentionDesignerSubItalic === "boolean") ? window.attentionDesignerSubItalic : !!window.p_attention_sub_italic;
+    window.p_attention_sub_caps = (typeof window.attentionDesignerSubCaps === "boolean") ? window.attentionDesignerSubCaps : !!window.p_attention_sub_caps;
+    saveAttentionScreenConfig();
+    renderAttentionOverlay();
+    if (window.attentionDesignerModal) {
+      try { window.attentionDesignerModal.hide(); } catch (e) {}
+    }
+    // A visible attention screen updates immediately.
+    if (window.liveOutputMode === "attention" || window.liveOutputMode === "black") {
+      refreshProjectorEngine();
+      pushSidebarPreview();
+    }
+  } catch (e) {}
+}
+// ---------------------------------------------------------------------------
 // Live Output Preview (right-sidebar monitor) controller.
 // Single writer for the monitor's text content; output-state (logo /
-// blackout) overlays sit on top and any new presented content returns the
+// attention) overlays sit on top and any new presented content returns the
 // monitor to live-text mode.
 // ---------------------------------------------------------------------------
-window.liveOutputMode = "live"; // live | logo | black
+window.liveOutputMode = "live"; // live | logo | attention | black
 window.liveMonitorState = { primary: "", secondary: "", reference: "", indicator: "" };
 // True while a PROGRAM item owns live projection (any sub-type). Routes
 // remote + monitor transport to programManager instead of stale verse/song
@@ -759,9 +1517,15 @@ window.liveProgramActive = false;
 function setLiveMonitorContent(o) {
   try {
     o = o || {};
+    if (o.customSlide && typeof o.customSlide === "object") {
+      window.p_custom_slide = o.customSlide;
+    } else {
+      window.p_custom_slide = null;
+    }
     window.liveMonitorState = {
       primary: o.primary || "",
       secondary: o.secondary || "",
+      personTitle: o.personTitle || "",
       reference: o.reference || "",
       indicator: o.indicator || ""
     };
@@ -772,31 +1536,49 @@ function setLiveMonitorContent(o) {
     if (ph) ph.classList.add("hidden");
     pushSidebarPreview();
     sizeSidebarPreview();
+
+    // Broadcast current slide update to remote guests in Green Room
+    if (window.liveStudio && window.liveStudio.socket && window.liveStudio.socket.readyState === WebSocket.OPEN) {
+      try {
+        const ms = window.liveMonitorState || {};
+        const displayTitle = (ms.reference || ms.indicator || ms.primary || '').replace(/<[^>]+>/g, ' ').trim();
+        window.liveStudio.socket.send(JSON.stringify({
+          type: 'program-update',
+          programState: { title: displayTitle }
+        }));
+      } catch (err) {}
+    }
   } catch (e) {}
 }
 // Switch the monitor output state. Toolbar entry point is toggleOutputState().
-// The engine frame always stays visible; black/logo cover it.
+// The engine frame always stays visible; attention/logo cover it.
 function setLiveMonitorMode(mode, silent) {
   try {
     const prev = window.liveOutputMode;
-    window.liveOutputMode = mode;
+    const isAttention = (mode === "attention" || mode === "black");
+    window.liveOutputMode = isAttention ? "attention" : mode;
     const frame = document.getElementById("livePreviewFrame");
     if (frame) frame.style.visibility = "visible";
-    const blackout = document.getElementById("blackoutOverlay");
-    if (blackout) blackout.classList.toggle("hidden", mode !== "black");
+    const blackout = document.getElementById("attentionOverlay") || document.getElementById("blackoutOverlay");
+    if (blackout) blackout.classList.toggle("hidden", !isAttention);
     const logo = document.getElementById("logoOverlay");
     if (logo) logo.classList.toggle("hidden", mode !== "logo");
-    const states = { logo: "logoSplitWrap", black: "btnBlack" };
+    const states = { logo: "logoSplitWrap", attention: "attentionSplitWrap", black: "attentionSplitWrap" };
     Object.keys(states).forEach((key) => {
       const btn = document.getElementById(states[key]);
-      if (btn) btn.style.outline = (mode === key) ? "2px solid #7c3aed" : "";
+      if (btn) {
+        const isActive = (window.liveOutputMode === key) || (isAttention && (key === "attention" || key === "black"));
+        btn.style.outline = isActive ? "2px solid #7c3aed" : "";
+      }
     });
-    // Logo mode also drives the real projector (and the sidebar engine
-    // frame, which runs the same page): entering projects the custom logo
-    // screen, leaving restores the last live content. If no projection is
-    // active, the projector is opened first so the logo has somewhere to go.
+    // Logo and Attention modes also drive the real projector (and the sidebar engine
+    // frame, which runs the same page): entering projects the custom screen,
+    // leaving restores the last live content. If no projection is active, the
+    // projector is opened first so the screen has somewhere to go.
     if (mode === "logo") {
+      stopAttentionChime();
       window.p_logo_mode = true;
+      window.p_attention_mode = false;
       loadLogoScreenConfig();
       renderLogoOverlay();
       if (typeof presentWindowOpen !== "undefined" && !presentWindowOpen && typeof presentation === "function") {
@@ -805,13 +1587,29 @@ function setLiveMonitorMode(mode, silent) {
       }
       refreshProjectorEngine();
       pushSidebarPreview();
-    } else {
+    } else if (isAttention) {
       window.p_logo_mode = false;
+      window.p_attention_mode = true;
+      loadAttentionScreenConfig();
+      renderAttentionOverlay();
+      if (typeof presentWindowOpen !== "undefined" && !presentWindowOpen && typeof presentation === "function") {
+        presentation();
+        window.p_attention_mode = true;
+      }
+      refreshProjectorEngine();
+      pushSidebarPreview();
+      if (window.p_attention_play_chime !== false) {
+        playAttentionChime();
+      }
+    } else {
+      stopAttentionChime();
+      window.p_logo_mode = false;
+      window.p_attention_mode = false;
       // Push the projector + preview whenever the visible output may
-      // differ: entering black/clear, leaving any overlay state, or
+      // differ: entering attention/clear, leaving any overlay state, or
       // switching directly between states. (Plain live->live presents push
       // through their own paths, so they are skipped here.)
-      if (mode !== "live" || prev === "logo" || prev === "black") {
+      if (mode !== "live" || prev === "logo" || prev === "black" || prev === "attention") {
         refreshProjectorEngine();
         pushSidebarPreview();
       }
@@ -820,11 +1618,16 @@ function setLiveMonitorMode(mode, silent) {
   } catch (e) {}
 }
 
-// Toolbar: Clear Text / Logo / Black Screen. Clicking the active state
+// Toolbar: Clear Text / Logo / Attention. Clicking the active state
 // restores the live content.
 function toggleOutputState(mode) {
   try {
-    if (window.liveOutputMode === mode) {
+    const isAttention = (mode === "attention" || mode === "black");
+    const isCurrentActive = isAttention
+      ? (window.liveOutputMode === "attention" || window.liveOutputMode === "black")
+      : (window.liveOutputMode === mode);
+
+    if (isCurrentActive) {
       reRenderLiveMonitor();
     } else {
       setLiveMonitorMode(mode);
@@ -838,6 +1641,18 @@ function reRenderLiveMonitor() {
     setLiveMonitorMode("live", true);
     pushSidebarPreview();
     sizeSidebarPreview();
+
+    // Broadcast current slide update to remote guests in Green Room
+    if (window.liveStudio && window.liveStudio.socket && window.liveStudio.socket.readyState === WebSocket.OPEN) {
+      try {
+        const ms = window.liveMonitorState || {};
+        const displayTitle = (ms.reference || ms.indicator || ms.primary || '').replace(/<[^>]+>/g, ' ').trim();
+        window.liveStudio.socket.send(JSON.stringify({
+          type: 'program-update',
+          programState: { title: displayTitle }
+        }));
+      } catch (err) {}
+    }
   } catch (e) {}
 }
 
@@ -959,8 +1774,146 @@ function call_prevSlide() {
   return false;
 }
 
+// Determines if Bible verses / scripture are actively presented.
+function isLiveVerseActive() {
+  try {
+    const live = ((typeof presentWindowOpen !== "undefined") && !!presentWindowOpen) ||
+                 (typeof window !== "undefined" && !!window.presentWindowOpen);
+    if (!live) return false;
+    const progActive = (typeof window !== "undefined" && !!window.liveProgramActive);
+    const pm = (typeof window !== "undefined" && window.programManager) ? window.programManager : null;
+    if (progActive && pm &&
+        typeof pm.presentedItemIndex === "number" && pm.presentedItemIndex >= 0 &&
+        Array.isArray(pm.items) && pm.presentedItemIndex < pm.items.length) {
+      const item = pm.items[pm.presentedItemIndex];
+      return !!(item && item.type === "scripture");
+    }
+    const t = (typeof window !== "undefined" && window.liveProjectionType) || null;
+    const canon = (typeof window !== "undefined" && window.themeManager && typeof window.themeManager.resolveProjectionContext === "function")
+      ? window.themeManager.resolveProjectionContext(t)
+      : t;
+    return canon === "verses";
+  } catch (e) {
+    return false;
+  }
+}
+
+// Dedicated verse navigation entry points (verses only - does not advance songs/program items).
+function call_nextVerse() {
+  try {
+    if (!isLiveVerseActive()) return false;
+    const progActive = (typeof window !== "undefined" && !!window.liveProgramActive);
+    const pm = (typeof window !== "undefined" && window.programManager) ? window.programManager : null;
+    if (progActive && pm &&
+        typeof pm.presentedItemIndex === "number" && pm.presentedItemIndex >= 0 &&
+        Array.isArray(pm.items) && pm.presentedItemIndex < pm.items.length) {
+      if (typeof pm.programNavAllowed === "function" && !pm.programNavAllowed(1)) return false;
+      if (typeof pm.nextSlide === "function") { pm.nextSlide(); return true; }
+      return false;
+    }
+    if (typeof processNextButton === "function") {
+      processNextButton();
+      return true;
+    }
+    return false;
+  } catch (e) {
+    return false;
+  }
+}
+
+function call_prevVerse() {
+  try {
+    if (!isLiveVerseActive()) return false;
+    const progActive = (typeof window !== "undefined" && !!window.liveProgramActive);
+    const pm = (typeof window !== "undefined" && window.programManager) ? window.programManager : null;
+    if (progActive && pm &&
+        typeof pm.presentedItemIndex === "number" && pm.presentedItemIndex >= 0 &&
+        Array.isArray(pm.items) && pm.presentedItemIndex < pm.items.length) {
+      if (typeof pm.programNavAllowed === "function" && !pm.programNavAllowed(-1)) return false;
+      if (typeof pm.previousSlide === "function") { pm.previousSlide(); return true; }
+      return false;
+    }
+    if (typeof processPrevButton === "function") {
+      processPrevButton();
+      return true;
+    }
+    return false;
+  } catch (e) {
+    return false;
+  }
+}
+
+if (typeof window !== "undefined") {
+  window.isLiveVerseActive = isLiveVerseActive;
+  window.call_nextVerse = call_nextVerse;
+  window.call_prevVerse = call_prevVerse;
+}
+
 function call_closePresentation() {
   if (typeof closePresentWindow === "function") closePresentWindow();
+}
+
+// ---------------------------------------------------------------------------
+// Keyboard Left and Right arrow shortcuts for Live Output Preview navigation.
+// Pressing Left or Right arrow triggers previous/next slide on the live output
+// preview (#monitorPrevBtn / #monitorNextBtn -> navPrevVerse() / navNextVerse()).
+// Does not intercept when typing inside text inputs, textareas, selects, or editable fields,
+// nor when modal dialogs or Settings overlay are open.
+// ---------------------------------------------------------------------------
+if (typeof window !== "undefined" && !window._monitorKeyboardNavBound) {
+  window._monitorKeyboardNavBound = true;
+  document.addEventListener("keydown", function(e) {
+    const isLeft = (e.key === "ArrowLeft" || e.keyCode === 37);
+    const isRight = (e.key === "ArrowRight" || e.keyCode === 39);
+    if (!isLeft && !isRight) return;
+
+    // Ignore if modifier keys (Ctrl, Alt, Meta/Cmd) are pressed
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+    // Check if user is typing in an input, textarea, select, or editable element
+    const target = e.target;
+    const tag = (target && target.tagName) ? target.tagName.toUpperCase() : "";
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (target && target.isContentEditable)) {
+      return;
+    }
+    const active = document.activeElement;
+    if (active && active !== target) {
+      const activeTag = (active.tagName) ? active.tagName.toUpperCase() : "";
+      if (activeTag === "INPUT" || activeTag === "TEXTAREA" || activeTag === "SELECT" || active.isContentEditable) {
+        return;
+      }
+    }
+
+    // Do not intercept if Settings page is open
+    const settingsEl = document.getElementById("settingsPage");
+    if (settingsEl && !settingsEl.classList.contains("hidden")) return;
+
+    // Do not intercept if any modal/dialog is open
+    const openDialog = document.querySelector("dialog[open], #programItemModal, #programImportModal");
+    if (openDialog) return;
+
+    if (isLeft) {
+      e.preventDefault();
+      const btn = document.getElementById("monitorPrevBtn");
+      if (btn && !btn.disabled) {
+        btn.click();
+        btn.classList.add("ring-2", "ring-brand-400");
+        setTimeout(() => btn.classList.remove("ring-2", "ring-brand-400"), 120);
+      } else if (!btn && typeof navPrevVerse === "function") {
+        navPrevVerse();
+      }
+    } else if (isRight) {
+      e.preventDefault();
+      const btn = document.getElementById("monitorNextBtn");
+      if (btn && !btn.disabled) {
+        btn.click();
+        btn.classList.add("ring-2", "ring-brand-400");
+        setTimeout(() => btn.classList.remove("ring-2", "ring-brand-400"), 120);
+      } else if (!btn && typeof navNextVerse === "function") {
+        navNextVerse();
+      }
+    }
+  });
 }
 
 // Sidebar notepads: multiple user scratch lists, persisted in localStorage.
@@ -987,7 +1940,8 @@ function loadNotepadPads() {
     const raw = localStorage.getItem("uecfi_notepads");
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed && Array.isArray(parsed.pads) && parsed.pads.length > 0) {
+      // Allow an empty pads array (0 notepad tabs) as a valid persisted state
+      if (parsed && Array.isArray(parsed.pads)) {
         let active = parseInt(parsed.active, 10);
         if (!isFinite(active) || active < 0 || active >= parsed.pads.length) active = 0;
         window.notepadPadsData = {
@@ -1001,17 +1955,20 @@ function loadNotepadPads() {
         return window.notepadPadsData;
       }
     }
-    // First run or legacy data: migrate the old single list into "Notepad 1".
+    // First run or legacy data: only create "Notepad 1" if migrating non-empty legacy items;
+    // otherwise start with 0 notepad tabs until the user clicks + to add one.
     let items = [];
     try {
       const legacy = localStorage.getItem("uecfi_notepad_items");
       if (legacy) items = normalizeNotepadItems(JSON.parse(legacy));
     } catch (e) {}
-    window.notepadPadsData = { pads: [{ name: "Notepad 1", numbered: false, items: items }], active: 0 };
+    window.notepadPadsData = items.length > 0
+      ? { pads: [{ name: "Notepad 1", numbered: false, items: items }], active: 0 }
+      : { pads: [], active: 0 };
     saveNotepadPads();
     try { localStorage.removeItem("uecfi_notepad_items"); } catch (e) {}
   } catch (e) {
-    window.notepadPadsData = { pads: [{ name: "Notepad 1", numbered: false, items: [] }], active: 0 };
+    window.notepadPadsData = { pads: [], active: 0 };
   }
   return window.notepadPadsData;
 }
@@ -1155,11 +2112,13 @@ function deleteNotepadPad(idx) {
     const pad = store.pads[idx];
     if (!confirm(`Delete notepad "${pad.name}" and its ${pad.items.length} note${pad.items.length !== 1 ? "s" : ""}?`)) return;
     store.pads.splice(idx, 1);
+    // Keep 0 tabs when the last notepad is deleted until the user adds a new one
     if (store.pads.length === 0) {
-      store.pads.push({ name: "Notepad 1", numbered: false, items: [] });
+      store.active = 0;
+    } else {
+      if (store.active > idx) store.active--;
+      if (store.active >= store.pads.length) store.active = store.pads.length - 1;
     }
-    if (store.active > idx) store.active--;
-    if (store.active >= store.pads.length) store.active = store.pads.length - 1;
     window.notepadEditingIndex = -1;
     saveNotepadPads();
     renderNotepad();
@@ -1200,18 +2159,34 @@ function renderNotepad() {
   try {
     renderNotepadTabs();
     const store = loadNotepadPads();
-    const activePad = store.pads[store.active] || store.pads[0];
+    const hasPads = store.pads.length > 0;
+    const activePad = hasPads ? (store.pads[store.active] || store.pads[0]) : null;
     const numbered = !!(activePad && activePad.numbered);
     const numBtn = document.getElementById("notepadNumberBtn");
     if (numBtn) {
       try {
         numBtn.style.color = numbered ? "#4f46e5" : "";
         numBtn.title = numbered ? "Hide note numbers" : "Number notes";
+        numBtn.style.display = hasPads ? "" : "none";
       } catch (e) {}
+    }
+    const noteInputEl = document.getElementById("notepadInput");
+    const noteAddBtnEl = document.getElementById("notepadAddBtn");
+    if (noteInputEl) {
+      noteInputEl.disabled = !hasPads;
+      noteInputEl.placeholder = hasPads ? "Add a note..." : "Create a notepad (+) first...";
+    }
+    if (noteAddBtnEl) {
+      noteAddBtnEl.disabled = !hasPads;
     }
     const countEl = document.getElementById("notepadCount");
     const listEl = document.getElementById("notepadList");
     if (!listEl) return;
+    if (!hasPads) {
+      if (countEl) countEl.textContent = "";
+      listEl.innerHTML = '<div class="p-4 text-center text-xs text-slate-400">Click <b>+</b> above to create a notepad.</div>';
+      return;
+    }
     const items = loadNotepadItems();
     if (countEl) countEl.textContent = items.length > 0 ? `${items.length} note${items.length !== 1 ? "s" : ""}` : "";
     if (items.length === 0) {
@@ -1261,6 +2236,11 @@ function renderNotepad() {
 }
 function addNotepadItem() {
   try {
+    const store = loadNotepadPads();
+    if (!store.pads || store.pads.length === 0) {
+      addNotepadPad();
+      return;
+    }
     const input = document.getElementById("notepadInput");
     if (!input) return;
     const text = (input.value || "").trim();

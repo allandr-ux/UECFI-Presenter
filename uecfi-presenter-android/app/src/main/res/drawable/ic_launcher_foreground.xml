@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 16:9 Projection Screen Frame inside 66dp safe zone (21..87) -->
+    <path
+        android:fillColor="#FF38BDF8"
+        android:pathData="M24,33 C24,30.24 26.24,28 29,28 L79,28 C81.76,28 84,30.24 84,33 L84,65 C84,67.76 81.76,70 79,70 L29,70 C26.24,70 24,67.76 24,65 Z" />
+    <!-- Inner 16:9 Dark Stage -->
+    <path
+        android:fillColor="#FF090D16"
+        android:pathData="M28,32 L80,32 L80,66 L28,66 Z" />
+    <!-- Illuminated Slide Verse Lines -->
+    <path
+        android:fillColor="#FFF8FAFC"
+        android:pathData="M36,41 L72,41 L72,45 L36,45 Z" />
+    <path
+        android:fillColor="#FF94A3B8"
+        android:pathData="M42,49 L66,49 L66,52.5 L42,52.5 Z" />
+    <!-- Golden Verse Reference Badge -->
+    <path
+        android:fillColor="#FFFBBF24"
+        android:pathData="M46,57 L62,57 L62,60.5 L46,60.5 Z" />
+    <!-- Swipe / Navigation Arrows & Broadcast Base -->
+    <path
+        android:fillColor="#FF38BDF8"
+        android:pathData="M45,75 L63,75 L66,80 L42,80 Z" />
+    <path
+        android:fillColor="#FFFBBF24"
+        android:pathData="M51,70 L57,70 L57,75 L51,75 Z" />
+</vector>

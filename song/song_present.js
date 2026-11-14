@@ -51,10 +51,45 @@ function songPresentObj() {
           copyright: activeSong.copyright || "",
           index: liveIdx
         };
+        // Synchronize song list and lyric card highlights regardless of how
+        // presentSong() was triggered (Play button, double-click, Lyrics tab
+        // Present button, lyric card click, or remote).
+        window.presentedSlideIdx = liveIdx;
+        if (typeof window.selectedSongIdx !== "number" || window.selectedSongIdx < 0) {
+          window.selectedSongIdx = 0;
+        }
+        // Match activeSong by title in songDataStore if needed, else use selectedSongIdx
+        let matchedIdx = window.selectedSongIdx;
+        if (window.songDataStore && Array.isArray(window.songDataStore.songTitle) && activeSong.name) {
+          const found = window.songDataStore.songTitle.findIndex(
+            (s) => (s.Title || s.name || "").trim() === String(activeSong.name).trim()
+          );
+          if (found >= 0) matchedIdx = found;
+        }
+        window.presentedSongIdx = matchedIdx;
+        window.selectedSongIdx = matchedIdx;
       }
     } catch (e) {}
 
     presentation();
+
+    try {
+      if (typeof window !== "undefined") {
+        if (typeof window.renderModernSongList === "function") window.renderModernSongList();
+        if (typeof window.updateSongSlideHighlight === "function") window.updateSongSlideHighlight();
+      }
+    } catch (e) {}
+
+    try {
+      const idx = (slideIndex == null) ? 0 : slideIndex;
+      if (typeof window !== "undefined" && window.songAudioEngine) {
+        if (slideIndex == null || !window.songAudioEngine.currentSong || window.songAudioEngine.currentSong.name !== activeSong.name) {
+          window.songAudioEngine.startSong(activeSong, idx);
+        } else {
+          window.songAudioEngine.onSlideChanged(idx);
+        }
+      }
+    } catch (e) {}
 
     try {
       const idx = (slideIndex == null) ? 0 : slideIndex;

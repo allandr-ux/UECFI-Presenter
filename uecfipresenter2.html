@@ -28,12 +28,14 @@
     <script type="text/javascript" src="song/song_nav.js"></script>
     <script type="text/javascript" src="song/song_manager.js"></script>
     <script type="text/javascript" src="song/song_present.js"></script>
+    <script type="text/javascript" src="song_audio_engine.js"></script>
     <script type="text/javascript" src="song/songobj.js"></script>
     <script type="text/javascript" src="song/song_lyrics.js"></script>
     <script type="text/javascript" src="song/song_port_xml.js"></script>
     <script type="text/javascript" src="song/song_import.js"></script>
     <script type="text/javascript" src="program.js"></script>
     <script type="text/javascript" src="theme_manager.js"></script>
+    <script type="text/javascript" src="live_studio.js"></script>
     <script type="text/javascript" src="menu/menu.js"></script>
     <!-- Local precompiled Tailwind CSS (offline, high performance) -->
     <link rel="stylesheet" type="text/css" href="./tailwind.css">
@@ -48,7 +50,7 @@
                 <img src="uecfi-logo.png" alt="UECFI" class="w-9 h-9 object-contain drop-shadow-sm bg-transparent">
                 <div>
                     <h1 class="font-bold text-slate-900 text-base leading-tight flex items-center gap-1.5">
-                        UECFI Presenter <span class="bg-brand-100 text-brand-700 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-md">v1.0.0</span>
+                        UECFI Presenter <span class="bg-brand-100 text-brand-700 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-md">v1.1.0</span>
                     </h1>
                     <p class="text-[11px] text-slate-500">Centro Display Controller</p>
                 </div>
@@ -62,11 +64,11 @@
                 </div>
                 <div class="has-tooltip shrink-0">
                     <button id="prevBut" class="ctl-btn" aria-label="Previous"><i class="fa-solid fa-play fa-flip-horizontal"></i></button>
-                    <div class="tooltip-content tooltip-bottom">Previous (←)</div>
+                    <div class="tooltip-content tooltip-bottom">Previous</div>
                 </div>
                 <div class="has-tooltip shrink-0">
                     <button id="nextBut" class="ctl-btn" aria-label="Next"><i class="fa-solid fa-play"></i></button>
-                    <div class="tooltip-content tooltip-bottom">Next (→)</div>
+                    <div class="tooltip-content tooltip-bottom">Next</div>
                 </div>
                 <div class="has-tooltip shrink-0">
                     <button id="closeBut" class="ctl-btn ctl-stop" aria-label="End Projection"><i class="fa-solid fa-stop"></i></button>
@@ -87,11 +89,11 @@
                 </div>
                 <div class="has-tooltip shrink-0">
                     <button id="songnav_prevbutton" class="ctl-btn" aria-label="Previous"><i class="fa-solid fa-play fa-flip-horizontal"></i></button>
-                    <div class="tooltip-content tooltip-bottom">Previous (←)</div>
+                    <div class="tooltip-content tooltip-bottom">Previous</div>
                 </div>
                 <div class="has-tooltip shrink-0">
                     <button id="songnav_nextbutton" class="ctl-btn" aria-label="Next"><i class="fa-solid fa-play"></i></button>
-                    <div class="tooltip-content tooltip-bottom">Next (→)</div>
+                    <div class="tooltip-content tooltip-bottom">Next</div>
                 </div>
                 <div class="has-tooltip shrink-0">
                     <button id="songnav_closebutton" class="ctl-btn ctl-stop" aria-label="End Projection"><i class="fa-solid fa-stop"></i></button>
@@ -122,11 +124,11 @@
                 </div>
                 <div class="has-tooltip shrink-0">
                     <button id="prog_prev_btn" onclick="if(window.programManager) window.programManager.previousSlide();" class="ctl-btn" aria-label="Previous slide"><i class="fa-solid fa-play fa-flip-horizontal"></i></button>
-                    <div class="tooltip-content tooltip-bottom">Previous Slide (←)</div>
+                    <div class="tooltip-content tooltip-bottom">Previous Slide</div>
                 </div>
                 <div class="has-tooltip shrink-0">
                     <button id="prog_next_btn" onclick="if(window.programManager) window.programManager.nextSlide();" class="ctl-btn" aria-label="Next slide"><i class="fa-solid fa-play"></i></button>
-                    <div class="tooltip-content tooltip-bottom">Next Slide (→)</div>
+                    <div class="tooltip-content tooltip-bottom">Next Slide</div>
                 </div>
                 <div class="has-tooltip shrink-0">
                     <button id="prog_close_btn" onclick="if(typeof closePresentWindow==='function') closePresentWindow(); if(window.programManager) window.programManager.clearPresentationHighlight();" class="ctl-btn ctl-stop" aria-label="End Projection"><i class="fa-solid fa-stop"></i></button>
@@ -138,6 +140,13 @@
                 </button>
                 <button id="prog_clear_all_btn" onclick="if(window.programManager) window.programManager.clearAllItems();" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-red-600 bg-slate-50 hover:bg-red-50 border border-slate-200 hover:border-red-200 rounded-lg transition flex items-center gap-1.5" title="Clear Program">
                     <i class="fa-regular fa-trash-can text-red-500"></i> Clear Program
+                </button>
+                <div class="h-5 w-[1px] bg-slate-200 mx-1"></div>
+                <button id="prog_import_btn" onclick="if(window.programManager) window.programManager.importProgram();" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-700 bg-slate-50 hover:bg-brand-50 border border-slate-200 hover:border-brand-300 rounded-lg transition flex items-center gap-1.5" title="Import Program Items from JSON">
+                    <i class="fa-solid fa-file-import text-brand-600"></i> Import JSON
+                </button>
+                <button id="prog_export_btn" onclick="if(window.programManager) window.programManager.exportProgram();" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-700 bg-slate-50 hover:bg-brand-50 border border-slate-200 hover:border-brand-300 rounded-lg transition flex items-center gap-1.5" title="Export Program Items to JSON">
+                    <i class="fa-solid fa-file-export text-slate-500"></i> Export JSON
                 </button>
             </div>
 
@@ -155,13 +164,28 @@
                 <div style="width:1px;align-self:stretch;background:#cbd5e1;"></div>
                 <button id="btnLogoCustomize" onclick="if(typeof openLogoDesigner==='function') openLogoDesigner();" title="Customize logo screen" class="px-2 py-1.5 text-[11px] leading-none text-slate-400 hover:text-brand-600 hover:bg-brand-50 transition" style="background:none;border:0;border-radius:0 8px 8px 0;cursor:pointer;"><i class="fa-solid fa-pen"></i></button>
             </div>
-            <div class="has-tooltip shrink-0">
-                <button id="btnBlack" onclick="toggleOutputState('black')" class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition flex items-center gap-1.5 shadow-sm">
-                    <i class="fa-solid fa-power-off text-red-400"></i> Black Screen
-                </button>
-                <div class="tooltip-content tooltip-bottom">Black out the screen</div>
+            <div id="attentionSplitWrap" class="flex items-center shrink-0 rounded-lg border border-slate-300 bg-white">
+                <div class="has-tooltip flex items-center">
+                    <button id="btnAttention" onclick="toggleOutputState('attention')" class="px-3 py-1.5 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition flex items-center gap-1.5" style="background:none;border:0;border-radius:8px 0 0 8px;cursor:pointer;">
+                        <i class="fa-solid fa-circle-exclamation text-amber-500"></i> Attention
+                    </button>
+                    <div class="tooltip-content tooltip-bottom">Show attention screen</div>
+                </div>
+                <div style="width:1px;align-self:stretch;background:#cbd5e1;"></div>
+                <button id="btnAttentionChime" onclick="if(typeof playAttentionChime==='function') playAttentionChime();" title="Play attention chime (attention.mp3)" class="px-2 py-1.5 text-[11px] leading-none text-slate-400 hover:text-amber-500 hover:bg-amber-50 transition" style="background:none;border:0;cursor:pointer;"><i class="fa-solid fa-bell"></i></button>
+                <div style="width:1px;align-self:stretch;background:#cbd5e1;"></div>
+                <button id="btnAttentionCustomize" onclick="if(typeof openAttentionDesigner==='function') openAttentionDesigner();" title="Customize attention screen" class="px-2 py-1.5 text-[11px] leading-none text-slate-400 hover:text-brand-600 hover:bg-brand-50 transition" style="background:none;border:0;border-radius:0 8px 8px 0;cursor:pointer;"><i class="fa-solid fa-pen"></i></button>
             </div>
             
+            <button id="btnToolbarSongSync" onclick="if(window.songAudioEngine) window.songAudioEngine.toggleSync();" class="px-2.5 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg transition flex items-center gap-1.5 cursor-pointer" title="Quick toggle for backing track audio and synchronized lyrics (ON / OFF)">
+                <i class="fa-solid fa-music"></i> <span id="toolbarSongSyncText">Sync ON</span>
+            </button>
+
+            <button id="btnToolbarLiveStudio" onclick="if(window.liveStudio) window.liveStudio.toggleModal();" class="px-2.5 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition flex items-center gap-1.5 cursor-pointer" title="Live Camera & Remote Guests Studio">
+                <i class="fa-solid fa-video"></i> <span>Live Studio</span>
+                <span id="remoteGuestBadge" class="hidden px-1.5 py-0.2 bg-blue-600 text-white rounded-full text-[10px] font-black leading-tight">0</span>
+            </button>
+
             <div class="h-6 w-[1px] bg-slate-200 mx-1"></div>
 
             <button id="btnToolbarSettings" onclick="if(typeof openSettingsPage==='function') openSettingsPage();" class="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition" title="Settings">
@@ -174,6 +198,35 @@
       </div>
 
       <div id="container2" class="flex-1 min-w-[300px] shrink-0 border-r border-slate-200 bg-white relative flex flex-col">
+          <!-- Floating Song Audio & Sync Lyrics Transport Bar -->
+          <div id="songAudioBar" style="display:none;" class="absolute bottom-3 left-4 right-4 z-40 bg-slate-900/95 text-white backdrop-blur-md rounded-2xl border border-slate-700/80 shadow-2xl p-2.5 flex items-center gap-3">
+              <button id="songAudioPlayPauseBtn" type="button" onclick="if(window.songAudioEngine) window.songAudioEngine.togglePlay();" class="w-8 h-8 rounded-full bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center transition shadow-sm cursor-pointer shrink-0">
+                  <i id="songAudioPlayIcon" class="fa-solid fa-play text-xs"></i>
+              </button>
+              <button type="button" onclick="if(window.songAudioEngine) window.songAudioEngine.restart();" title="Replay from start" class="w-7 h-7 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 flex items-center justify-center transition cursor-pointer shrink-0">
+                  <i class="fa-solid fa-backward-step text-xs"></i>
+              </button>
+              <div class="flex flex-col min-w-[100px] shrink-0">
+                  <span id="songAudioTitle" class="text-[11px] font-bold text-slate-200 truncate max-w-[140px]">Song Audio</span>
+                  <div class="flex items-center gap-1 text-[10px] font-mono text-purple-300">
+                      <span id="songAudioCurrentTime">00:00</span>
+                      <span class="text-slate-500">/</span>
+                      <span id="songAudioDuration">00:00</span>
+                  </div>
+              </div>
+              <input id="songAudioScrubber" type="range" min="0" max="100" value="0" step="0.1" oninput="if(window.songAudioEngine) window.songAudioEngine.onScrub(this.value);" class="flex-1 accent-purple-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+              <div class="flex items-center gap-1.5 shrink-0">
+                  <i class="fa-solid fa-volume-high text-xs text-slate-400"></i>
+                  <input id="songAudioVolume" type="range" min="0" max="1" step="0.05" value="1" oninput="if(window.songAudioEngine) window.songAudioEngine.setVolume(this.value);" class="w-16 accent-purple-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+              </div>
+              <div style="width:1px;height:20px;background:#334155;" class="shrink-0"></div>
+              <button id="songAudioQuickToggle" type="button" onclick="if(window.songAudioEngine) window.songAudioEngine.toggleSync();" class="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-emerald-600 text-white hover:bg-emerald-500 shrink-0 cursor-pointer" title="Quick toggle for audio playback and synchronized lyrics">
+                  <i class="fa-solid fa-music text-[11px]"></i> <span id="songAudioQuickToggleLabel">Sync: ON</span>
+              </button>
+              <button type="button" onclick="if(window.songAudioEngine) window.songAudioEngine.stop();" title="Stop Audio" class="w-7 h-7 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800 flex items-center justify-center transition cursor-pointer shrink-0">
+                  <i class="fa-solid fa-stop text-xs"></i>
+              </button>
+          </div>
       </div>
 
       <aside class="w-96 border-l border-slate-200 bg-white flex flex-col shrink-0 shadow-sm z-10 overflow-hidden">
@@ -212,14 +265,22 @@
                         </div>
                     </div>
 
-                    <!-- Full Black overlay state -->
-                    <div id="blackoutOverlay" class="hidden absolute inset-0 bg-black z-30 flex items-center justify-center">
-                        <span class="text-slate-700 text-xs font-mono">BLACKOUT ACTIVE</span>
+                    <!-- Attention state overlay (custom attention screen preview) -->
+                    <div id="attentionOverlay" class="hidden absolute inset-0 bg-black z-30 text-white text-center">
+                        <img id="attentionOverlayBg" style="display:none;position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;object-position:center;">
+                        <div id="attentionOverlayDim" style="display:none;position:absolute;left:0;top:0;width:100%;height:100%;background:#000;"></div>
+                        <div id="attentionOverlayContent" style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:8px;box-sizing:border-box;">
+                            <div id="attentionOverlayBox" style="display:flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box;max-width:92%;max-height:92%;">
+                                <img id="attentionOverlayImg" style="display:none;max-width:45%;max-height:45%;object-fit:contain;margin-bottom:8px;">
+                                <span id="attentionOverlayTitle" class="font-bold text-sm tracking-widest">ATTENTION</span>
+                                <span id="attentionOverlaySub" style="display:none;" class="text-[11px] mt-1 opacity-85"></span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Logo state overlay (custom logo screen preview) -->
                     <div id="logoOverlay" class="hidden absolute inset-0 bg-slate-900 z-30 text-white text-center">
-                        <img id="logoOverlayBg" style="display:none;position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;">
+                        <img id="logoOverlayBg" style="display:none;position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;object-position:center;">
                         <div id="logoOverlayDim" style="display:none;position:absolute;left:0;top:0;width:100%;height:100%;background:#000;"></div>
                         <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:16px;">
                             <img id="logoOverlayImg" style="display:none;max-width:45%;max-height:45%;object-fit:contain;margin-bottom:10px;">
@@ -236,14 +297,14 @@
                     <button id="monitorPrevBtn" onclick="navPrevVerse()" class="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-1">
                         <i class="fa-solid fa-chevron-left"></i> Prev
                     </button>
-                    <div class="tooltip-content tooltip-bottom">Previous slide</div>
+                    <div class="tooltip-content tooltip-bottom">Previous slide (←)</div>
                 </div>
                 <span id="liveSlideIndicator" class="text-xs font-semibold text-slate-600">Verse 1 of 14</span>
                 <div class="has-tooltip shrink-0">
                     <button id="monitorNextBtn" onclick="navNextVerse()" class="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-1">
                         Next <i class="fa-solid fa-chevron-right"></i>
                     </button>
-                    <div class="tooltip-content tooltip-bottom">Next slide</div>
+                    <div class="tooltip-content tooltip-bottom">Next slide (→)</div>
                 </div>
             </div>
 
@@ -274,5 +335,197 @@
             </div>
         </aside>
   </div>
+
+  <!-- ========================================================================= -->
+  <!-- LIVE STUDIO & REMOTE GUESTS GREEN ROOM OVERLAY MODAL -->
+  <!-- ========================================================================= -->
+  <div id="liveStudioModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden animate-scale-in">
+      
+      <!-- Studio Header -->
+      <div class="px-6 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
+            <i class="fa-solid fa-video text-base"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-base font-bold text-slate-900 leading-tight">Live Studio &amp; Green Room</h2>
+              <span id="studioActiveStageLabel" class="text-xs font-medium text-slate-500 bg-slate-200/70 px-2.5 py-0.5 rounded-full">
+                Slide-Only (No Video Live)
+              </span>
+            </div>
+            <p class="text-xs text-slate-500">Manage church camera, remote speakers, private intercom, and stage video feeds</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <!-- Server Status Badge -->
+          <div class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white border border-slate-200 shadow-2xs">
+            <span id="studioConnectionDot" class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+            <span id="studioConnectionStatus" class="text-slate-600">Offline</span>
+          </div>
+
+          <div class="h-6 w-[1px] bg-slate-200"></div>
+
+          <!-- Close Modal -->
+          <button type="button" onclick="window.liveStudio.closeModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-200/60 flex items-center justify-center transition cursor-pointer" title="Close Studio (Esc)">
+            <i class="fa-solid fa-xmark text-sm"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Studio Config Bar -->
+      <div class="px-6 py-2.5 bg-slate-100/70 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0 text-xs">
+        <div class="flex items-center gap-2 flex-wrap">
+          <div class="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
+            <span class="text-slate-400 font-semibold">Room:</span>
+            <input type="text" id="studioRoomId" value="uecfi-sanctuary" class="w-28 font-mono font-bold text-slate-800 uppercase focus:outline-none bg-transparent">
+          </div>
+
+          <div class="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
+            <span class="text-slate-400 font-semibold">PIN:</span>
+            <input type="text" id="studioSecretKey" value="1234" class="w-16 font-mono font-bold text-slate-800 focus:outline-none bg-transparent">
+          </div>
+
+          <button id="btnStudioConnect" type="button" onclick="window.liveStudio.connect()" class="px-3 py-1 rounded-lg font-bold bg-blue-600 text-white hover:bg-blue-500 transition shadow-2xs cursor-pointer">
+            Connect
+          </button>
+
+          <button type="button" onclick="window.liveStudio.copyGuestInviteLink()" class="px-3 py-1 rounded-lg font-semibold bg-white text-slate-700 hover:text-blue-600 border border-slate-200 hover:border-blue-300 transition shadow-2xs flex items-center gap-1.5 cursor-pointer" title="Copy Web Link to share with remote speakers">
+            <i class="fa-solid fa-link text-[11px]"></i> Copy Guest Link
+          </button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <input type="text" id="studioServerUrl" value="wss://uecfi-signaling.onrender.com/ws" title="Signaling Server WebSocket URL"
+                 class="w-64 text-[11px] font-mono bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-600 focus:outline-none focus:border-blue-500">
+        </div>
+      </div>
+
+      <!-- Studio Workspace (2 Columns) -->
+      <div class="flex-1 min-h-0 flex overflow-hidden">
+        
+        <!-- LEFT COLUMN: Remote Speakers Green Room (Backstage) -->
+        <div class="flex-1 flex flex-col border-r border-slate-200 bg-slate-50/50 p-4 overflow-hidden">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-200 shrink-0">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Remote Guests (Green Room)</span>
+              <span class="text-[10px] text-amber-700 font-semibold bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                Backstage is Private
+              </span>
+            </div>
+            <span class="text-[11px] text-slate-400">Audio isolated from house sound until Live</span>
+          </div>
+
+          <!-- Guest Video Grid -->
+          <div class="flex-1 overflow-y-auto py-3">
+            <div id="studioGuestEmptyState" class="h-full flex flex-col items-center justify-center text-center p-8 text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl">
+              <i class="fa-solid fa-users-viewfinder text-3xl mb-3 text-slate-300"></i>
+              <h3 class="text-sm font-bold text-slate-700 mb-1">No Remote Guests Connected</h3>
+              <p class="text-xs max-w-sm mb-4">
+                Share the invite link with remote pastors, elders, or guests. When they join from their phone or browser, they will appear here in the Green Room.
+              </p>
+              <button type="button" onclick="window.liveStudio.copyGuestInviteLink()" class="px-3.5 py-1.5 text-xs font-bold rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition flex items-center gap-1.5 cursor-pointer">
+                <i class="fa-solid fa-copy"></i> Copy Speaker Invite Link
+              </button>
+            </div>
+
+            <div id="studioGuestGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Dynamically populated by liveStudio.renderGuestList() -->
+            </div>
+          </div>
+
+          <!-- Operator Talkback Intercom Control Bar -->
+          <div class="mt-2 p-3 bg-white border border-slate-200 rounded-2xl shadow-xs flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-3">
+              <!-- Push-to-Talk Button (Mousedown / Mouseup) -->
+              <button id="btnStudioTalkback" type="button"
+                onmousedown="window.liveStudio.startOperatorTalkback()"
+                onmouseup="window.liveStudio.stopOperatorTalkback()"
+                class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-2 select-none transition cursor-pointer">
+                <i class="fa-solid fa-microphone"></i>
+                <span>Hold to Talk to Green Room</span>
+              </button>
+              
+              <div class="flex flex-col">
+                <span id="studioTalkbackStatus" class="text-xs text-slate-500">Push-to-Talk Muted</span>
+                <span class="text-[10px] text-slate-400">Only people in the Green Room will hear you</span>
+              </div>
+            </div>
+
+            <button type="button" onclick="window.liveStudio.clearStageVideo()" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer" title="Remove any live video and return to slide-only projection">
+              <i class="fa-solid fa-ban text-[11px] mr-1 text-slate-400"></i> Clear Stage Video
+            </button>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Sanctuary Camera & Operator Chat -->
+        <div class="w-80 flex flex-col bg-white p-4 overflow-hidden shrink-0">
+          
+          <!-- Church Camera Section -->
+          <div class="pb-4 border-b border-slate-200 shrink-0">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Sanctuary Camera</span>
+              <div class="flex items-center gap-1.5 text-[10px]">
+                <span id="studioCameraDot" class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+                <span id="studioCameraStatusText" class="text-slate-500">Inactive</span>
+              </div>
+            </div>
+
+            <!-- Camera Device Selector -->
+            <select id="studioCameraSelect" onchange="window.liveStudio.startCamera(this.value)" class="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 mb-2 text-slate-800 focus:outline-none focus:border-blue-500">
+              <option value="">Loading cameras...</option>
+            </select>
+
+            <!-- Camera Video Preview -->
+            <div class="relative w-full aspect-video bg-black rounded-xl overflow-hidden border border-slate-800 mb-2">
+              <video id="studioCameraPreview" autoplay playsinline muted class="w-full h-full object-cover"></video>
+            </div>
+
+            <!-- Camera Action Buttons -->
+            <div class="flex items-center gap-2">
+              <button id="btnStudioToggleCamera" type="button" onclick="if(window.liveStudio.cameraStream) window.liveStudio.stopCamera(); else window.liveStudio.startCamera();"
+                class="flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition shadow-2xs cursor-pointer text-center">
+                Start Camera
+              </button>
+              <button id="btnStudioCameraToStage" type="button" onclick="window.liveStudio.putCameraOnStage()"
+                class="px-3 py-1.5 text-xs font-bold rounded-lg bg-slate-100 hover:bg-rose-50 hover:text-rose-600 border border-slate-200 transition cursor-pointer text-center" title="Route camera to projection screen">
+                <i class="fa-solid fa-tower-broadcast text-[11px] mr-1"></i> Stage
+              </button>
+            </div>
+          </div>
+
+          <!-- Operator Private Chat Section -->
+          <div class="flex-1 min-h-0 flex flex-col pt-3">
+            <div class="flex items-center justify-between mb-2 shrink-0">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Intercom Chat</span>
+              <span class="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">Private</span>
+            </div>
+
+            <!-- Messages Log -->
+            <div id="studioChatMessages" class="flex-1 overflow-y-auto space-y-2 p-2 bg-slate-50 rounded-xl border border-slate-200 custom-scrollbar mb-2 text-xs">
+              <div class="text-[11px] text-slate-400 text-center py-2">
+                Type here to send silent notes to the Green Room.
+              </div>
+            </div>
+
+            <!-- Chat Form -->
+            <form onsubmit="event.preventDefault(); const inp = document.getElementById('studioChatInput'); window.liveStudio.sendIntercomMessage(inp.value); inp.value = '';" class="flex items-center gap-1.5 shrink-0">
+              <input type="text" id="studioChatInput" placeholder="Message speaker..."
+                class="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500">
+              <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg text-xs transition cursor-pointer shrink-0">
+                <i class="fa-solid fa-paper-plane"></i>
+              </button>
+            </form>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
 </body>
 </html>

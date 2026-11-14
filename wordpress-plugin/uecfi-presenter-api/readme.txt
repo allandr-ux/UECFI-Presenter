@@ -4,7 +4,7 @@ Tags: rest-api, church, presenter, downloads
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.0.4
+Stable tag: 1.0.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -71,6 +71,14 @@ If you need restriction later, filter `rest_pre_dispatch` or put the site behind
 basic auth — the route structure does not need to change.
 
 == Changelog ==
+
+= 1.0.6 =
+* Fully automatic song-pack title extraction: removes manual entry field, extracts titles automatically on file selection, post save, and catalog API requests (for both Media Library files and external URLs).
+
+= 1.0.5 =
+* Song-pack title preview: admin preview field with automatic extraction from
+  attached XML files on save; app displays titles with library comparison before
+  downloading.
 
 = 1.0.4 =
 * External file URLs per item (e.g. Cloudflare R2): paste a URL instead of

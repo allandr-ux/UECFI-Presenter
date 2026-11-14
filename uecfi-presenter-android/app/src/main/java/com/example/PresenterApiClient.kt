@@ -1,0 +1,413 @@
+package com.example
+
+import android.os.SystemClock
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.ConnectionPool
+import okhttp3.Dispatcher
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONArray
+import org.json.JSONObject
+import java.net.URLEncoder
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
+
+/**
+ * Represents a discovered or manually configured UECFI Presenter server endpoint.
+ */
+data class ServerEndpoint(
+    val host: String,
+    val port: Int,
+    val source: String = "auto"
+)
+
+/**
+ * Custom speaker remote button configured in the desktop app (`GET /api/buttons`).
+ */
+data class CustomRemoteButton(
+    val label: String,
+    val command: String,
+    val value: String = ""
+)
+
+/**
+ * Represents the parsed projection state from `GET /api/state` along with the
+ * constant 1920x1080 (16:9) normalized JSON string ready for injection into `presentation.htm`.
+ */
+data class PresenterState(
+    val live: Boolean,
+    val winX: Int,
+    val winY: Int,
+    val forcedW: Int,
+    val forcedH: Int,
+    val index: Int,
+    val last: Int,
+    val title: String,
+    val status: String,
+    val canPrev: Boolean,
+    val canNext: Boolean,
+    val isVerse: Boolean = false,
+    val outputMode: String,
+    val logoMode: Boolean,
+    val attentionActive: Boolean = false,
+    val rawJson: String,
+    val forced16x9Json: String
+)
+
+enum class SlideCommand(val code: Int) {
+    NEXT(2),
+    PREVIOUS(3)
+}
+
+enum class VerseCommand(val code: Int) {
+    NEXT(20),
+    PREVIOUS(21)
+}
+
+/**
+ * HTTP client for communicating with the UECFI Presenter desktop server on the LAN.
+ * - Provides a dedicated 500ms-timeout high-concurrency client for `/24` subnet scanning
+ * - Provides an 800ms-timeout client for fast last-known IP probing
+ * - Polls `GET http://<host>:<presenterPort>/api/state` every 400ms
+ * - Normalizes `winX` and `winY` unconditionally to a constant `1920 x 1080` virtual 16:9 stage
+ * - Sends slide navigation commands `GET http://<host>:<presenterPort>/test.txt?command=2|3&value=0`
+ * - Enforces the server's 400ms command throttle (`canProcessCommand` in `webserver.js`).
+ */
+class PresenterApiClient {
+
+    // High-concurrency, ultra-short timeout client for Semaphore(48) parallel subnet scanning
+    private val subnetSweepClient: OkHttpClient = OkHttpClient.Builder()
+        .dispatcher(
+            Dispatcher().apply {
+                maxRequests = 128
+                maxRequestsPerHost = 6
+            }
+        )
+        .connectionPool(ConnectionPool(32, 30, TimeUnit.SECONDS))
+        .connectTimeout(500, TimeUnit.MILLISECONDS)
+        .readTimeout(500, TimeUnit.MILLISECONDS)
+        .writeTimeout(500, TimeUnit.MILLISECONDS)
+        .retryOnConnectionFailure(false)
+        .build()
+
+    // Fast 800ms client for last-known host probe and mDNS verification
+    private val fastProbeClient: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(800, TimeUnit.MILLISECONDS)
+        .readTimeout(800, TimeUnit.MILLISECONDS)
+        .writeTimeout(800, TimeUnit.MILLISECONDS)
+        .retryOnConnectionFailure(false)
+        .build()
+
+    // Standard client for 400ms live state polling and slide commands
+    private val pollClient: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(1200, TimeUnit.MILLISECONDS)
+        .readTimeout(1200, TimeUnit.MILLISECONDS)
+        .writeTimeout(1200, TimeUnit.MILLISECONDS)
+        .retryOnConnectionFailure(false)
+        .build()
+
+    private val lastCommandTimestampMs = AtomicLong(0L)
+
+    companion object {
+        const val COMMAND_THROTTLE_MS = 400L
+        const val DEFAULT_PRESENTER_PORT = 50000
+        const val DEFAULT_AUDIENCE_PORT = 50001
+
+        // Constant fixed 16:9 virtual resolution so font sizing, margins, and line wrapping
+        // NEVER change when the desktop monitor/projector resolution changes.
+        const val VIRTUAL_W = 1920
+        const val VIRTUAL_H = 1080
+    }
+
+    /**
+     * Ultra-fast 500ms probe used by the parallel `/24` subnet scanner.
+     * Validates HTTP 200 and a JSON body containing `"live"`.
+     */
+    suspend fun probeSubnetHost(
+        host: String,
+        port: Int
+    ): Boolean = withContext(Dispatchers.IO) {
+        val cleanHost = host.trim()
+        if (cleanHost.isEmpty() || port !in 1..65535) return@withContext false
+
+        val request = Request.Builder()
+            .url("http://$cleanHost:$port/api/state")
+            .header("Accept", "application/json")
+            .header("Connection", "close")
+            .get()
+            .build()
+
+        try {
+            subnetSweepClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext false
+                val body = response.body?.string() ?: return@withContext false
+                val json = JSONObject(body)
+                json.has("live")
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Reachability probe for `GET http://<host>:<port>/api/state`.
+     * Defaults to 800ms timeout for instant last-known host checks.
+     * Returns true if the server responds with HTTP 200 and a valid JSON object containing `"live"`.
+     */
+    suspend fun probeServer(
+        host: String,
+        port: Int,
+        timeoutMs: Long = 800L
+    ): Boolean = withContext(Dispatchers.IO) {
+        val cleanHost = host.trim()
+        if (cleanHost.isEmpty() || port !in 1..65535) return@withContext false
+
+        val client = when (timeoutMs) {
+            500L -> subnetSweepClient
+            800L -> fastProbeClient
+            else -> fastProbeClient.newBuilder()
+                .connectTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                .readTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                .build()
+        }
+
+        val request = Request.Builder()
+            .url("http://$cleanHost:$port/api/state")
+            .header("Accept", "application/json")
+            .header("Cache-Control", "no-cache")
+            .get()
+            .build()
+
+        try {
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext false
+                val body = response.body?.string() ?: return@withContext false
+                val json = JSONObject(body)
+                json.has("live") || json.has("text1") || json.has("winX")
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Fetches the current `/api/state` from the UECFI Presenter server and normalizes
+     * the virtual resolution to a constant `1920 x 1080` (16:9).
+     */
+    suspend fun fetchState(host: String, port: Int, isTvDevice: Boolean = false): PresenterState? = withContext(Dispatchers.IO) {
+        val cleanHost = host.trim()
+        if (cleanHost.isEmpty() || port !in 1..65535) return@withContext null
+
+        val url = if (isTvDevice) "http://$cleanHost:$port/api/state?client=tv" else "http://$cleanHost:$port/api/state"
+        val request = Request.Builder()
+            .url(url)
+            .header("Accept", "application/json")
+            .header("Cache-Control", "no-cache")
+            .header("X-Client-Device", if (isTvDevice) "tv" else "speaker")
+            .get()
+            .build()
+
+        try {
+            pollClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                val body = response.body?.string() ?: return@withContext null
+                parsePresenterState(body, isTvDevice = isTvDevice)
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Parses the raw JSON from `/api/state` and unconditionally overwrites `winX = 1920`
+     * and `winY = 1080` so that:
+     * 1. `presentation.js` always lays out text, font sizes, margins, and line wrapping on a
+     *    constant `1920 x 1080` stage regardless of the physical monitor/projector resolution.
+     * 2. Changes solely to `st.winX` / `st.winY` on the desktop produce an identical
+     *    `forced16x9Json` and never trigger an unnecessary re-layout.
+     */
+    fun parsePresenterState(rawBody: String, isTvDevice: Boolean = false): PresenterState? {
+        return try {
+            val json = JSONObject(rawBody)
+            if (!json.has("live") && !json.has("text1") && !json.has("winX")) {
+                return null
+            }
+
+            val live = json.optBoolean("live", false)
+
+            // Unconditionally lock virtual dimensions to 1920 x 1080
+            val forcedW = VIRTUAL_W
+            val forcedH = VIRTUAL_H
+
+            val index = json.optInt("index", 0)
+            val last = json.optInt("last", 0)
+            val title = json.optString("title", "")
+            val status = json.optString("status", "")
+            val outputMode = json.optString("outputMode", "live")
+            val logoMode = json.optBoolean("logoMode", false)
+            val attentionMode = json.optBoolean("attentionMode", false)
+            val attentionSpeakerShow = json.optBoolean("attentionSpeakerShow", false)
+            val attentionActive = outputMode == "attention" || attentionMode || json.optBoolean("attentionActive", false)
+
+            // When attention screen is active on the church projector, speaker remote keeps the current slide visible.
+            // On TV devices, this setting NEVER applies: attention screen always shows when active.
+            val overrideAttentionForSpeaker = !isTvDevice && attentionActive && !attentionSpeakerShow
+            if (overrideAttentionForSpeaker) {
+                json.put("outputMode", "live")
+                json.put("attentionMode", false)
+            }
+
+            val navObj = json.optJSONObject("nav")
+            val canPrev = navObj?.optBoolean("canPrev", true) ?: true
+            val canNext = navObj?.optBoolean("canNext", true) ?: true
+
+            val explicitIsVerse = json.optBoolean("isVerse", false)
+            val projType = json.optString("projectionType", "")
+            val themeObj = json.optJSONObject("theme")
+            val themeContext = themeObj?.optString("context", "") ?: ""
+            val themeId = themeObj?.optString("id", "") ?: ""
+            val isVerse = explicitIsVerse ||
+                projType == "verses" ||
+                themeContext == "verses" ||
+                themeId == "verses" ||
+                status.contains("Verse", ignoreCase = true)
+
+            // Overwrite winX and winY to 1920x1080 before serializing forced16x9Json
+            json.put("winX", VIRTUAL_W)
+            json.put("winY", VIRTUAL_H)
+            val forced16x9Json = json.toString()
+
+            PresenterState(
+                live = live,
+                winX = VIRTUAL_W,
+                winY = VIRTUAL_H,
+                forcedW = forcedW,
+                forcedH = forcedH,
+                index = index,
+                last = last,
+                title = title,
+                status = status,
+                canPrev = canPrev,
+                canNext = canNext,
+                isVerse = isVerse,
+                outputMode = if (overrideAttentionForSpeaker) "live" else outputMode,
+                logoMode = logoMode,
+                attentionActive = attentionActive,
+                rawJson = rawBody,
+                forced16x9Json = forced16x9Json
+            )
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Sends a slide navigation command (`command=2` for Next, `command=3` for Previous)
+     * to `http://<host>:<presenterPort>/test.txt?command=<cmd>&value=0`.
+     *
+     * Respects the 400ms throttle required by the desktop server's `canProcessCommand`.
+     * Returns true if the command was sent and acknowledged with HTTP 200.
+     */
+    suspend fun sendSlideCommand(
+        host: String,
+        port: Int,
+        command: SlideCommand
+    ): Boolean = sendCommandInternal(host, port, command.code.toString(), "0")
+
+    /**
+     * Sends a verse-specific navigation command (`command=20` for Next Verse, `command=21` for Previous Verse)
+     * to `http://<host>:<presenterPort>/test.txt?command=<cmd>&value=0`.
+     *
+     * Respects the 400ms throttle required by the desktop server's `canProcessCommand`.
+     * Returns true if the command was sent and acknowledged with HTTP 200.
+     */
+    suspend fun sendVerseCommand(
+        host: String,
+        port: Int,
+        command: VerseCommand
+    ): Boolean = sendCommandInternal(host, port, command.code.toString(), "0")
+
+    /**
+     * Sends an arbitrary custom button command (`command=<cmd>&value=<val>`)
+     * to `http://<host>:<presenterPort>/test.txt`.
+     */
+    suspend fun sendCustomCommand(
+        host: String,
+        port: Int,
+        command: String,
+        value: String
+    ): Boolean = sendCommandInternal(host, port, command, value)
+
+    /**
+     * Fetches the list of custom speaker remote buttons from `GET http://<host>:<port>/api/buttons`.
+     */
+    suspend fun fetchCustomButtons(host: String, port: Int): List<CustomRemoteButton> = withContext(Dispatchers.IO) {
+        val cleanHost = host.trim()
+        if (cleanHost.isEmpty() || port !in 1..65535) return@withContext emptyList()
+
+        val request = Request.Builder()
+            .url("http://$cleanHost:$port/api/buttons")
+            .header("Accept", "application/json")
+            .header("Cache-Control", "no-cache")
+            .get()
+            .build()
+
+        try {
+            pollClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext emptyList()
+                val body = response.body?.string() ?: return@withContext emptyList()
+                val arr = JSONArray(body)
+                val buttons = ArrayList<CustomRemoteButton>(arr.length())
+                for (i in 0 until arr.length()) {
+                    val obj = arr.optJSONObject(i) ?: continue
+                    val label = obj.optString("label", "").trim()
+                    val cmd = obj.optString("command", "").trim()
+                    val value = obj.optString("value", "")
+                    if (label.isNotEmpty() && cmd.isNotEmpty()) {
+                        buttons.add(CustomRemoteButton(label = label, command = cmd, value = value))
+                    }
+                }
+                buttons
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    private suspend fun sendCommandInternal(
+        host: String,
+        port: Int,
+        command: String,
+        value: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        val now = SystemClock.elapsedRealtime()
+        val prev = lastCommandTimestampMs.get()
+        if (now - prev < COMMAND_THROTTLE_MS) {
+            return@withContext false
+        }
+        if (!lastCommandTimestampMs.compareAndSet(prev, now)) {
+            return@withContext false
+        }
+
+        val cleanHost = host.trim()
+        val cleanCmd = command.trim()
+        if (cleanHost.isEmpty() || port !in 1..65535 || cleanCmd.isEmpty()) return@withContext false
+
+        val encodedCmd = URLEncoder.encode(cleanCmd, "UTF-8")
+        val encodedVal = URLEncoder.encode(value, "UTF-8")
+        val request = Request.Builder()
+            .url("http://$cleanHost:$port/test.txt?command=$encodedCmd&value=$encodedVal")
+            .header("Cache-Control", "no-cache")
+            .get()
+            .build()
+
+        try {
+            pollClient.newCall(request).execute().use { response ->
+                response.isSuccessful
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+}

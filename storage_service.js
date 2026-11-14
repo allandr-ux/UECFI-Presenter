@@ -71,6 +71,78 @@
     return ".";
   }
 
+  let _cachedStorageRoot = null;
+  let _cachedUserDataStorageDir = null;
+
+  function getUserDataStorageDir() {
+    if (_cachedUserDataStorageDir) return _cachedUserDataStorageDir;
+    if (!isNode) return "storage";
+    try {
+      const path = require("path");
+      const os = require("os");
+      let appDataBase = process.env.APPDATA;
+      if (!appDataBase) {
+        if (process.platform === "win32") {
+          appDataBase = path.join(os.homedir(), "AppData", "Roaming");
+        } else if (process.platform === "darwin") {
+          appDataBase = path.join(os.homedir(), "Library", "Application Support");
+        } else {
+          appDataBase = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
+        }
+      }
+      _cachedUserDataStorageDir = path.join(appDataBase, "uecfi-presenter", "storage");
+      return _cachedUserDataStorageDir;
+    } catch (e) {
+      return path.join(appRootDir(), "storage");
+    }
+  }
+
+  function isEphemeralOrReadOnlyRoot(rootDir) {
+    if (!isNode) return false;
+    try {
+      const path = require("path");
+      const os = require("os");
+      const fs = require("fs");
+      const normRoot = path.resolve(rootDir).toLowerCase();
+      const normTmp = path.resolve(os.tmpdir()).toLowerCase();
+      // Portable builds extract into %TEMP% and delete on exit
+      if (normRoot.startsWith(normTmp) || normRoot.indexOf("\\appdata\\local\\temp\\") >= 0) {
+        return true;
+      }
+      // Installed builds under Program Files or /Applications
+      if (normRoot.indexOf("\\program files") >= 0 || normRoot.startsWith("/applications/")) {
+        return true;
+      }
+      // Verify actual write access to <rootDir>/storage
+      const testDir = path.join(rootDir, "storage");
+      fs.mkdirSync(testDir, { recursive: true });
+      const probeFile = path.join(testDir, ".write_probe_" + process.pid);
+      fs.writeFileSync(probeFile, "ok", "utf8");
+      fs.unlinkSync(probeFile);
+      return false;
+    } catch (e) {
+      return true;
+    }
+  }
+
+  function storageRootDir() {
+    if (_cachedStorageRoot) return _cachedStorageRoot;
+    if (!isNode) return "storage";
+    const path = require("path");
+    const fs = require("fs");
+    const root = appRootDir();
+    if (!isEphemeralOrReadOnlyRoot(root)) {
+      _cachedStorageRoot = path.join(root, "storage");
+      return _cachedStorageRoot;
+    }
+    const persistentDir = getUserDataStorageDir();
+    try {
+      fs.mkdirSync(persistentDir, { recursive: true });
+    } catch (e) {}
+    _cachedStorageRoot = persistentDir;
+    return _cachedStorageRoot;
+  }
+
   // Convert a filesystem path to a fetch/XHR/img-safe file:// URL.
   // Relative paths pass through (they resolve against the document on any
   // platform). Native absolute paths -- including Windows backslash and
@@ -101,6 +173,8 @@
      * installed Windows builds).
      */
     appDir: appRootDir,
+    storageDir: storageRootDir,
+    userDataStorageDir: getUserDataStorageDir,
 
     /**
      * Convert a filesystem path to a fetch/XHR/img-safe file:// URL.
@@ -259,6 +333,25 @@
      * Resolves a path under the user/storage directory.
      */
     resolveStoragePath(...parts) {
+      if (isNode) {
+        const path = require('path');
+        const fs = require('fs');
+        const base = storageRootDir();
+        const target = path.join(base, ...parts);
+        const appStorageBase = path.join(appRootDir(), 'storage');
+        if (base !== appStorageBase && !fs.existsSync(target)) {
+          try {
+            const bundledCandidate = path.join(appStorageBase, ...parts);
+            const fallbackCandidate = path.join(appRootDir(), ...parts);
+            const seedSrc = fs.existsSync(bundledCandidate) ? bundledCandidate : (fs.existsSync(fallbackCandidate) ? fallbackCandidate : null);
+            if (seedSrc && fs.statSync(seedSrc).isFile()) {
+              fs.mkdirSync(path.dirname(target), { recursive: true });
+              fs.copyFileSync(seedSrc, target);
+            }
+          } catch (e) {}
+        }
+        return target;
+      }
       return this.resolvePath('storage', ...parts);
     },
 

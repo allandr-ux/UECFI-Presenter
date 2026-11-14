@@ -2,6 +2,10 @@ function songEditClass() {
   this.init = M;
   this.showEditPanel = j;
   this.setEditPrimaryKey = A;
+  this.handleAudioUpload = handleAudioUpload;
+  this.toggleAudioPreview = toggleAudioPreview;
+  this.removeAudio = removeAudio;
+  this.openTapSyncModal = openTapSyncModal;
 
   var b = false; // edit flag (false = new song, true = update song)
   var o = -1;    // edit index
@@ -150,7 +154,9 @@ function songEditClass() {
       if (n != "") {
         U.push(n);
       }
-      U.sort();
+      U.sort(function(a, b) {
+        return String(a || "").localeCompare(String(b || ""), undefined, { sensitivity: "base" });
+      });
     }
     var T = U.length;
     s = 0;
@@ -186,7 +192,9 @@ function songEditClass() {
     } else {
       Q = e;
     }
-    Q.sort();
+    Q.sort(function(a, b) {
+      return String(a || "").localeCompare(String(b || ""), undefined, { sensitivity: "base" });
+    });
     var W = Q.length;
     clearSelectList("se_fontID2");
     for (var S = 0; S < W; S++) {
@@ -268,6 +276,7 @@ function songEditClass() {
       }
     }
 
+    setAudioUI(P ? (P.audio || "") : "");
     updateSlideCounter();
     p();
   }
@@ -275,7 +284,7 @@ function songEditClass() {
   function j(P, Q, R) {
     b = Q;
     o = R;
-    m = null;
+    m = (P && P.id) ? P.id : null;
     c(P);
     h.setHeader(Q ? "Edit Song" : "Add New Song");
     h.show();
@@ -399,6 +408,8 @@ function songEditClass() {
 
     U.key = document.getElementById("se_keyID").value;
     U.notes = document.getElementById("se_notesID").value;
+    U.audio = (document.getElementById("se_audioFileName") ? document.getElementById("se_audioFileName").value : "") || "";
+    if (m != null) U.id = m;
     return U;
   }
 
@@ -467,5 +478,328 @@ function songEditClass() {
     if (q) {
       console.log("[SongEdit]...." + P);
     }
+  }
+
+  // --- Audio Track & Synchronized Lyrics Helpers ---
+  var previewAudioEl = null;
+
+  function setAudioUI(fileName) {
+    var fn = String(fileName || "").trim();
+    var fnInput = document.getElementById("se_audioFileName");
+    if (fnInput) fnInput.value = fn;
+
+    var noAudioWrap = document.getElementById("se_noAudioWrap");
+    var audioBadgeWrap = document.getElementById("se_audioBadgeWrap");
+    var nameDisplay = document.getElementById("se_audioNameDisplay");
+
+    if (fn) {
+      if (noAudioWrap) noAudioWrap.style.display = "none";
+      if (audioBadgeWrap) audioBadgeWrap.style.display = "flex";
+      if (nameDisplay) nameDisplay.textContent = fn;
+    } else {
+      if (noAudioWrap) noAudioWrap.style.display = "flex";
+      if (audioBadgeWrap) audioBadgeWrap.style.display = "none";
+    }
+    stopAudioPreview();
+  }
+
+  function handleAudioUpload(event) {
+    try {
+      var input = event ? event.target : null;
+      if (!input || !input.files || input.files.length === 0) return;
+      var file = input.files[0];
+      var fileName = file.name || "";
+      if (!fileName) return;
+
+      if (typeof require !== "undefined") {
+        try {
+          var fs = require("fs");
+          var path = require("path");
+          var dir1 = path.join(process.cwd(), "audio");
+          var dir2 = path.join(process.cwd(), "storage", "audio");
+          if (!fs.existsSync(dir1)) fs.mkdirSync(dir1, { recursive: true });
+          if (!fs.existsSync(dir2)) fs.mkdirSync(dir2, { recursive: true });
+
+          if (file.path) {
+            fs.copyFileSync(file.path, path.join(dir1, fileName));
+            fs.copyFileSync(file.path, path.join(dir2, fileName));
+          } else {
+            var reader = new FileReader();
+            reader.onload = function() {
+              try {
+                var buffer = Buffer.from(reader.result);
+                fs.writeFileSync(path.join(dir1, fileName), buffer);
+                fs.writeFileSync(path.join(dir2, fileName), buffer);
+              } catch (e2) {}
+            };
+            reader.readAsArrayBuffer(file);
+          }
+        } catch (err) {
+          console.error("[SongEdit] Error copying audio file:", err);
+        }
+      }
+
+      setAudioUI(fileName);
+      if (input) input.value = "";
+    } catch (e) {
+      console.error("[SongEdit] handleAudioUpload error:", e);
+    }
+  }
+
+  function toggleAudioPreview() {
+    var fnInput = document.getElementById("se_audioFileName");
+    var fn = fnInput ? fnInput.value.trim() : "";
+    if (!fn) return;
+
+    if (!previewAudioEl) {
+      previewAudioEl = new Audio();
+    }
+
+    var icon = document.getElementById("se_audioPreviewIcon");
+    if (!previewAudioEl.paused) {
+      previewAudioEl.pause();
+      if (icon) icon.className = "fa-solid fa-play text-[10px]";
+    } else {
+      previewAudioEl.src = "./audio/" + encodeURIComponent(fn);
+      previewAudioEl.play().catch(function() {});
+      if (icon) icon.className = "fa-solid fa-pause text-[10px]";
+      previewAudioEl.onended = function() {
+        if (icon) icon.className = "fa-solid fa-play text-[10px]";
+      };
+    }
+  }
+
+  function stopAudioPreview() {
+    if (previewAudioEl) {
+      try {
+        previewAudioEl.pause();
+        previewAudioEl.currentTime = 0;
+      } catch (e) {}
+      var icon = document.getElementById("se_audioPreviewIcon");
+      if (icon) icon.className = "fa-solid fa-play text-[10px]";
+    }
+  }
+
+  function removeAudio() {
+    stopAudioPreview();
+    setAudioUI("");
+    var fileInput = document.getElementById("se_audioFileInput");
+    if (fileInput) fileInput.value = "";
+  }
+
+  // Interactive "Tap to Sync" Modal
+  function openTapSyncModal() {
+    var fnInput = document.getElementById("se_audioFileName");
+    var audioFile = fnInput ? fnInput.value.trim() : "";
+    if (!audioFile) {
+      alert("Please upload or choose an audio file first before tapping timestamps.");
+      return;
+    }
+
+    var lyricsInput = document.getElementById("se_lyricsInput");
+    var rawText = lyricsInput ? lyricsInput.value : "";
+    if (!rawText.trim()) {
+      alert("Please enter song lyrics first.");
+      return;
+    }
+
+    // Split lyrics into lines preserving blank line slide separators
+    var lines = rawText.split("\n");
+    var lineObjects = lines.map(function(l) {
+      var trimmed = l.trim();
+      var cleanText = trimmed.replace(/^\s*\[\d{1,2}:\d{2}(?:\.\d{1,3})?\]\s*/, "");
+      var existingTs = "";
+      var match = trimmed.match(/^\[(\d{1,2}:\d{2}(?:\.\d{1,3})?)\]/);
+      if (match) existingTs = match[1];
+      return {
+        original: l,
+        clean: cleanText,
+        isBlank: (trimmed === "" || trimmed === "."),
+        timestamp: existingTs
+      };
+    });
+
+    var syncAudio = new Audio("./audio/" + encodeURIComponent(audioFile));
+    var currentLineIndex = 0;
+    while (currentLineIndex < lineObjects.length && lineObjects[currentLineIndex].isBlank) {
+      currentLineIndex++;
+    }
+
+    var modalId = "uecfi_tap_sync_modal";
+    var existingModal = document.getElementById(modalId);
+    if (existingModal) existingModal.remove();
+
+    var modalEl = document.createElement("dialog");
+    modalEl.id = modalId;
+    modalEl.className = "p-0 bg-transparent border-0 rounded-2xl shadow-2xl backdrop:bg-slate-900/80 backdrop:backdrop-blur-xs max-w-xl w-full m-auto overflow-hidden text-slate-800 focus:outline-none";
+
+    function renderLinesHtml() {
+      return lineObjects.map(function(lo, idx) {
+        if (lo.isBlank) {
+          return '<div class="py-1 text-center text-[10px] uppercase font-bold text-slate-400 bg-slate-100/50 rounded my-1">--- Slide Break ---</div>';
+        }
+        var isCurrent = (idx === currentLineIndex);
+        var hasTs = !!lo.timestamp;
+        var ringClass = isCurrent ? "ring-2 ring-purple-600 bg-purple-50/70 border-purple-300 font-bold" : (hasTs ? "bg-emerald-50/60 border-emerald-200" : "bg-white border-slate-200");
+        return '<div id="syncLineItem_' + idx + '" class="flex items-center justify-between p-2 rounded-lg border ' + ringClass + ' transition">' +
+          '<span class="text-xs text-slate-800">' + (lo.clean || "&nbsp;") + '</span>' +
+          '<span class="text-[11px] font-mono font-bold ' + (hasTs ? 'text-emerald-700' : 'text-slate-400') + '">' + (lo.timestamp ? '[' + lo.timestamp + ']' : '--:--') + '</span>' +
+        '</div>';
+      }).join("");
+    }
+
+    modalEl.innerHTML = 
+      '<div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-xl flex flex-col max-h-[88vh] overflow-hidden">' +
+        '<div class="flex items-center justify-between px-5 py-3.5 bg-slate-900 text-white shrink-0">' +
+          '<div class="flex items-center gap-2">' +
+            '<i class="fa-solid fa-stopwatch text-purple-400"></i>' +
+            '<h3 class="text-sm font-bold">Tap to Sync Timestamps</h3>' +
+          '</div>' +
+          '<button type="button" id="tapSyncCloseBtn" class="text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>' +
+        '</div>' +
+
+        '<div class="p-4 bg-slate-100 border-b border-slate-200 flex items-center justify-between gap-3 shrink-0">' +
+          '<div class="flex items-center gap-3">' +
+            '<button type="button" id="tapSyncPlayPause" class="w-9 h-9 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center transition cursor-pointer">' +
+              '<i id="tapSyncPlayIcon" class="fa-solid fa-play text-xs"></i>' +
+            '</button>' +
+            '<span id="tapSyncTimer" class="text-sm font-mono font-bold text-slate-800">00:00.00</span>' +
+          '</div>' +
+          '<div class="text-[11px] text-slate-500 font-medium">Press <kbd class="px-1.5 py-0.5 bg-white border border-slate-300 rounded font-bold shadow-xs">SPACE</kbd> or click <b>Stamp Line</b> when each line starts</div>' +
+        '</div>' +
+
+        '<div id="tapSyncLinesContainer" class="p-4 overflow-y-auto flex-1 space-y-1.5 bg-slate-50 custom-scrollbar">' +
+          renderLinesHtml() +
+        '</div>' +
+
+        '<div class="p-3 bg-purple-50/40 border-t border-purple-100 flex items-center justify-center shrink-0">' +
+          '<button type="button" id="tapSyncStampBtn" class="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer">' +
+            '<i class="fa-solid fa-tag"></i> Stamp Current Line (SPACE)' +
+          '</button>' +
+        '</div>' +
+
+        '<div class="flex items-center justify-between px-5 py-3 bg-white border-t border-slate-200 shrink-0">' +
+          '<button type="button" id="tapSyncResetBtn" class="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition cursor-pointer">' +
+            'Clear Timestamps' +
+          '</button>' +
+          '<div class="flex items-center gap-2">' +
+            '<button type="button" id="tapSyncCancelBtn" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition cursor-pointer">Cancel</button>' +
+            '<button type="button" id="tapSyncApplyBtn" class="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs transition cursor-pointer flex items-center gap-1.5">' +
+              '<i class="fa-solid fa-check"></i> Apply to Lyrics' +
+            '</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(modalEl);
+    try {
+      modalEl.showModal();
+    } catch (e) {
+      modalEl.setAttribute("open", "");
+    }
+
+    modalEl.addEventListener("click", function(e) {
+      if (e.target === modalEl) cleanup();
+    });
+    modalEl.addEventListener("cancel", function(e) {
+      e.preventDefault();
+      cleanup();
+    });
+
+    var playBtn = document.getElementById("tapSyncPlayPause");
+    var playIcon = document.getElementById("tapSyncPlayIcon");
+    var timerEl = document.getElementById("tapSyncTimer");
+    var stampBtn = document.getElementById("tapSyncStampBtn");
+    var linesContainer = document.getElementById("tapSyncLinesContainer");
+
+    function formatLrcTime(secs) {
+      var m = Math.floor(secs / 60);
+      var s = Math.floor(secs % 60);
+      var ms = Math.floor((secs % 1) * 100);
+      return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s + "." + (ms < 10 ? "0" : "") + ms;
+    }
+
+    var timerInterval = setInterval(function() {
+      if (syncAudio && !syncAudio.paused && timerEl) {
+        timerEl.textContent = formatLrcTime(syncAudio.currentTime);
+      }
+    }, 50);
+
+    function togglePlay() {
+      if (syncAudio.paused) {
+        syncAudio.play().catch(function() {});
+        if (playIcon) playIcon.className = "fa-solid fa-pause text-xs";
+      } else {
+        syncAudio.pause();
+        if (playIcon) playIcon.className = "fa-solid fa-play text-xs";
+      }
+    }
+
+    if (playBtn) playBtn.onclick = togglePlay;
+
+    function stampCurrentLine() {
+      if (currentLineIndex >= lineObjects.length) return;
+      var curTimeStr = formatLrcTime(syncAudio.currentTime);
+      lineObjects[currentLineIndex].timestamp = curTimeStr;
+
+      // Advance to next non-blank line
+      currentLineIndex++;
+      while (currentLineIndex < lineObjects.length && lineObjects[currentLineIndex].isBlank) {
+        currentLineIndex++;
+      }
+
+      if (linesContainer) {
+        linesContainer.innerHTML = renderLinesHtml();
+        var targetEl = document.getElementById("syncLineItem_" + currentLineIndex);
+        if (targetEl) targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+
+    if (stampBtn) stampBtn.onclick = stampCurrentLine;
+
+    function handleKeyDown(e) {
+      if (e.code === "Space") {
+        e.preventDefault();
+        stampCurrentLine();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+
+    function cleanup() {
+      clearInterval(timerInterval);
+      window.removeEventListener("keydown", handleKeyDown);
+      try { syncAudio.pause(); } catch(e) {}
+      try { modalEl.close(); } catch(e) {}
+      modalEl.remove();
+    }
+
+    document.getElementById("tapSyncCloseBtn").onclick = cleanup;
+    document.getElementById("tapSyncCancelBtn").onclick = cleanup;
+
+    document.getElementById("tapSyncResetBtn").onclick = function() {
+      if (!confirm("Clear all timestamps?")) return;
+      lineObjects.forEach(function(lo) { lo.timestamp = ""; });
+      currentLineIndex = 0;
+      while (currentLineIndex < lineObjects.length && lineObjects[currentLineIndex].isBlank) {
+        currentLineIndex++;
+      }
+      linesContainer.innerHTML = renderLinesHtml();
+    };
+
+    document.getElementById("tapSyncApplyBtn").onclick = function() {
+      var formatted = lineObjects.map(function(lo) {
+        if (lo.isBlank) return "";
+        if (lo.timestamp) {
+          return "[" + lo.timestamp + "] " + lo.clean;
+        }
+        return lo.clean;
+      }).join("\n");
+
+      if (lyricsInput) {
+        lyricsInput.value = formatted;
+        updateSlideCounter();
+      }
+      cleanup();
+    };
   }
 }

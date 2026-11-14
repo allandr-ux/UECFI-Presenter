@@ -23,7 +23,13 @@ function vvhelpClass() {
 }
 function openExternalURL(url) {
   const targetUrl = url || "https://github.com";
+  // Route external links through preload's electronBridge first so renderer
+  // code stays decoupled from direct Electron module requires.
   try {
+    if (typeof window !== "undefined" && window.electronBridge && typeof window.electronBridge.openExternal === "function") {
+      window.electronBridge.openExternal(targetUrl);
+      return;
+    }
     if (typeof require === "function") {
       const { shell } = require("electron");
       if (shell && shell.openExternal) {
@@ -31,6 +37,6 @@ function openExternalURL(url) {
         return;
       }
     }
-  } catch(e) {}
+  } catch (e) {}
   window.open(targetUrl, "_blank");
 }

@@ -41,7 +41,7 @@ class ThemeManager {
       },
       songs: {
         title: "Calam At Upaya",
-        text1: "Calam at upaya ning Dios a miglalang\nYa sa'ng manitili pusu ning ninu man",
+        text1: "Calam at upaya ning Dios a miglalang<BR>Ya sa'ng manitili pusu ning ninu man",
         text2: "",
         footnote: "Himnario #1"
       },
@@ -53,7 +53,8 @@ class ThemeManager {
       },
       person: {
         title: "Panauhing Tagapagsalita",
-        text1: "Kapatid na Juan dela Cruz",
+        personTitle: "Pastor",
+        text1: "Juan dela Cruz",
         text2: "(Centro General Mariano Alvarez)",
         footnote: ""
       },
@@ -95,6 +96,10 @@ class ThemeManager {
         primaryColor: "#FFFFFF",
         primaryScale: 1.8,
         primaryWeight: "bold",
+        alternateLineColorEnabled: true,
+        alternateLineColor: "#FDE68A",
+        syncActiveColor: "#F59E0B",
+        syncInactiveColor: "#94A3B8",
         secondaryFont: "Arial",
         secondaryColor: "#E2E8F0",
         secondaryScale: 1.1,
@@ -730,6 +735,10 @@ class ThemeManager {
               primaryColor: "#FFFFFF",
               primaryScale: 1.8,
               primaryWeight: "bold",
+              alternateLineColorEnabled: true,
+              alternateLineColor: "#FDE68A",
+              syncActiveColor: "#F59E0B",
+              syncInactiveColor: "#94A3B8",
               secondaryFont: "Arial",
               secondaryColor: "#E9D5FF",
               secondaryScale: 1.1,
@@ -1438,6 +1447,48 @@ class ThemeManager {
                   <input type="range" min="0" max="10" step="1" value="${(style.primaryShadowBlur !== undefined && style.primaryShadowBlur !== null && style.primaryShadowBlur !== '') ? style.primaryShadowBlur : (style.shadowBlur || 3)}" oninput="themeManager.setStyleField('primaryShadowBlur', parseInt(this.value)); document.getElementById('valPrimaryShadowBlur').innerText = this.value + 'px';" class="w-24 accent-brand-600">
                   <span id="valPrimaryShadowBlur" class="text-[10px] font-mono text-slate-400">${(style.primaryShadowBlur !== undefined && style.primaryShadowBlur !== null && style.primaryShadowBlur !== '') ? style.primaryShadowBlur : (style.shadowBlur || 3)}px</span>
                 </div>
+                ${this.activeCategory === 'songs' ? `
+                <div class="flex items-center justify-between gap-3 pt-2 border-t border-slate-100">
+                  <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer" title="Alternate colors between odd and even lyric lines">
+                    <input type="checkbox" ${style.alternateLineColorEnabled !== false ? "checked" : ""}
+                           onchange="themeManager.setStyleField('alternateLineColorEnabled', this.checked)"
+                           class="rounded text-brand-600">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Alternate Line Color (Even Lines)</span>
+                  </label>
+                  <div class="flex items-center gap-2">
+                    <input type="color" value="${style.alternateLineColor || '#FDE68A'}"
+                           oninput="themeManager.setStyleField('alternateLineColor', this.value); document.getElementById('valAltLineColor') && (document.getElementById('valAltLineColor').innerText = this.value);"
+                           class="w-8 h-8 rounded border border-slate-200 cursor-pointer p-0.5">
+                    <span id="valAltLineColor" class="text-[11px] font-mono text-slate-500">${style.alternateLineColor || '#FDE68A'}</span>
+                  </div>
+                </div>
+                <!-- Synchronized Lyrics Active / Inactive Line Colors -->
+                <div class="pt-2 border-t border-slate-100 space-y-2">
+                  <div class="text-[11px] font-bold uppercase tracking-wider text-brand-700 flex items-center gap-1.5">
+                    <i class="fa-solid fa-music"></i> Synchronized Lyrics Line Highlighting
+                  </div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div class="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200">
+                      <span class="text-[11px] font-semibold text-slate-700">Active Sung Line</span>
+                      <div class="flex items-center gap-1.5">
+                        <input type="color" value="${style.syncActiveColor || '#F59E0B'}"
+                               oninput="themeManager.setStyleField('syncActiveColor', this.value); document.getElementById('valSyncActiveColor') && (document.getElementById('valSyncActiveColor').innerText = this.value);"
+                               class="w-7 h-7 rounded border border-slate-200 cursor-pointer p-0.5">
+                        <span id="valSyncActiveColor" class="text-[10px] font-mono text-slate-500">${style.syncActiveColor || '#F59E0B'}</span>
+                      </div>
+                    </div>
+                    <div class="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200">
+                      <span class="text-[11px] font-semibold text-slate-700">Inactive Lines</span>
+                      <div class="flex items-center gap-1.5">
+                        <input type="color" value="${style.syncInactiveColor || '#94A3B8'}"
+                               oninput="themeManager.setStyleField('syncInactiveColor', this.value); document.getElementById('valSyncInactiveColor') && (document.getElementById('valSyncInactiveColor').innerText = this.value);"
+                               class="w-7 h-7 rounded border border-slate-200 cursor-pointer p-0.5">
+                        <span id="valSyncInactiveColor" class="text-[10px] font-mono text-slate-500">${style.syncInactiveColor || '#94A3B8'}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                ` : ''}
               </div>
 
               <!-- Secondary Text (Shown for types that support secondary text: Verses, Person, and Tema) -->
@@ -1947,13 +1998,17 @@ class ThemeManager {
           let firstSlide = "";
           const slideHost = document.getElementById("ly_slide");
           if (slideHost) {
-            const first = slideHost.querySelector("div");
-            if (first && first.innerText) firstSlide = first.innerText.trim();
+            const firstLink = slideHost.querySelector("div a") || slideHost.querySelector("div");
+            if (firstLink && firstLink.innerHTML) {
+              firstSlide = firstLink.innerHTML.trim();
+            } else if (firstLink && firstLink.innerText) {
+              firstSlide = firstLink.innerText.trim().replace(/\r?\n/g, "<BR>");
+            }
           }
           const copyEl = document.getElementById("ly_copy");
           return {
             title: nameEl.innerText.trim(),
-            text1: firstSlide || fallback.text1,
+            text1: firstSlide || String(fallback.text1 || "").replace(/\r?\n/g, "<BR>"),
             text2: "",
             footnote: copyEl ? copyEl.innerText.trim() : ""
           };
@@ -1977,7 +2032,8 @@ class ThemeManager {
             }
             if (item.type === "person") {
               const role = (item.data && item.data.personType) || item.title || "";
-              return { title: role, text1: stripBR(s0.text1), text2: stripBR(s0.text2), footnote: "" };
+              const personTitle = (item.data && item.data.personTitle) || s0.personTitle || "";
+              return { title: role, personTitle: personTitle, text1: stripBR(s0.text1), text2: stripBR(s0.text2), footnote: "" };
             }
             return { title: item.title || "", text1: stripBR(s0.text1), text2: "", footnote: "" };
           }
@@ -2033,6 +2089,8 @@ class ThemeManager {
     const state = {
       text1: [data.text1 || ""],
       text2: [data.text2 || ""],
+      personTitle: data.personTitle || "",
+      personTitleArr: [data.personTitle || ""],
       font1: style.primaryFont || "Arial",
       font2: style.secondaryFont || style.primaryFont || "Arial",
       title: (data.title !== undefined && data.title !== null) ? data.title : "",
@@ -2346,6 +2404,7 @@ class ThemeManager {
       if (style.backgroundType === "image" && style.bgImage) {
         liveBg.style.backgroundImage = `url(./background/${style.bgImage})`;
         liveBg.style.backgroundSize = "cover";
+        liveBg.style.backgroundPosition = "center";
         liveBg.style.backgroundColor = "transparent";
       } else if (style.backgroundType === "gradient" && style.bgGradient) {
         liveBg.style.backgroundImage = style.bgGradient;

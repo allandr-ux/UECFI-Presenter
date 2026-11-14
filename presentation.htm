@@ -12,8 +12,8 @@
 	
 <body id="p_body" onkeyup="findKey(event)" style="overflow:hidden; color:#FFFFFF; margin:0; padding:0;">
 
-<div id="backgroundLayer" style="position:absolute; left:0px; top:0px;  z-index:1;  border: 1px none #000000;">
-<img id="backgroundImage">
+<div id="backgroundLayer" style="position:absolute; left:0px; top:0px; z-index:1; border: 1px none #000000; overflow:hidden;">
+<img id="backgroundImage" style="width:100%; height:100%; object-fit:cover; object-position:center;">
 </div>
 
 <div id="overlayLayer" style="position:absolute; left:0px; top:0px; z-index:1; pointer-events:none;"></div>
@@ -26,6 +26,7 @@
 
 <div id="presentationContent" class="contentStyle" style="display:flex; flex-direction:column; justify-content:center; align-items:center; width:100%;">
   <div id="p_contentID" style="width:100%; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+    <div id="contentPersonTitle" style="display:none; overflow:hidden; width:100%;"></div>
     <div id="content1" style="overflow:hidden; width:100%;"></div>
     <div id="presentationDivider" style="display:none; margin: 16px auto; transition: all 0.2s;"></div>
     <div id="content2" style="overflow:hidden; width:100%;"></div>
@@ -36,13 +37,37 @@
 </div>
 </div>
 
+<div id="customSlideLayer" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; z-index:3; background:#000000;">
+  <img id="customSlideBgImage" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; object-fit:cover; object-position:center;">
+  <div id="customSlideDim" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; background:#000000;"></div>
+  <div id="customSlideTitle" style="display:none;"></div>
+  <div id="customSlideContent" style="position:relative; z-index:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; width:100%; height:100%; padding:5%; box-sizing:border-box;">
+    <img id="customSlideImage" style="display:none; object-fit:contain;">
+    <div id="customSlidePersonTitle" style="display:none;"></div>
+    <div id="customSlideText1" style="display:none;"></div>
+    <div id="customSlideText2" style="display:none;"></div>
+  </div>
+</div>
+
 <div id="logoLayer" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; z-index:5; background:#020617;">
-  <img id="logoBgImage" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; object-fit:cover;">
+  <img id="logoBgImage" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; object-fit:cover; object-position:center;">
   <div id="logoDim" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; background:#000000;"></div>
   <div id="logoContent" style="position:relative; z-index:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; width:100%; height:100%; padding:5%; box-sizing:border-box;">
     <img id="logoImage" style="display:none; max-width:45%; max-height:45%; object-fit:contain; margin-bottom:24px;">
     <div id="logoTitle" style="display:none; font-weight:bold;"></div>
     <div id="logoSub" style="display:none; margin-top:12px;"></div>
+  </div>
+</div>
+
+<div id="attentionLayer" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; z-index:6; background:#000000;">
+  <img id="attentionBgImage" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; object-fit:cover; object-position:center;">
+  <div id="attentionDim" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; background:#000000;"></div>
+  <div id="attentionContent" style="position:relative; z-index:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; width:100%; height:100%; box-sizing:border-box;">
+    <div id="attentionBox" style="display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; box-sizing:border-box; max-width:92%; max-height:92%;">
+      <img id="attentionImage" style="display:none; max-width:45%; max-height:45%; object-fit:contain; margin-bottom:24px;">
+      <div id="attentionTitle" style="display:none; font-weight:bold;"></div>
+      <div id="attentionSub" style="display:none; margin-top:12px;"></div>
+    </div>
   </div>
 </div>
 

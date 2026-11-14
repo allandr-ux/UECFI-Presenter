@@ -18,6 +18,11 @@
     padding: 12px;
 }
 
+#verseTab tr.vcClass > td:first-child {
+    flex: 0 0 auto !important;
+    width: auto !important;
+}
+
 #verseTab td.navtd {
     flex: 1 1 auto !important;
     width: auto !important;
@@ -36,7 +41,9 @@
     color: #475569;
     border-radius: 9999px;
     width: 28px;
+    min-width: 28px;
     height: 28px;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -470,11 +477,35 @@ dialog#panelObj {
     width: 680px !important;
     max-width: 95vw !important;
     max-height: 90vh !important;
+    overflow: hidden !important;
 }
 
 dialog#panelObj[open] {
     display: flex !important;
     flex-direction: column !important;
+}
+
+dialog#panelObj > div:last-child {
+    padding: 0 !important;
+    max-height: none !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+}
+
+dialog#uecfi_tap_sync_modal[open] {
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 0 !important;
+    border: none !important;
+    outline: none !important;
+    background: transparent !important;
+    max-width: 36rem !important;
+    width: 95vw !important;
+    max-height: 90vh !important;
+    margin: auto !important;
 }
 
 /* ========================================================

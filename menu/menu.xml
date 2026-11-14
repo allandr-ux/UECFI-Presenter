@@ -33,14 +33,24 @@
 			<menuItem label="ALL to Native Database" onSelect="songDB_Export_all_db" />
 			<menuItem label="ALL to XML" onSelect="songDB_Export_all_xml" />
 			<menuItem label="Selected Category to XML" onSelect="songDB_Export_cat_xml" />
-			<!-- <menuItem label="Selected Song to XML" onSelect="" /> -->
+			<menuItem label="Selected Song to XML" onSelect="songDB_Export_single_xml" />
 		</menu>
-	<menu label="Import">
-		<menuItem label="Native Database" onSelect="songDB_Import_db" />
-		<menuItem label="XML Database" onSelect="songDB_Import_xml" />
+		<menu label="Import">
+			<menuItem label="Native Database" onSelect="songDB_Import_db" />
+			<menuItem label="XML Database" onSelect="songDB_Import_xml" />
+		</menu>
 	</menu>
-
-
+	<menu label="Program">
+		<menuItem label="Add Item" onSelect="program_add_item_menu" />
+		<menuItem label="Clear Program" onSelect="program_clear_menu" />
+		<menuItem type="separator" />
+		<menu label="Export">
+			<menuItem label="All Program Items to JSON" onSelect="program_export_menu" />
+			<menuItem label="Selected Program Item to JSON" onSelect="program_export_single_menu" />
+		</menu>
+		<menu label="Import">
+			<menuItem label="Program Items from JSON" onSelect="program_import_menu" />
+		</menu>
 	</menu>
 	<menu label="Help">
 		<menuItem label="About UECFI Presenter" onSelect="showAboutDialog" />

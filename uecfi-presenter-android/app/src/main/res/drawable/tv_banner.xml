@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="320dp"
+    android:height="180dp"
+    android:viewportWidth="320"
+    android:viewportHeight="180">
+
+    <!-- Background gradient matching app icon -->
+    <path android:pathData="M0,0h320v180h-320z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="0"
+                android:startY="0"
+                android:endX="320"
+                android:endY="180"
+                android:type="linear">
+                <item
+                    android:color="#FF090D16"
+                    android:offset="0.0" />
+                <item
+                    android:color="#FF111C35"
+                    android:offset="0.55" />
+                <item
+                    android:color="#FF1E293B"
+                    android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Subtle top/bottom accent lines -->
+    <path
+        android:fillColor="#3338BDF8"
+        android:pathData="M0,0h320v3h-320z" />
+    <path
+        android:fillColor="#2238BDF8"
+        android:pathData="M0,177h320v3h-320z" />
+
+    <!-- Centered 16:9 Projection Screen Emblem -->
+    <!-- Outer cyan screen bezel -->
+    <path
+        android:fillColor="#FF38BDF8"
+        android:pathData="M88,42 C88,37.58 91.58,34 96,34 L224,34 C228.42,34 232,37.58 232,42 L232,118 C232,122.42 228.42,126 224,126 L96,126 C91.58,126 88,122.42 88,118 Z" />
+    <!-- Inner dark stage -->
+    <path
+        android:fillColor="#FF090D16"
+        android:pathData="M95,41 L225,41 L225,119 L95,119 Z" />
+    <!-- Illuminated slide lines -->
+    <path
+        android:fillColor="#FFF8FAFC"
+        android:pathData="M114,60 L206,60 L206,68 L114,68 Z" />
+    <path
+        android:fillColor="#FF94A3B8"
+        android:pathData="M128,76 L192,76 L192,83 L128,83 Z" />
+    <!-- Golden verse reference badge -->
+    <path
+        android:fillColor="#FFFBBF24"
+        android:pathData="M138,94 L182,94 L182,102 L138,102 Z" />
+    <!-- Stand stem & base -->
+    <path
+        android:fillColor="#FFFBBF24"
+        android:pathData="M153,126 L167,126 L167,138 L153,138 Z" />
+    <path
+        android:fillColor="#FF38BDF8"
+        android:pathData="M136,138 L184,138 L192,148 L128,148 Z" />
+</vector>

@@ -94,6 +94,7 @@
       <div id="engineBox">
         <iframe id="engine" title="Live projection" src="presentation.htm" scrolling="no" width="800" height="600"></iframe>
         <div id="offair">OFF AIR</div>
+        <div id="attNotice" style="display:none;position:absolute;top:8px;right:8px;z-index:4;background:rgba(217,119,6,0.92);color:#ffffff;font-size:10px;font-weight:bold;letter-spacing:0.5px;text-transform:uppercase;padding:4px 8px;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.3);align-items:center;gap:4px;pointer-events:none;">&#9888; Attention Screen on Projector</div>
       </div>
       <div class="strip">
         <button id="rmPrev" type="button" onclick="sendCmd('3')">&#9664; Prev</button>
@@ -125,6 +126,7 @@
   </main>
 <script src="remote_engine.js"></script>
 <script>
+  window.isSpeakerRemote = true;
   /* Light by default, dark on toggle. Choice persists per device. */
   function applyRemoteTheme(t) {
     if (t !== 'dark') t = 'light';

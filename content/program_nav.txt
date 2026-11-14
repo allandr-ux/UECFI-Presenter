@@ -5,10 +5,28 @@
             <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">Program Items</h3>
             <p class="text-[10px] text-slate-400">Order of service & presentations</p>
         </div>
-        <button onclick="programManager.openItemModal(-1)" 
-                class="px-2.5 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-xs">
-            <i class="fa-solid fa-plus text-[10px]"></i> Add Item
-        </button>
+        <div class="flex items-center gap-1.5">
+            <div class="has-tooltip">
+                <button onclick="if(window.programManager) window.programManager.importProgram();" 
+                        class="p-1.5 text-slate-500 hover:text-brand-600 hover:bg-brand-50 border border-slate-200 rounded-lg text-xs font-semibold transition" 
+                        title="Import Program">
+                    <i class="fa-solid fa-file-import"></i>
+                </button>
+                <div class="tooltip-content tooltip-bottom">Import Program</div>
+            </div>
+            <div class="has-tooltip">
+                <button onclick="if(window.programManager) window.programManager.exportProgram();" 
+                        class="p-1.5 text-slate-500 hover:text-brand-600 hover:bg-brand-50 border border-slate-200 rounded-lg text-xs font-semibold transition" 
+                        title="Export Program">
+                    <i class="fa-solid fa-file-export"></i>
+                </button>
+                <div class="tooltip-content tooltip-bottom">Export Program</div>
+            </div>
+            <button onclick="programManager.openItemModal(-1)" 
+                    class="px-2.5 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1 shadow-xs">
+                <i class="fa-solid fa-plus text-[10px]"></i> Add Item
+            </button>
+        </div>
     </div>
 
     <!-- Items List Scroll Area -->

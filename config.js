@@ -362,13 +362,65 @@ function renderRemoteButtons() {
     const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     for (let i = 0; i < list.length; i++) {
       const act = actions[list[i].command] || ("cmd " + list[i].command);
-      html += `<div class="flex items-center gap-2 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg">`
+      const isFirst = i === 0;
+      const isLast = i === list.length - 1;
+      html += `<div draggable="true" data-idx="${i}" class="remote-btn-row flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg cursor-grab active:cursor-grabbing">`
+        + `<span class="text-slate-400 text-xs select-none px-0.5" title="Drag to reorder">&#8942;&#8942;</span>`
         + `<span class="flex-1 min-w-0 text-xs text-slate-700 truncate"><b>${esc(list[i].label)}</b> `
         + `<span class="text-[11px] text-slate-400">(${act}${list[i].value ? ", " + esc(list[i].value) : ""})</span></span>`
+        + `<button type="button" onclick="moveRemoteButton(${i}, -1)" ${isFirst ? "disabled" : ""} title="Move up" class="px-1.5 py-1 bg-white hover:bg-slate-100 disabled:opacity-30 text-slate-600 border border-slate-200 rounded-md text-[11px] font-bold transition cursor-pointer disabled:cursor-default shrink-0">&#8593;</button>`
+        + `<button type="button" onclick="moveRemoteButton(${i}, 1)" ${isLast ? "disabled" : ""} title="Move down" class="px-1.5 py-1 bg-white hover:bg-slate-100 disabled:opacity-30 text-slate-600 border border-slate-200 rounded-md text-[11px] font-bold transition cursor-pointer disabled:cursor-default shrink-0">&#8595;</button>`
         + `<input type="button" value="Delete" onclick="deleteRemoteButton(${i})" class="px-2 py-1 bg-white hover:bg-red-50 text-red-600 border border-slate-200 hover:border-red-200 rounded-md text-[11px] font-semibold transition cursor-pointer shrink-0"></div>`;
     }
     host.innerHTML = html;
+
+    let dragFromIdx = null;
+    const rows = host.querySelectorAll(".remote-btn-row");
+    rows.forEach((row) => {
+      row.addEventListener("dragstart", (e) => {
+        dragFromIdx = Number(row.getAttribute("data-idx"));
+        row.classList.add("opacity-50");
+        if (e.dataTransfer) {
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", String(dragFromIdx));
+        }
+      });
+      row.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+        row.classList.add("border-brand-500", "bg-brand-50");
+      });
+      row.addEventListener("dragleave", () => {
+        row.classList.remove("border-brand-500", "bg-brand-50");
+      });
+      row.addEventListener("drop", (e) => {
+        e.preventDefault();
+        row.classList.remove("border-brand-500", "bg-brand-50");
+        const toIdx = Number(row.getAttribute("data-idx"));
+        const fromIdx = dragFromIdx !== null ? dragFromIdx : Number(e.dataTransfer ? e.dataTransfer.getData("text/plain") : -1);
+        if (Number.isInteger(fromIdx) && Number.isInteger(toIdx) && fromIdx !== toIdx) {
+          reorderRemoteButtons(fromIdx, toIdx);
+        }
+      });
+      row.addEventListener("dragend", () => {
+        dragFromIdx = null;
+        rows.forEach((r) => r.classList.remove("opacity-50", "border-brand-500", "bg-brand-50"));
+      });
+    });
   } catch (e) {}
+}
+function reorderRemoteButtons(fromIdx, toIdx) {
+  try {
+    const list = getRemoteButtons();
+    if (fromIdx < 0 || fromIdx >= list.length || toIdx < 0 || toIdx >= list.length || fromIdx === toIdx) return;
+    const [moved] = list.splice(fromIdx, 1);
+    list.splice(toIdx, 0, moved);
+    saveRemoteButtons(list);
+    renderRemoteButtons();
+  } catch (e) {}
+}
+function moveRemoteButton(idx, delta) {
+  reorderRemoteButtons(idx, idx + delta);
 }
 function addRemoteButton() {
   try {

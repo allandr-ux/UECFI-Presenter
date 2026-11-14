@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UECFI Presenter — Song Pack XML Compiler</title>
+  <style>
+    :root {
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --surface-alt: #f8fafc;
+      --border: #e2e8f0;
+      --border-strong: #cbd5e1;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --brand: #4f46e5;
+      --brand-hover: #4338ca;
+      --brand-soft: #eef2ff;
+      --brand-border: #c7d2fe;
+      --emerald: #059669;
+      --emerald-hover: #047857;
+      --emerald-soft: #ecfdf5;
+      --danger: #dc2626;
+      --danger-soft: #fef2f2;
+      --amber-soft: #fffbeb;
+      --amber-border: #fde68a;
+      --amber-text: #92400e;
+      --radius: 12px;
+      --shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Top Header */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-shrink: 0;
+      box-shadow: var(--shadow);
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--brand), #7c3aed);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 18px;
+      box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
+    }
+
+    .brand h1 {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+
+    .brand p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .pack-name-group {
+      display: flex;
+      align-items: center;
+      background: var(--surface-alt);
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      padding: 4px 10px;
+      gap: 6px;
+    }
+
+    .pack-name-group label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .pack-name-group input {
+      border: none;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      width: 190px;
+      outline: none;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: var(--brand);
+      color: #fff;
+    }
+    .btn-primary:hover {
+      background: var(--brand-hover);
+    }
+
+    .btn-emerald {
+      background: var(--emerald);
+      color: #fff;
+    }
+    .btn-emerald:hover {
+      background: var(--emerald-hover);
+    }
+
+    .btn-outline {
+      background: var(--surface);
+      color: var(--text);
+      border-color: var(--border-strong);
+    }
+    .btn-outline:hover {
+      background: var(--surface-alt);
+      border-color: #94a3b8;
+    }
+
+    .btn-danger-outline {
+      background: var(--surface);
+      color: var(--danger);
+      border-color: #fecaca;
+    }
+    .btn-danger-outline:hover {
+      background: var(--danger-soft);
+    }
+
+    /* Main Workspace */
+    .workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 16px;
+      padding: 16px 20px;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-alt);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #334155;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      background: var(--brand-soft);
+      color: var(--brand);
+      border: 1px solid var(--brand-border);
+    }
+
+    /* Left Panel: Song List */
+    .list-toolbar {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: #fff;
+      flex-shrink: 0;
+    }
+
+    .search-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .input, .select, .textarea {
+      width: 100%;
+      padding: 8px 11px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--text);
+      font-family: inherit;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .input:focus, .select:focus, .textarea:focus {
+      outline: none;
+      border-color: var(--brand);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+    }
+
+    .song-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .song-item {
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface-alt);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      transition: all 0.15s ease;
+    }
+
+    .song-item:hover {
+      border-color: #a5b4fc;
+      background: #fff;
+    }
+
+    .song-item.active {
+      border-color: var(--brand);
+      background: var(--brand-soft);
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.14);
+    }
+
+    .song-item-info {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .song-item-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .song-item.active .song-item-title {
+      color: var(--brand-hover);
+    }
+
+    .song-item-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .song-item-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .icon-btn {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      padding: 5px 7px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.12s;
+    }
+
+    .icon-btn:hover {
+      background: rgba(15, 23, 42, 0.08);
+      color: var(--text);
+    }
+
+    .icon-btn.delete:hover {
+      background: #fee2e2;
+      color: var(--danger);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 36px 16px;
+      color: var(--text-muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    /* Right Panel: Editor + Slide Preview */
+    .editor-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1.25fr 0.95fr;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .form-pane {
+      padding: 18px;
+      overflow-y: auto;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .preview-pane {
+      padding: 16px;
+      overflow-y: auto;
+      background: var(--surface-alt);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .col-span-2 {
+      grid-column: span 2;
+    }
+
+    .label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+
+    label.field-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #475569;
+      margin-bottom: 5px;
+    }
+
+    .quick-cats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 6px;
+    }
+
+    .chip {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border-strong);
+      color: #475569;
+      cursor: pointer;
+    }
+
+    .chip:hover {
+      background: var(--brand-soft);
+      border-color: var(--brand-border);
+      color: var(--brand);
+    }
+
+    .lyrics-textarea {
+      min-height: 250px;
+      flex: 1;
+      line-height: 1.55;
+      resize: vertical;
+    }
+
+    .editor-footer {
+      padding: 12px 18px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    /* Slide Cards in Preview */
+    .slide-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+
+    .slide-card-header {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--brand);
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .slide-card-body {
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--text);
+      white-space: pre-wrap;
+    }
+
+    /* Modal for WordPress Catalog / XML Output */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(2px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      padding: 20px;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      background: #fff;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      width: 100%;
+      max-width: 760px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 35px -10px rgba(15, 23, 42, 0.25);
+      overflow: hidden;
+    }
+
+    .modal-body {
+      padding: 18px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .stat-box {
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .stat-value {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--text);
+      margin-top: 3px;
+      word-break: break-all;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .code-box {
+      width: 100%;
+      height: 220px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #334155;
+      resize: vertical;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #0f172a;
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: all 0.2s ease;
+      z-index: 100;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 1024px) {
+      .workspace {
+        grid-template-columns: 300px 1fr;
+      }
+      .editor-grid {
+        grid-template-columns: 1fr;
+      }
+      .preview-pane {
+        border-top: 1px solid var(--border);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">♪</div>
+      <div>
+        <h1>UECFI Song Pack XML Compiler</h1>
+        <p>Create, edit, merge, and export Song Pack XML files for WordPress Updates &amp; UECFI Presenter</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div class="pack-name-group">
+        <label for="packFileName">Filename:</label>
+        <input type="text" id="packFileName" value="uecfi_song_pack.xml" placeholder="uecfi_song_pack.xml" />
+      </div>
+
+      <input type="file" id="importFileInput" accept=".xml,.json,text/xml,application/xml,application/json" multiple style="display:none" />
+      <button type="button" class="btn btn-outline" onclick="document.getElementById('importFileInput').click()">
+        📂 Import / Merge XML
+      </button>
+
+      <button type="button" class="btn btn-outline" onclick="openMetadataModal()">
+        🔍 Inspect XML &amp; WP Checksum
+      </button>
+
+      <button type="button" class="btn btn-emerald" onclick="downloadSongPackXML()">
+        ⬇️ Download XML Pack
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <div class="workspace">
+
+    <!-- Left Column: Compiled Songs List -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>Compiled Songs</span>
+          <span class="badge" id="songCountBadge">0 Songs</span>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button type="button" class="btn btn-primary" style="padding:5px 10px;" onclick="startNewSong()">+ New Song</button>
+          <button type="button" class="btn btn-danger-outline" style="padding:5px 8px;" onclick="clearAllSongs()" title="Clear all songs">Clear</button>
+        </div>
+      </div>
+
+      <div class="list-toolbar">
+        <div class="search-row">
+          <input type="text" id="searchInput" class="input" placeholder="Search title or lyrics..." oninput="renderSongList()" />
+        </div>
+        <div class="search-row">
+          <select id="categoryFilter" class="select" onchange="renderSongList()">
+            <option value="_ALL">All Categories (_ALL)</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="songListContainer" class="song-list"></div>
+    </div>
+
+    <!-- Right Column: Song Editor & Live Slide Splitter Preview -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span id="editorModeTitle">Add New Song</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:11px; color:var(--text-muted);" id="autosaveStatus">Draft saved automatically in browser</span>
+        </div>
+      </div>
+
+      <div class="editor-grid">
+        <!-- Form Pane -->
+        <div class="form-pane">
+          <div class="field-grid">
+            <div class="col-span-2">
+              <label class="field-label" for="songTitle">Song Title <span style="color:var(--danger)">*</span></label>
+              <input type="text" id="songTitle" class="input" placeholder="e.g. Amazing Grace" oninput="updateLiveSlidePreview()" />
+            </div>
+
+            <div class="col-span-2">
+              <label class="field-label" for="songCategory">Category</label>
+              <input type="text" id="songCategory" class="input" placeholder="e.g. Tagalog, English, Pampango, Choir..." value="Tagalog" />
+              <div class="quick-cats">
+                <button type="button" class="chip" onclick="setCategoryChip('Tagalog')">Tagalog</button>
+                <button type="button" class="chip" onclick="setCategoryChip('English')">English</button>
+                <button type="button" class="chip" onclick="setCategoryChip('Pampango')">Pampango</button>
+                <button type="button" class="chip" onclick="setCategoryChip('Ilocano')">Ilocano</button>
+                <button type="button" class="chip" onclick="setCategoryChip('Bicol')">Bicol</button>
+                <button type="button" class="chip" onclick="setCategoryChip('Hymns')">Hymns</button>
+                <button type="button" class="chip" onclick="setCategoryChip('Choir')">Choir</button>
+                <button type="button" class="chip" onclick="setCategoryChip('Uncategorized')">Uncategorized</button>
+              </div>
+            </div>
+
+            <div>
+              <label class="field-label" for="songKey">Musical Key</label>
+              <input type="text" id="songKey" class="input" placeholder="e.g. C, G, Dm" />
+            </div>
+
+            <div>
+              <label class="field-label" for="songCopyright">Copyright / Author</label>
+              <input type="text" id="songCopyright" class="input" placeholder="e.g. Public Domain" />
+            </div>
+
+            <div>
+              <label class="field-label" for="songFont">Font Family</label>
+              <input type="text" id="songFont" class="input" value="Arial" placeholder="Arial" />
+            </div>
+
+            <div>
+              <label class="field-label" for="songNotes">Performance Notes</label>
+              <input type="text" id="songNotes" class="input" placeholder="e.g. Intro -> V1 -> Chorus" />
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; flex:1; min-height:220px;">
+            <div class="label-row">
+              <label class="field-label" for="songLyrics" style="margin-bottom:0;">
+                Lyrics (Smart Slide Splitter)
+              </label>
+              <span style="font-size:11px; color:var(--text-muted);">
+                Separate slides/stanzas with a <b>blank line</b>
+              </span>
+            </div>
+            <textarea id="songLyrics" class="textarea lyrics-textarea" placeholder="Paste or type full song lyrics here...&#10;&#10;Stanza 1 line 1&#10;Stanza 1 line 2&#10;&#10;Stanza 2 line 1&#10;Stanza 2 line 2" oninput="updateLiveSlidePreview()"></textarea>
+          </div>
+        </div>
+
+        <!-- Live Slide Preview Pane -->
+        <div class="preview-pane">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <span style="font-size:12px; font-weight:800; text-transform:uppercase; color:#475569;">Live Slide Preview</span>
+            <span class="badge" id="liveSlideCountBadge">0 Slides</span>
+          </div>
+          <div id="liveSlidePreviewList" style="display:flex; flex-direction:column; gap:10px;"></div>
+        </div>
+      </div>
+
+      <div class="editor-footer">
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn btn-outline" onclick="resetEditorForm()">Reset Form</button>
+          <button type="button" id="duplicateBtn" class="btn btn-outline" style="display:none;" onclick="duplicateCurrentSong()">Duplicate Song</button>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn btn-primary" onclick="saveCurrentSong(false)">💾 Save Song to Pack</button>
+          <button type="button" class="btn btn-emerald" onclick="saveCurrentSong(true)">💾 Save &amp; Add Another</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- XML & WordPress Checksum Modal -->
+  <div id="metadataModal" class="modal-backdrop" onclick="if(event.target===this) closeMetadataModal()">
+    <div class="modal">
+      <div class="panel-header">
+        <div class="panel-title">WordPress Upload Info &amp; Raw XML Preview</div>
+        <button type="button" class="btn btn-outline" style="padding:4px 10px;" onclick="closeMetadataModal()">✕ Close</button>
+      </div>
+      <div class="modal-body">
+        <div class="stat-row">
+          <div class="stat-box">
+            <div class="stat-label">Total Songs</div>
+            <div class="stat-value" id="metaSongCount">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Exact File Size (Bytes)</div>
+            <div class="stat-value" id="metaByteSize">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">SHA-256 Checksum</div>
+            <div class="stat-value" id="metaSha256" style="font-size:11px;">Computing...</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="label-row">
+            <label class="field-label" style="margin-bottom:0;">Generated UECFI Presenter XML (<code style="text-transform:none;">&lt;songDB&gt;</code>)</label>
+            <div style="display:flex; gap:6px;">
+              <button type="button" class="btn btn-outline" style="padding:4px 10px;" onclick="copyXmlToClipboard()">📋 Copy XML</button>
+              <button type="button" class="btn btn-emerald" style="padding:4px 10px;" onclick="downloadSongPackXML()">⬇️ Download .XML</button>
+            </div>
+          </div>
+          <textarea id="rawXmlOutput" class="code-box" readonly></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const STORAGE_KEY = "uecfi_song_pack_compiler_v1";
+    let songs = [];
+    let selectedSongId = null;
+
+    // Initialize from localStorage
+    function init() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            songs = parsed;
+          }
+        }
+      } catch (e) {
+        console.warn("Could not load saved songs from localStorage:", e);
+      }
+
+      sortSongsCaseInsensitive();
+      refreshCategoryDropdown();
+      renderSongList();
+      updateLiveSlidePreview();
+
+      document.getElementById("importFileInput").addEventListener("change", handleImportFiles);
+    }
+
+    function persistDraft() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(songs));
+      } catch (e) {}
+    }
+
+    function showToast(msg) {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.classList.add("show");
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => el.classList.remove("show"), 2600);
+    }
+
+    function sortSongsCaseInsensitive() {
+      songs.sort((a, b) => {
+        const na = String((a && a.name) || "").trim();
+        const nb = String((b && b.name) || "").trim();
+        const cmp = na.localeCompare(nb, undefined, { sensitivity: "base" });
+        return cmp !== 0 ? cmp : na.localeCompare(nb);
+      });
+    }
+
+    function escapeXmlText(val) {
+      if (val == null) return "";
+      return String(val)
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&apos;");
+    }
+
+    function decodeXmlEntities(val) {
+      if (!val) return "";
+      return String(val)
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+        .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
+        .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+        .replace(/&amp;/g, "&");
+    }
+
+    function parseLyricsToSlideArray(rawText) {
+      if (!rawText) return [];
+      const str = String(rawText).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
+      const blocks = /<slide>/i.test(str)
+        ? str.split(/<slide>/i)
+        : str.split(/\r?\n\s*\r?\n+/);
+
+      const slides = [];
+      for (let i = 0; i < blocks.length; i++) {
+        let s = String(blocks[i] || "")
+          .replace(/<br\s*\/?>/gi, "\n")
+          .replace(/\r\n/g, "\n")
+          .replace(/\r/g, "\n")
+          .trim();
+        if (!s) continue;
+        slides.push(s);
+      }
+      return slides;
+    }
+
+    function formatSlidesForPresenterXML(rawText) {
+      const slides = parseLyricsToSlideArray(rawText);
+      if (slides.length === 0) return "";
+      return slides.map(s => s.replace(/\n/g, "<BR>")).join("<slide>") + "<slide>";
+    }
+
+    function buildFullXMLDocument() {
+      const sorted = songs.slice().sort((a, b) => {
+        const na = String(a.name || "").trim();
+        const nb = String(b.name || "").trim();
+        const cmp = na.localeCompare(nb, undefined, { sensitivity: "base" });
+        return cmp !== 0 ? cmp : na.localeCompare(nb);
+      });
+
+      let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+      xml += "<songDB>\n";
+      xml += "<type>XMLsong</type>\n";
+
+      for (let i = 0; i < sorted.length; i++) {
+        const row = sorted[i];
+        const name = row.name || "";
+        const cat = row.cat || "Uncategorized";
+        const font = row.font || "Arial";
+        const bkgnd = row.bkgnd || "";
+        const key = row.key || "";
+        const copyright = row.copy || "";
+        const notes = row.notes || "";
+        const normalizedSlides = formatSlidesForPresenterXML(row.lyrics || "");
+        const safeCdata = normalizedSlides.replace(/\]\]>/g, "]]]]><![CDATA[>");
+
+        xml += "<song>\n";
+        xml += "  <category>" + escapeXmlText(cat) + "</category>\n";
+        xml += "  <name>" + escapeXmlText(name) + "</name>\n";
+        xml += "  <font>" + escapeXmlText(font) + "</font>\n";
+        xml += "  <bkgnd>" + escapeXmlText(bkgnd) + "</bkgnd>\n";
+        xml += "  <key>" + escapeXmlText(key) + "</key>\n";
+        xml += "  <copyright>" + escapeXmlText(copyright) + "</copyright>\n";
+        xml += "  <notes>" + escapeXmlText(notes) + "</notes>\n";
+        xml += "  <slide><![CDATA[" + safeCdata + "]]></slide>\n";
+        xml += "</song>\n";
+      }
+
+      xml += "</songDB>\n";
+      return xml;
+    }
+
+    function setCategoryChip(cat) {
+      document.getElementById("songCategory").value = cat;
+    }
+
+    function updateLiveSlidePreview() {
+      const lyrics = document.getElementById("songLyrics").value;
+      const slides = parseLyricsToSlideArray(lyrics);
+      const countBadge = document.getElementById("liveSlideCountBadge");
+      const container = document.getElementById("liveSlidePreviewList");
+
+      countBadge.textContent = slides.length + (slides.length === 1 ? " Slide" : " Slides");
+
+      if (slides.length === 0) {
+        container.innerHTML = '<div class="empty-state">Type or paste lyrics on the left.<br>Separate stanzas with an empty line to split slides.</div>';
+        return;
+      }
+
+      container.innerHTML = slides.map((s, idx) => {
+        const lines = s.split("\n").length;
+        const safeHtml = s
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+        return `
+          <div class="slide-card">
+            <div class="slide-card-header">
+              <span>Slide ${idx + 1} of ${slides.length}</span>
+              <span style="color:var(--text-muted); font-weight:600;">${lines} line${lines === 1 ? "" : "s"}</span>
+            </div>
+            <div class="slide-card-body">${safeHtml}</div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function refreshCategoryDropdown() {
+      const sel = document.getElementById("categoryFilter");
+      const currentVal = sel.value || "_ALL";
+      const cats = Array.from(new Set(songs.map(s => (s.cat || "Uncategorized").trim()).filter(Boolean)))
+        .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+
+      let html = '<option value="_ALL">All Categories (_ALL)</option>';
+      cats.forEach(c => {
+        const escaped = c.replace(/"/g, "&quot;");
+        html += `<option value="${escaped}">${c}</option>`;
+      });
+      sel.innerHTML = html;
+      if (cats.includes(currentVal)) {
+        sel.value = currentVal;
+      } else {
+        sel.value = "_ALL";
+      }
+    }
+
+    function renderSongList() {
+      const container = document.getElementById("songListContainer");
+      const badge = document.getElementById("songCountBadge");
+      const q = (document.getElementById("searchInput").value || "").trim().toLowerCase();
+      const catFilter = document.getElementById("categoryFilter").value || "_ALL";
+
+      badge.textContent = songs.length + (songs.length === 1 ? " Song" : " Songs");
+
+      const filtered = songs.filter(s => {
+        if (catFilter !== "_ALL" && (s.cat || "Uncategorized") !== catFilter) return false;
+        if (!q) return true;
+        return (
+          String(s.name || "").toLowerCase().includes(q) ||
+          String(s.lyrics || "").toLowerCase().includes(q) ||
+          String(s.cat || "").toLowerCase().includes(q)
+        );
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="empty-state">${songs.length === 0 ? "No songs in pack yet.<br>Fill out the form on the right or import an XML file." : "No matching songs found."}</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(s => {
+        const isActive = s.id === selectedSongId;
+        const slideCount = parseLyricsToSlideArray(s.lyrics).length;
+        const safeName = String(s.name || "Untitled").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const safeCat = String(s.cat || "Uncategorized").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        return `
+          <div class="song-item ${isActive ? "active" : ""}" onclick="selectSong('${s.id}')">
+            <div class="song-item-info">
+              <div class="song-item-title">${safeName}</div>
+              <div class="song-item-meta">
+                <span>${safeCat}</span>
+                <span>•</span>
+                <span>${slideCount} slide${slideCount === 1 ? "" : "s"}</span>
+                ${s.key ? `<span>• Key: ${s.key}</span>` : ""}
+              </div>
+            </div>
+            <div class="song-item-actions">
+              <button type="button" class="icon-btn delete" title="Remove song" onclick="deleteSong('${s.id}', event)">🗑️</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function startNewSong() {
+      selectedSongId = null;
+      document.getElementById("editorModeTitle").textContent = "Add New Song";
+      document.getElementById("duplicateBtn").style.display = "none";
+      resetEditorForm();
+      renderSongList();
+      document.getElementById("songTitle").focus();
+    }
+
+    function resetEditorForm() {
+      if (selectedSongId) {
+        const existing = songs.find(s => s.id === selectedSongId);
+        if (existing) {
+          populateEditorForm(existing);
+          return;
+        }
+      }
+      document.getElementById("songTitle").value = "";
+      document.getElementById("songKey").value = "";
+      document.getElementById("songCopyright").value = "";
+      document.getElementById("songFont").value = "Arial";
+      document.getElementById("songNotes").value = "";
+      document.getElementById("songLyrics").value = "";
+      updateLiveSlidePreview();
+    }
+
+    function populateEditorForm(song) {
+      document.getElementById("songTitle").value = song.name || "";
+      document.getElementById("songCategory").value = song.cat || "Tagalog";
+      document.getElementById("songKey").value = song.key || "";
+      document.getElementById("songCopyright").value = song.copy || "";
+      document.getElementById("songFont").value = song.font || "Arial";
+      document.getElementById("songNotes").value = song.notes || "";
+      document.getElementById("songLyrics").value = parseLyricsToSlideArray(song.lyrics || "").join("\n\n");
+      updateLiveSlidePreview();
+    }
+
+    function selectSong(id) {
+      const found = songs.find(s => s.id === id);
+      if (!found) return;
+      selectedSongId = id;
+      document.getElementById("editorModeTitle").textContent = "Edit Song: " + found.name;
+      document.getElementById("duplicateBtn").style.display = "inline-flex";
+      populateEditorForm(found);
+      renderSongList();
+    }
+
+    function saveCurrentSong(startAnother) {
+      const name = document.getElementById("songTitle").value.trim().replace(/\s+/g, " ");
+      if (!name) {
+        alert("Please enter a Song Title.");
+        document.getElementById("songTitle").focus();
+        return;
+      }
+
+      const cat = document.getElementById("songCategory").value.trim() || "Uncategorized";
+      const key = document.getElementById("songKey").value.trim();
+      const copy = document.getElementById("songCopyright").value.trim();
+      const font = document.getElementById("songFont").value.trim() || "Arial";
+      const notes = document.getElementById("songNotes").value.trim();
+      const lyricsRaw = document.getElementById("songLyrics").value;
+      const slides = parseLyricsToSlideArray(lyricsRaw);
+
+      if (slides.length === 0) {
+        if (!confirm("This song has no lyrics yet. Save it anyway?")) return;
+      }
+
+      const normalizedLyrics = slides.join("\n\n");
+
+      if (selectedSongId) {
+        const idx = songs.findIndex(s => s.id === selectedSongId);
+        if (idx >= 0) {
+          songs[idx] = {
+            ...songs[idx],
+            name,
+            cat,
+            key,
+            copy,
+            font,
+            notes,
+            lyrics: normalizedLyrics
+          };
+          showToast(`Updated "${name}"`);
+        }
+      } else {
+        // Check if same title already exists
+        const existingIdx = songs.findIndex(s => s.name.toLowerCase() === name.toLowerCase());
+        if (existingIdx >= 0) {
+          if (!confirm(`A song titled "${songs[existingIdx].name}" is already in this pack. Overwrite it?`)) {
+            return;
+          }
+          songs[existingIdx] = {
+            ...songs[existingIdx],
+            name,
+            cat,
+            key,
+            copy,
+            font,
+            notes,
+            lyrics: normalizedLyrics
+          };
+          selectedSongId = songs[existingIdx].id;
+          showToast(`Updated "${name}"`);
+        } else {
+          const newId = "song_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
+          songs.push({
+            id: newId,
+            name,
+            cat,
+            key,
+            copy,
+            font,
+            bkgnd: "",
+            notes,
+            lyrics: normalizedLyrics
+          });
+          selectedSongId = newId;
+          showToast(`Added "${name}" to pack`);
+        }
+      }
+
+      sortSongsCaseInsensitive();
+      persistDraft();
+      refreshCategoryDropdown();
+      renderSongList();
+
+      if (startAnother) {
+        startNewSong();
+      } else if (selectedSongId) {
+        const current = songs.find(s => s.id === selectedSongId);
+        if (current) {
+          document.getElementById("editorModeTitle").textContent = "Edit Song: " + current.name;
+          document.getElementById("duplicateBtn").style.display = "inline-flex";
+        }
+      }
+    }
+
+    function duplicateCurrentSong() {
+      if (!selectedSongId) return;
+      const orig = songs.find(s => s.id === selectedSongId);
+      if (!orig) return;
+      const newId = "song_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
+      const copySong = {
+        ...orig,
+        id: newId,
+        name: orig.name + " (Copy)"
+      };
+      songs.push(copySong);
+      sortSongsCaseInsensitive();
+      persistDraft();
+      refreshCategoryDropdown();
+      selectSong(newId);
+      showToast(`Duplicated "${orig.name}"`);
+    }
+
+    function deleteSong(id, evt) {
+      if (evt) evt.stopPropagation();
+      const target = songs.find(s => s.id === id);
+      if (!target) return;
+      if (!confirm(`Remove "${target.name}" from this song pack?`)) return;
+      songs = songs.filter(s => s.id !== id);
+      if (selectedSongId === id) {
+        startNewSong();
+      }
+      persistDraft();
+      refreshCategoryDropdown();
+      renderSongList();
+      showToast(`Removed "${target.name}"`);
+    }
+
+    function clearAllSongs() {
+      if (songs.length === 0) return;
+      if (!confirm(`Clear all ${songs.length} song(s) from the compiler?`)) return;
+      songs = [];
+      persistDraft();
+      startNewSong();
+      refreshCategoryDropdown();
+      renderSongList();
+      showToast("Cleared all songs");
+    }
+
+    // Import existing UECFI Presenter XML or JSON files
+    function parseSongsFromXMLString(xmlStr) {
+      const cleaned = String(xmlStr || "")
+        .replace(/^\uFEFF/, "")
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
+
+      const results = [];
+      const songBlocks = cleaned.match(/<song\b[^>]*>[\s\S]*?<\/song>/gi) || [];
+
+      function extractField(block, tagList) {
+        for (let t = 0; t < tagList.length; t++) {
+          const re = new RegExp("<" + tagList[t] + "\\b[^>]*>([\\s\\S]*?)<\\/" + tagList[t] + ">", "i");
+          const m = block.match(re);
+          if (m && m[1] != null) {
+            const inner = m[1].trim();
+            const cdataMatch = inner.match(/^<!\[CDATA\[([\s\S]*?)\]\]>$/);
+            if (cdataMatch) return cdataMatch[1];
+            return decodeXmlEntities(inner.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1"));
+          }
+        }
+        return "";
+      }
+
+      for (let i = 0; i < songBlocks.length; i++) {
+        const block = songBlocks[i];
+        const name = extractField(block, ["name", "title"]).trim();
+        if (!name) continue;
+        const cat = extractField(block, ["category", "cat"]).trim() || "Uncategorized";
+        const font = extractField(block, ["font"]).trim() || "Arial";
+        let bkgnd = extractField(block, ["bkgnd", "bkgndfname"]).trim();
+        if (bkgnd === "null" || bkgnd === "undefined") bkgnd = "";
+        const key = extractField(block, ["key"]).trim();
+        const copy = extractField(block, ["copyright", "copy"]).trim();
+        const notes = extractField(block, ["notes"]).trim();
+        const slideRaw = extractField(block, ["slide", "slides", "lyrics"]);
+        const lyrics = parseLyricsToSlideArray(slideRaw).join("\n\n");
+
+        results.push({ name, cat, font, bkgnd, key, copy, notes, lyrics });
+      }
+      return results;
+    }
+
+    async function handleImportFiles(e) {
+      const files = Array.from(e.target.files || []);
+      if (files.length === 0) return;
+
+      let added = 0;
+      let updated = 0;
+
+      for (const file of files) {
+        try {
+          const text = await file.text();
+          let importedRows = [];
+          if (text.trim().startsWith("<") || /<song\b/i.test(text)) {
+            importedRows = parseSongsFromXMLString(text);
+          } else {
+            const parsed = JSON.parse(text);
+            const arr = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.songs) ? parsed.songs : []);
+            importedRows = arr.map(r => ({
+              name: String(r.name || "").trim(),
+              cat: String(r.cat || r.category || "Uncategorized").trim(),
+              font: String(r.font || "Arial").trim(),
+              bkgnd: String(r.bkgndfname || r.bkgnd || "").trim(),
+              key: String(r.key || "").trim(),
+              copy: String(r.copy || r.copyright || "").trim(),
+              notes: String(r.notes || "").trim(),
+              lyrics: parseLyricsToSlideArray(r.lyrics || r.slides || "").join("\n\n")
+            })).filter(r => r.name);
+          }
+
+          for (const row of importedRows) {
+            const existingIdx = songs.findIndex(s => s.name.toLowerCase() === row.name.toLowerCase());
+            if (existingIdx >= 0) {
+              songs[existingIdx] = { ...songs[existingIdx], ...row };
+              updated++;
+            } else {
+              songs.push({
+                id: "song_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
+                ...row
+              });
+              added++;
+            }
+          }
+        } catch (err) {
+          alert(`Could not import "${file.name}": ${err.message}`);
+        }
+      }
+
+      e.target.value = "";
+      sortSongsCaseInsensitive();
+      persistDraft();
+      refreshCategoryDropdown();
+      renderSongList();
+      showToast(`Imported ${added} new, updated ${updated} existing song(s)`);
+    }
+
+    async function computeSha256Hex(text) {
+      if (window.crypto && window.crypto.subtle && typeof TextEncoder !== "undefined") {
+        const bytes = new TextEncoder().encode(text);
+        const digest = await window.crypto.subtle.digest("SHA-256", bytes);
+        return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, "0")).join("");
+      }
+      return "(Open in modern browser for SHA-256)";
+    }
+
+    function autoCommitEditorIfNeeded() {
+      const name = document.getElementById("songTitle").value.trim().replace(/\s+/g, " ");
+      const lyricsRaw = document.getElementById("songLyrics").value.trim();
+      if (!name && !lyricsRaw) return true;
+      if (!name && lyricsRaw) {
+        alert("Please enter a Song Title for the lyrics currently in the editor before exporting.");
+        document.getElementById("songTitle").focus();
+        return false;
+      }
+
+      const cat = document.getElementById("songCategory").value.trim() || "Uncategorized";
+      const key = document.getElementById("songKey").value.trim();
+      const copy = document.getElementById("songCopyright").value.trim();
+      const font = document.getElementById("songFont").value.trim() || "Arial";
+      const notes = document.getElementById("songNotes").value.trim();
+      const normalizedLyrics = parseLyricsToSlideArray(lyricsRaw).join("\n\n");
+
+      if (selectedSongId) {
+        const idx = songs.findIndex(s => s.id === selectedSongId);
+        if (idx >= 0) {
+          songs[idx] = { ...songs[idx], name, cat, key, copy, font, notes, lyrics: normalizedLyrics };
+        }
+      } else {
+        const existingIdx = songs.findIndex(s => s.name.toLowerCase() === name.toLowerCase());
+        if (existingIdx >= 0) {
+          songs[existingIdx] = { ...songs[existingIdx], name, cat, key, copy, font, notes, lyrics: normalizedLyrics };
+          selectedSongId = songs[existingIdx].id;
+        } else {
+          const newId = "song_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7);
+          songs.push({ id: newId, name, cat, key, copy, font, bkgnd: "", notes, lyrics: normalizedLyrics });
+          selectedSongId = newId;
+        }
+      }
+
+      sortSongsCaseInsensitive();
+      persistDraft();
+      refreshCategoryDropdown();
+      renderSongList();
+      return true;
+    }
+
+    async function openMetadataModal() {
+      if (!autoCommitEditorIfNeeded()) return;
+      const xml = buildFullXMLDocument();
+      const bytes = new TextEncoder().encode(xml);
+      document.getElementById("rawXmlOutput").value = xml;
+      document.getElementById("metaSongCount").textContent = String(songs.length);
+      document.getElementById("metaByteSize").textContent = bytes.length.toLocaleString() + " B";
+      document.getElementById("metaSha256").textContent = "Computing...";
+      document.getElementById("metadataModal").classList.add("open");
+
+      const sha = await computeSha256Hex(xml);
+      document.getElementById("metaSha256").textContent = sha;
+    }
+
+    function closeMetadataModal() {
+      document.getElementById("metadataModal").classList.remove("open");
+    }
+
+    async function copyXmlToClipboard() {
+      if (!autoCommitEditorIfNeeded()) return;
+      const xml = buildFullXMLDocument();
+      try {
+        await navigator.clipboard.writeText(xml);
+        showToast("Copied XML to clipboard!");
+      } catch (e) {
+        const box = document.getElementById("rawXmlOutput");
+        box.select();
+        document.execCommand("copy");
+        showToast("Copied XML to clipboard!");
+      }
+    }
+
+    async function downloadSongPackXML() {
+      if (!autoCommitEditorIfNeeded()) return;
+      if (songs.length === 0) {
+        alert("Add or import at least one song before downloading the XML pack.");
+        return;
+      }
+
+      let fileName = (document.getElementById("packFileName").value || "uecfi_song_pack.xml").trim();
+      if (!/\.xml$/i.test(fileName)) {
+        fileName += ".xml";
+      }
+
+      const xmlContent = buildFullXMLDocument();
+
+      // Use native Save File Picker when available, with automatic fallback to anchor download
+      if (typeof window.showSaveFilePicker === "function") {
+        try {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: fileName,
+            types: [{
+              description: "UECFI Presenter Song Pack XML",
+              accept: { "text/xml": [".xml"] }
+            }]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(xmlContent);
+          await writable.close();
+          showToast(`Saved "${handle.name || fileName}" (${songs.length} songs)`);
+          return;
+        } catch (err) {
+          if (err && err.name === "AbortError") return;
+        }
+      }
+
+      const blob = new Blob([xmlContent], { type: "text/xml;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast(`Downloaded "${fileName}" (${songs.length} songs)`);
+    }
+
+    init();
+  </script>
+</body>
+</html>

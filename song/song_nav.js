@@ -20,8 +20,31 @@ function songNavClass() {
   this.sn_deleteSongByCat = q;
   this.setSelectedSong = function(newIdx, newTitle) {
     if (newIdx != null) {
-      a = newIdx;
-      if (newTitle) b = newTitle;
+      if (window.songDataStore && Array.isArray(window.songDataStore.songTitle) && window.songDataStore.songTitle[newIdx]) {
+        const item = window.songDataStore.songTitle[newIdx];
+        a = item.ID;
+        b = item.Title;
+        if (songListTable && typeof songListTable.selectRow === "function" && songListTable.selectedIndex !== newIdx) {
+          songListTable.selectRow(newIdx);
+          return;
+        }
+      } else if (newTitle && window.songDataStore && Array.isArray(window.songDataStore.songTitle)) {
+        const foundIdx = window.songDataStore.songTitle.findIndex(s => (s.Title || s.name) === newTitle);
+        if (foundIdx >= 0) {
+          a = window.songDataStore.songTitle[foundIdx].ID;
+          b = window.songDataStore.songTitle[foundIdx].Title;
+          if (songListTable && typeof songListTable.selectRow === "function" && songListTable.selectedIndex !== foundIdx) {
+            songListTable.selectRow(foundIdx);
+            return;
+          }
+        } else {
+          a = newIdx;
+          b = newTitle;
+        }
+      } else {
+        a = newIdx;
+        if (newTitle) b = newTitle;
+      }
       F();
     }
   };
@@ -118,7 +141,10 @@ function songNavClass() {
     songEditObj.showEditPanel(o, true, a);
   }
 
-  function H(L, Q) {
+  function H(L, Q, isFromSearch) {
+    if (!isFromSearch) {
+      J = false;
+    }
     window.songDataStore.songTitle.length = 0;
     if (L && L.data) {
       const N = L.data.length;
@@ -127,7 +153,8 @@ function songNavClass() {
           window.songDataStore.songTitle.push({
             ID: O,
             Title: L.data[O].name,
-            id: L.data[O].id
+            id: L.data[O].id,
+            audio: L.data[O].audio || ""
           });
         }
       }
@@ -138,6 +165,7 @@ function songNavClass() {
   function B(P) {
     clearSelectList("songnav_category");
     const catEl = document.getElementById("songnav_category");
+    if (!catEl) return;
     catEl.options[0] = new Option("_ALL", 0);
     if (P && P.data) {
       const L = P.data.length;
@@ -150,6 +178,11 @@ function songNavClass() {
       }
     }
     catEl.selectedIndex = 0;
+    const modernCatEl = document.getElementById("modernSongCategory");
+    if (modernCatEl) {
+      modernCatEl.innerHTML = catEl.innerHTML;
+      modernCatEl.selectedIndex = 0;
+    }
   }
 
   function F() {
@@ -187,9 +220,14 @@ function songNavClass() {
   }
 
   function q() {
+    const modernCatEl = document.getElementById("modernSongCategory");
     const catEl = document.getElementById("songnav_category");
-    const N = catEl.selectedIndex;
-    const M = catEl.options[N].text;
+    let M = "_ALL";
+    if (modernCatEl && modernCatEl.options && modernCatEl.selectedIndex > 0) {
+      M = modernCatEl.options[modernCatEl.selectedIndex].text;
+    } else if (catEl && catEl.options && catEl.selectedIndex >= 0) {
+      M = catEl.options[catEl.selectedIndex].text;
+    }
     if (M !== "_ALL") {
       const L = confirm('Do you want to delete ALL songs from "' + M + '" category?');
       if (L) {
@@ -214,7 +252,25 @@ function songNavClass() {
   }
 
   function u(L) {
-    if (!L) return;
+    if (!L) {
+      const lyName = document.getElementById("ly_name");
+      if (lyName) lyName.innerHTML = "";
+      const lyCat = document.getElementById("ly_cat");
+      if (lyCat) lyCat.innerHTML = "";
+      const lyFont = document.getElementById("ly_font");
+      if (lyFont) lyFont.innerHTML = "";
+      const lyKey = document.getElementById("ly_key");
+      if (lyKey) lyKey.innerHTML = "";
+      const lyCopy = document.getElementById("ly_copy");
+      if (lyCopy) lyCopy.innerHTML = "";
+      const lyNotes = document.getElementById("ly_notes");
+      if (lyNotes) lyNotes.innerHTML = "";
+      const lyAudioWrap = document.getElementById("ly_audioWrap");
+      if (lyAudioWrap) lyAudioWrap.style.display = "none";
+      const lySlide = document.getElementById("ly_slide");
+      if (lySlide) lySlide.innerHTML = "";
+      return;
+    }
     const R = navFontSize + "px";
     document.getElementById("ly").style.fontSize = R;
     document.getElementById("ly_name").innerHTML = L.name || "";
@@ -223,6 +279,16 @@ function songNavClass() {
     document.getElementById("ly_key").innerHTML = L.key || "";
     document.getElementById("ly_copy").innerHTML = L.copyright || "";
     document.getElementById("ly_notes").innerHTML = L.notes || "";
+    const lyAudioWrap = document.getElementById("ly_audioWrap");
+    const lyAudioName = document.getElementById("ly_audioName");
+    if (lyAudioWrap) {
+      if (L && L.audio) {
+        lyAudioWrap.style.display = "inline-flex";
+        if (lyAudioName) lyAudioName.textContent = L.audio;
+      } else {
+        lyAudioWrap.style.display = "none";
+      }
+    }
     document.getElementById("ly_slide").style.fontFamily = L.font || "sans-serif";
 
     const Q = L.slides ? L.slides.length : 0;
@@ -236,22 +302,27 @@ function songNavClass() {
       const lyr = new songLyricsClass();
       lyr.init(L, O, P);
     }
+    // Preserve active lyric slide highlight if #ly_slide was rebuilt (e.g. by setFormats -> C())
+    if (typeof window !== "undefined" && typeof window.updateSongSlideHighlight === "function") {
+      try { window.updateSongSlideHighlight(); } catch (e) {}
+    }
   }
 
   function s(L) {
     t("Search Complete");
     if (L != null) {
       J = true;
-      H(L, "_ALL");
+      H(L, "_ALL", true);
     } else {
       alert("No match");
     }
   }
 
   async function v() {
-    const P = "./song/default.db";
-    const srcPath = AppStorage.resolvePath(P);
-    const destDir = AppStorage.resolvePath("vvexport");
+    if (typeof songManagerObj !== "undefined" && songManagerObj && typeof songManagerObj.processExportSongDB === "function") {
+      return songManagerObj.processExportSongDB();
+    }
+    const srcPath = AppStorage.resolveStoragePath("song", "default.db");
     const destPath = AppStorage.resolvePath("vvexport", "default_songs.db");
     try {
       AppStorage.copyFile(srcPath, destPath, true);
@@ -294,19 +365,34 @@ function songNavClass() {
       if (record) {
         a = record.ID;
         b = record.Title;
+        if (typeof window !== "undefined" && typeof songListTable.selectedIndex === "number") {
+          window.selectedSongIdx = songListTable.selectedIndex;
+        }
         F();
       } else {
         a = 0;
         b = "";
+        if (typeof window !== "undefined") {
+          window.selectedSongIdx = -1;
+        }
+        u(null);
       }
     });
 
     if (window.songDataStore.songTitle.length > 0) {
-      const idxToSelect = (a >= 0 && a < window.songDataStore.songTitle.length) ? a : 0;
+      const foundIdx = window.songDataStore.songTitle.findIndex(item => item && item.ID === a);
+      const idxToSelect = (foundIdx >= 0) ? foundIdx : 0;
+      if (typeof window !== "undefined") {
+        window.selectedSongIdx = idxToSelect;
+      }
       songListTable.selectRow(idxToSelect);
     } else {
       a = 0;
       b = "";
+      if (typeof window !== "undefined") {
+        window.selectedSongIdx = -1;
+      }
+      u(null);
     }
     k = false;
     // Trigger immediate render of modern song list cards if initialized

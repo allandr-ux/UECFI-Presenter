@@ -1,1 +1,26 @@
-function songObj(){this.init=i;this.catIndex=h;this.name=b;this.font=c;this.bkgnd_fname=f;this.key=g;this.copyright=e;this.notes=d;this.slides=a;var h="";var b="";var c="";var f="";var g="";var e="";var d="";var a=null;function i(){h="";b="";c="";f="";g="";e="";d="";a=new Array()}};
+function songObj() {
+  this.init = init;
+  this.id = null;
+  this.catIndex = "";
+  this.name = "";
+  this.font = "";
+  this.bkgnd_fname = "";
+  this.key = "";
+  this.copyright = "";
+  this.notes = "";
+  this.slides = [];
+  this.audio = "";
+
+  function init() {
+    this.id = null;
+    this.catIndex = "";
+    this.name = "";
+    this.font = "";
+    this.bkgnd_fname = "";
+    this.key = "";
+    this.copyright = "";
+    this.notes = "";
+    this.slides = [];
+    this.audio = "";
+  }
+}

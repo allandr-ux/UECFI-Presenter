@@ -17,14 +17,241 @@
   let Database = null;
   if (isNode) {
     try {
-      Database = require('better-sqlite3');
+      const nodeMajor = (typeof process !== 'undefined' && process.versions && process.versions.node)
+        ? parseInt(process.versions.node.split('.')[0], 10)
+        : 0;
+      const isElectron = (typeof process !== 'undefined' && process.versions && !!process.versions.electron);
+      // better-sqlite3 v13 requires Node >= 22 (N-API 10+). In Electron 33 (Node 20),
+      // attempting to load this native addon crashes the renderer process with exit code -36861.
+      if (!isElectron && nodeMajor >= 22) {
+        Database = require('better-sqlite3');
+      }
     } catch(e) {
       console.warn('[AppDB] better-sqlite3 could not be loaded directly:', e);
+      Database = null;
     }
   }
 
   // Cache open database connections by path
   const dbCache = new Map();
+
+  function createPersistentJsonDb(dbFilePath, fsMod, pathMod) {
+    const lsKey = 'uecfi_jsondb_' + String(dbFilePath || 'default').replace(/[^a-zA-Z0-9_.-]/g, '_');
+    const jsonPath = dbFilePath ? (dbFilePath + '.json') : null;
+    let state = { nextId: 1, tables: { sm: [], sch: [] } };
+
+    function loadState() {
+      try {
+        if (fsMod && jsonPath && fsMod.existsSync(jsonPath)) {
+          const parsed = JSON.parse(fsMod.readFileSync(jsonPath, 'utf8'));
+          if (parsed && parsed.tables) {
+            state = parsed;
+            if (!state.tables.sch) state.tables.sch = [];
+            if (!state.tables.sm) state.tables.sm = [];
+            if (!state.nextId) {
+              const maxSm = state.tables.sm.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0);
+              const maxSch = state.tables.sch.reduce((m, r) => Math.max(m, Number(r.schId) || 0), 0);
+              state.nextId = Math.max(maxSm, maxSch, 0) + 1;
+            }
+            return;
+          }
+        }
+      } catch (e) {}
+      try {
+        if (typeof localStorage !== 'undefined') {
+          const raw = localStorage.getItem(lsKey);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.tables) {
+              state = parsed;
+              if (!state.tables.sch) state.tables.sch = [];
+              if (!state.tables.sm) state.tables.sm = [];
+              return;
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
+    function saveState() {
+      try {
+        if (fsMod && pathMod && jsonPath) {
+          fsMod.mkdirSync(pathMod.dirname(jsonPath), { recursive: true });
+          fsMod.writeFileSync(jsonPath, JSON.stringify(state, null, 2), 'utf8');
+        }
+      } catch (e) {}
+      try {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(lsKey, JSON.stringify(state));
+        }
+      } catch (e) {}
+    }
+
+    loadState();
+
+    return {
+      exec: () => {},
+      pragma: () => {},
+      prepare(sql) {
+        const s = String(sql || '').trim();
+        return {
+          run(params = []) {
+            const p = Array.isArray(params) ? params : [params];
+
+            // --- SM (Songs) Table Operations ---
+            if (/^INSERT\s+INTO\s+sm\b/i.test(s)) {
+              const id = state.nextId++;
+              const hasAudio = p.length >= 9;
+              state.tables.sm.push({
+                id,
+                name: p[0] != null ? String(p[0]) : '',
+                cat: p[1] != null ? String(p[1]) : '',
+                font: p[2] != null ? String(p[2]) : '',
+                bkgndfname: p[3] != null ? String(p[3]) : '',
+                key: p[4] != null ? String(p[4]) : '',
+                copy: p[5] != null ? String(p[5]) : '',
+                notes: p[6] != null ? String(p[6]) : '',
+                lyrics: p[7] != null ? String(p[7]) : '',
+                audio: hasAudio && p[8] != null ? String(p[8]) : ''
+              });
+              saveState();
+              return { changes: 1, lastInsertRowid: id };
+            }
+            if (/^UPDATE\s+sm\s+SET\b/i.test(s)) {
+              const id = p[p.length - 1];
+              const hasAudio = p.length >= 10;
+              let changes = 0;
+              state.tables.sm = state.tables.sm.map(row => {
+                if (row.id == id) {
+                  changes++;
+                  return {
+                    id: row.id,
+                    name: p[0] != null ? String(p[0]) : '',
+                    cat: p[1] != null ? String(p[1]) : '',
+                    font: p[2] != null ? String(p[2]) : '',
+                    bkgndfname: p[3] != null ? String(p[3]) : '',
+                    key: p[4] != null ? String(p[4]) : '',
+                    copy: p[5] != null ? String(p[5]) : '',
+                    notes: p[6] != null ? String(p[6]) : '',
+                    lyrics: p[7] != null ? String(p[7]) : '',
+                    audio: hasAudio ? (p[8] != null ? String(p[8]) : '') : (row.audio || '')
+                  };
+                }
+                return row;
+              });
+              saveState();
+              return { changes, lastInsertRowid: id };
+            }
+            if (/^DELETE\s+FROM\s+sm\s+WHERE\s+id\s*=/i.test(s)) {
+              const before = state.tables.sm.length;
+              state.tables.sm = state.tables.sm.filter(r => r.id != p[0]);
+              saveState();
+              return { changes: before - state.tables.sm.length, lastInsertRowid: 0 };
+            }
+            if (/^DELETE\s+FROM\s+sm\s+WHERE\s+cat\s*=/i.test(s)) {
+              const before = state.tables.sm.length;
+              state.tables.sm = state.tables.sm.filter(r => r.cat !== p[0]);
+              saveState();
+              return { changes: before - state.tables.sm.length, lastInsertRowid: 0 };
+            }
+            if (/^DELETE\s+FROM\s+sm\b/i.test(s)) {
+              const before = state.tables.sm.length;
+              state.tables.sm = [];
+              saveState();
+              return { changes: before, lastInsertRowid: 0 };
+            }
+
+            // --- SCH (Schedule) Table Operations ---
+            if (/^INSERT\s+INTO\s+sch\b/i.test(s)) {
+              const id = state.nextId++;
+              state.tables.sch.push({
+                schId: id,
+                isSong: (p[0] === true || p[0] === 1 || p[0] === '1') ? 1 : 0,
+                book: Number(p[1]) || 0,
+                ch: Number(p[2]) || 0,
+                ver: Number(p[3]) || 0,
+                songID: Number(p[4]) || 0,
+                sch_order: Number(p[5]) || 0
+              });
+              saveState();
+              return { changes: 1, lastInsertRowid: id };
+            }
+            if (/^DELETE\s+FROM\s+sch\s+WHERE\s+schId\s*=/i.test(s)) {
+              const before = state.tables.sch.length;
+              state.tables.sch = state.tables.sch.filter(r => r.schId != p[0]);
+              saveState();
+              return { changes: before - state.tables.sch.length, lastInsertRowid: 0 };
+            }
+            if (/^DELETE\s+FROM\s+sch\b/i.test(s)) {
+              const before = state.tables.sch.length;
+              state.tables.sch = [];
+              saveState();
+              return { changes: before, lastInsertRowid: 0 };
+            }
+            if (/^UPDATE\s+sch\s+SET\s+sch_order\s*=/i.test(s)) {
+              const val = Number(p[0]) || 0;
+              const id = p[1];
+              let changes = 0;
+              state.tables.sch.forEach(r => {
+                if (r.schId == id) {
+                  r.sch_order = val;
+                  changes++;
+                }
+              });
+              saveState();
+              return { changes, lastInsertRowid: id };
+            }
+
+            return { changes: 0, lastInsertRowid: 0 };
+          },
+          all(params = []) {
+            const p = Array.isArray(params) ? params : [params];
+
+            // --- SM (Songs) Table Queries ---
+            if (/SELECT\s+DISTINCT\s+cat\s+FROM\s+sm/i.test(s)) {
+              const cats = Array.from(new Set(state.tables.sm.map(r => r.cat).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), undefined, { sensitivity: 'base' }));
+              return cats.map(cat => ({ cat }));
+            }
+            if (/SELECT\s+DISTINCT\s+font\s+FROM\s+sm/i.test(s)) {
+              const fonts = Array.from(new Set(state.tables.sm.map(r => r.font).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), undefined, { sensitivity: 'base' }));
+              return fonts.map(font => ({ font }));
+            }
+            if (/SELECT\s+\*\s+FROM\s+sm\s+WHERE\s+lyrics\s+LIKE/i.test(s)) {
+              const needle = String(p[0] || '').replace(/^%+|%+$/g, '').toLowerCase();
+              return state.tables.sm
+                .filter(r => (String(r.lyrics || '').toLowerCase().includes(needle) || String(r.name || '').toLowerCase().includes(needle)))
+                .sort((a, b) => String(a.name || '').trim().localeCompare(String(b.name || '').trim(), undefined, { sensitivity: 'base' }));
+            }
+            if (/SELECT\s+\*\s+FROM\s+sm/i.test(s)) {
+              if (/ORDER\s+BY\s+id\s+ASC/i.test(s)) {
+                return state.tables.sm.slice().sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
+              }
+              return state.tables.sm.slice().sort((a, b) => String(a.name || '').trim().localeCompare(String(b.name || '').trim(), undefined, { sensitivity: 'base' }));
+            }
+
+            // --- SCH (Schedule) Table Queries ---
+            if (/SELECT\s+schId\s+FROM\s+sch\s+WHERE\s+isSong\s*=\s*1\s+AND\s+songID\s*=/i.test(s)) {
+              const match = state.tables.sch.find(r => (r.isSong == 1 || r.isSong === true) && r.songID == p[0]);
+              return match ? [{ schId: match.schId }] : [];
+            }
+            if (/SELECT\s+schId\s+FROM\s+sch\s+WHERE\s+isSong\s*=\s*0/i.test(s)) {
+              const match = state.tables.sch.find(r => (r.isSong == 0 || !r.isSong) && r.book == p[0] && r.ch == p[1] && r.ver == p[2]);
+              return match ? [{ schId: match.schId }] : [];
+            }
+            if (/SELECT\s+\*\s+FROM\s+sch/i.test(s)) {
+              return state.tables.sch.slice().sort((a, b) => (Number(a.sch_order) || 0) - (Number(b.sch_order) || 0));
+            }
+
+            return [];
+          },
+          get(params = []) {
+            const rows = this.all(params);
+            return rows.length > 0 ? rows[0] : null;
+          }
+        };
+      }
+    };
+  }
 
   class AppDatabaseConnection {
     constructor(filePath, rawDb) {
@@ -146,28 +373,45 @@
       }
 
       let rawDb = null;
-      if (Database) {
+      const pathMod = isNode ? require('path') : null;
+      const fsMod = isNode ? require('fs') : null;
+      const appBase = (typeof AppStorage !== "undefined" && AppStorage.appDir)
+        ? AppStorage.appDir()
+        : ((typeof __dirname === "string" && __dirname) ? __dirname : (typeof process !== 'undefined' && process.cwd ? process.cwd() : '.'));
+      const fullPath = (pathMod && !pathMod.isAbsolute(cleanPath)) ? pathMod.join(appBase, cleanPath) : cleanPath;
+
+      if (Database && fsMod && pathMod) {
         try {
-          const path = require('path');
-          const fs = require('fs');
-          const appBase = (typeof AppStorage !== "undefined" && AppStorage.appDir) ? AppStorage.appDir() : ((typeof __dirname === "string" && __dirname) ? __dirname : process.cwd());
-          const fullPath = path.isAbsolute(cleanPath) ? cleanPath : path.join(appBase, cleanPath);
-          fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+          fsMod.mkdirSync(pathMod.dirname(fullPath), { recursive: true });
           rawDb = new Database(fullPath);
+          try {
+            rawDb.pragma('journal_mode = DELETE');
+            rawDb.pragma('synchronous = FULL');
+          } catch (pragmaErr) {}
         } catch (err) {
-          console.error('[AppDB] Failed to open database at ' + cleanPath, err);
+          console.warn('[AppDB] Primary DB open failed at ' + fullPath + ', trying userData fallback:', err);
+          if (typeof AppStorage !== 'undefined' && typeof AppStorage.userDataStorageDir === 'function') {
+            try {
+              const fallbackPath = pathMod.join(AppStorage.userDataStorageDir(), pathMod.basename(pathMod.dirname(fullPath)), pathMod.basename(fullPath));
+              fsMod.mkdirSync(pathMod.dirname(fallbackPath), { recursive: true });
+              if (!fsMod.existsSync(fallbackPath) && fsMod.existsSync(fullPath)) {
+                try { fsMod.copyFileSync(fullPath, fallbackPath); } catch (copyErr) {}
+              }
+              rawDb = new Database(fallbackPath);
+              try {
+                rawDb.pragma('journal_mode = DELETE');
+                rawDb.pragma('synchronous = FULL');
+              } catch (pragmaErr) {}
+            } catch (fallbackErr) {
+              console.error('[AppDB] Fallback DB open also failed:', fallbackErr);
+            }
+          }
         }
-      } else {
-        // In-memory mock for pure web runtime
-        console.log('[AppDB] Using in-memory fallback for:', cleanPath);
-        rawDb = {
-          prepare: () => ({
-            run: () => ({ changes: 0, lastInsertRowid: 1 }),
-            all: () => [],
-            get: () => null
-          }),
-          exec: () => {}
-        };
+      }
+
+      if (!rawDb) {
+        console.warn('[AppDB] Using persistent JSON fallback for:', fullPath);
+        rawDb = createPersistentJsonDb(fullPath, fsMod, pathMod);
       }
 
       const connection = new AppDatabaseConnection(cleanPath, rawDb);

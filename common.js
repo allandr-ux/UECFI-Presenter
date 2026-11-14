@@ -298,12 +298,12 @@ function BibleReference() {
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
-      .replace(/^(?:first|1st)\s*/i, "1")
-      .replace(/^(?:second|2nd)\s*/i, "2")
-      .replace(/^(?:third|3rd)\s*/i, "3")
-      .replace(/^iii\s*/i, "3")
-      .replace(/^ii\s*/i, "2")
-      .replace(/^i\s*/i, "1")
+      .replace(/^(?:first|1st|unang?|una)\s+/i, "1")
+      .replace(/^(?:second|2nd|ikalawang?|ikalawa)\s+/i, "2")
+      .replace(/^(?:third|3rd|ikatlong?|ikatlo)\s+/i, "3")
+      .replace(/^iii[\s\.\-_]+/i, "3")
+      .replace(/^ii[\s\.\-_]+/i, "2")
+      .replace(/^i[\s\.\-_]+/i, "1")
       .replace(/^(\d+)\s*/, "$1")
       .replace(/[^a-z0-9]/g, "");
   }
@@ -330,81 +330,35 @@ function BibleReference() {
 
   // Find book index 0..65 based on user's query string
   function findBookIndex(bookQuery) {
-    const qNorm = norm(bookQuery);
-    if (!qNorm) return -1;
-
-    const dynamicNames = getDynamicBookNames();
-
-    // Pass 1: Exact match against all canon names, abbreviations, and dynamic uploaded version names
-    for (let i = 0; i < canonBooks.length; i++) {
-      const bItem = canonBooks[i];
-      const allNames = bItem.names.concat(bItem.abbr).concat(dynamicNames[i] || []);
-      for (let name of allNames) {
-        if (norm(name) === qNorm) {
-          return i;
-        }
-      }
+    if (!bookQuery) return -1;
+    const res = searchCandidateBooks(bookQuery);
+    if (res && typeof res.strongestCandidate === "number" && res.strongestCandidate >= 0) {
+      return res.strongestCandidate;
     }
-
-    // Pass 2: Prefix / Starts-with match (if query is at least 3 chars)
-    if (qNorm.length >= 3) {
-      for (let i = 0; i < canonBooks.length; i++) {
-        const bItem = canonBooks[i];
-        const allNames = bItem.names.concat(dynamicNames[i] || []);
-        for (let name of allNames) {
-          const nN = norm(name);
-          if (nN.startsWith(qNorm) || (qNorm.length >= 4 && qNorm.startsWith(nN))) {
-            return i;
-          }
-        }
-      }
-    }
-
-    // Pass 3: Fuzzy matching using Levenshtein distance (tolerates typos and misspellings)
-    let bestIdx = -1;
-    let bestDist = 999;
-    for (let i = 0; i < canonBooks.length; i++) {
-      const bItem = canonBooks[i];
-      const allNames = bItem.names.concat(dynamicNames[i] || []);
-      for (let name of allNames) {
-        const nN = norm(name);
-
-        // Ensure leading digits match (preventing 1 Cor from matching 2 Cor)
-        const qDigit = qNorm.match(/^(\d)/);
-        const nDigit = nN.match(/^(\d)/);
-        if (qDigit && nDigit && qDigit[1] !== nDigit[1]) continue;
-        if (qDigit && !nDigit) continue;
-        if (!qDigit && nDigit) continue;
-
-        const dist = levenshtein(qNorm, nN);
-        const maxAllowed = nN.length >= 7 ? 3 : (nN.length >= 4 ? 2 : 1);
-        if (dist <= maxAllowed && dist < bestDist) {
-          bestDist = dist;
-          bestIdx = i;
-        }
-      }
-    }
-
-    return bestIdx;
+    return -1;
   }
 
   // Typeahead candidate search: returns all matching books with scores and strongest candidate
   function searchCandidateBooks(input) {
     if (!input || typeof input !== "string") return null;
     let clean = input.trim()
-      .replace(/^(?:first|1st)\s+/i, "1 ")
-      .replace(/^(?:second|2nd)\s+/i, "2 ")
-      .replace(/^(?:third|3rd)\s+/i, "3 ")
-      .replace(/^iii\s+/i, "3 ")
-      .replace(/^ii\s+/i, "2 ")
-      .replace(/^i\s+/i, "1 ");
+      .replace(/^(?:first|1st|unang?|una)\s+/i, "1 ")
+      .replace(/^(?:second|2nd|ikalawang?|ikalawa)\s+/i, "2 ")
+      .replace(/^(?:third|3rd|ikatlong?|ikatlo)\s+/i, "3 ")
+      .replace(/^iii[\s\.\-_]+/i, "3 ")
+      .replace(/^ii[\s\.\-_]+/i, "2 ")
+      .replace(/^i[\s\.\-_]+/i, "1 ");
 
     // Extract book part before any chapter or chapter:verse digits
+    // e.g. "1 Samuel 3:16" -> "1 Samuel", "Pedro 2" -> "Pedro"
     let m = clean.match(/^(.+?)\s*\d+[\s:\.,]*\d*$/);
     let bookQuery = m ? m[1].trim() : clean;
 
     const qNorm = norm(bookQuery);
     if (!qNorm) return null;
+
+    const qDigit = qNorm.match(/^(\d)/);
+    const isPureDigit = /^\d+$/.test(qNorm);
 
     const dynamicNames = getDynamicBookNames();
     const scoredCandidates = [];
@@ -420,49 +374,139 @@ function BibleReference() {
         const nN = norm(name);
         if (!nN) continue;
 
-        // 1. Exact match
-        if (nN === qNorm) {
-          bestScore = 1000;
-          matchedName = name;
-          matchType = "exact";
-          break;
-        }
-
-        // Leading digit check
-        const qDigit = qNorm.match(/^(\d)/);
         const nDigit = nN.match(/^(\d)/);
-        if (qDigit && nDigit && qDigit[1] !== nDigit[1]) continue;
-        if (qDigit && !nDigit && !/^\d+$/.test(qNorm)) continue;
-        if (!qDigit && nDigit) continue;
+        const nCore = nN.replace(/^\d+/, "");
 
-        // 2. Prefix match
-        if (nN.startsWith(qNorm)) {
-          const score = 800 - (nN.length - qNorm.length) * 10;
-          if (score > bestScore) {
-            bestScore = score;
-            matchedName = name;
-            matchType = "prefix";
+        // If query has leading digit (e.g. "1samuel", "2pedro", "1", "2"):
+        if (qDigit) {
+          // If book has a digit, it MUST match the query digit (e.g. "1 sam" must not match "2 sam")
+          if (nDigit && qDigit[1] !== nDigit[1]) continue;
+          // If query has non-digit characters (e.g. "1cor"), book without digit cannot match
+          if (!nDigit && !isPureDigit) continue;
+
+          // Pure digit (e.g. "1", "2", "3") filters to all books starting with that digit
+          if (isPureDigit) {
+            if (nDigit && nDigit[1] === qDigit[1]) {
+              const score = 800 - i;
+              if (score > bestScore) {
+                bestScore = score;
+                matchedName = name;
+                matchType = "prefix";
+              }
+            }
+            continue;
           }
-        }
-        // 3. Substring match
-        else if (nN.includes(qNorm) && qNorm.length >= 2) {
-          const score = 600 - (nN.length - qNorm.length) * 10;
-          if (score > bestScore) {
-            bestScore = score;
+
+          // Exact match on full normalized name (e.g. "1samuel" === "1samuel")
+          if (nN === qNorm) {
+            bestScore = 1000;
             matchedName = name;
-            matchType = "substring";
+            matchType = "exact";
+            break;
           }
-        }
-        // 4. Fuzzy match
-        else if (qNorm.length >= 3) {
-          const dist = levenshtein(qNorm, nN);
-          const maxDist = nN.length >= 7 ? 3 : (nN.length >= 4 ? 2 : 1);
-          if (dist <= maxDist) {
-            const score = 400 - dist * 50;
+          // Prefix match on full normalized name (e.g. "1sam" in "1samuel")
+          if (nN.startsWith(qNorm)) {
+            const score = 800 - (nN.length - qNorm.length) * 10;
             if (score > bestScore) {
               bestScore = score;
               matchedName = name;
-              matchType = "fuzzy";
+              matchType = "prefix";
+            }
+          }
+          // Substring match on full normalized name
+          else if (nN.includes(qNorm) && qNorm.length >= 2) {
+            const score = 600 - (nN.length - qNorm.length) * 10;
+            if (score > bestScore) {
+              bestScore = score;
+              matchedName = name;
+              matchType = "substring";
+            }
+          }
+          // Fuzzy match on full normalized name
+          else if (qNorm.length >= 3) {
+            const dist = levenshtein(qNorm, nN);
+            const maxDist = nN.length >= 7 ? 3 : (nN.length >= 4 ? 2 : 1);
+            if (dist <= maxDist) {
+              const score = 400 - dist * 50;
+              if (score > bestScore) {
+                bestScore = score;
+                matchedName = name;
+                matchType = "fuzzy";
+              }
+            }
+          }
+        } else {
+          // Query has NO leading digit (e.g. "samuel", "pedro", "corinto", "juan", "genesis")
+          if (!nDigit) {
+            // Book also has NO leading digit (e.g. "Genesis", "Juan")
+            if (nN === qNorm) {
+              bestScore = 1000;
+              matchedName = name;
+              matchType = "exact";
+              break;
+            }
+            if (nN.startsWith(qNorm)) {
+              const score = 800 - (nN.length - qNorm.length) * 10;
+              if (score > bestScore) {
+                bestScore = score;
+                matchedName = name;
+                matchType = "prefix";
+              }
+            } else if (nN.includes(qNorm) && qNorm.length >= 2) {
+              const score = 600 - (nN.length - qNorm.length) * 10;
+              if (score > bestScore) {
+                bestScore = score;
+                matchedName = name;
+                matchType = "substring";
+              }
+            } else if (qNorm.length >= 3) {
+              const dist = levenshtein(qNorm, nN);
+              const maxDist = nN.length >= 7 ? 3 : (nN.length >= 4 ? 2 : 1);
+              if (dist <= maxDist) {
+                const score = 400 - dist * 50;
+                if (score > bestScore) {
+                  bestScore = score;
+                  matchedName = name;
+                  matchType = "fuzzy";
+                }
+              }
+            }
+          } else {
+            // Book HAS a leading digit (e.g. "1 Samuel", "2 Samuel", "1 Pedro", "2 Pedro", "1 Juan")
+            // Match query directly against nCore!
+            const digitPenalty = parseInt(nDigit[1], 10) * 5;
+            if (nCore === qNorm) {
+              const score = 950 - digitPenalty;
+              if (score > bestScore) {
+                bestScore = score;
+                matchedName = name;
+                matchType = "core_exact";
+              }
+            } else if (nCore.startsWith(qNorm)) {
+              const score = 780 - (nCore.length - qNorm.length) * 10 - digitPenalty;
+              if (score > bestScore) {
+                bestScore = score;
+                matchedName = name;
+                matchType = "core_prefix";
+              }
+            } else if (nCore.includes(qNorm) && qNorm.length >= 2) {
+              const score = 580 - (nCore.length - qNorm.length) * 10 - digitPenalty;
+              if (score > bestScore) {
+                bestScore = score;
+                matchedName = name;
+                matchType = "core_substring";
+              }
+            } else if (qNorm.length >= 3) {
+              const dist = levenshtein(qNorm, nCore);
+              const maxDist = nCore.length >= 7 ? 3 : (nCore.length >= 4 ? 2 : 1);
+              if (dist <= maxDist) {
+                const score = 380 - dist * 50 - digitPenalty;
+                if (score > bestScore) {
+                  bestScore = score;
+                  matchedName = name;
+                  matchType = "core_fuzzy";
+                }
+              }
             }
           }
         }
@@ -481,9 +525,12 @@ function BibleReference() {
 
     scoredCandidates.sort((a, b) => b.score - a.score);
 
+    // If pure digit (e.g. "1"), don't auto-pick a candidate before the user types a book name
+    const strongest = (!isPureDigit && scoredCandidates.length > 0) ? scoredCandidates[0].bookIndex : -1;
+
     return {
       query: bookQuery,
-      strongestCandidate: scoredCandidates.length > 0 ? scoredCandidates[0].bookIndex : -1,
+      strongestCandidate: strongest,
       candidates: scoredCandidates
     };
   }
@@ -511,12 +558,12 @@ function BibleReference() {
 
     // Standardize leading Roman numerals or ordinal words: e.g. "I Cor", "1st John"
     clean = clean
-      .replace(/^(?:first|1st)\s+/i, "1 ")
-      .replace(/^(?:second|2nd)\s+/i, "2 ")
-      .replace(/^(?:third|3rd)\s+/i, "3 ")
-      .replace(/^iii\s+/i, "3 ")
-      .replace(/^ii\s+/i, "2 ")
-      .replace(/^i\s+/i, "1 ");
+      .replace(/^(?:first|1st|unang?|una)\s+/i, "1 ")
+      .replace(/^(?:second|2nd|ikalawang?|ikalawa)\s+/i, "2 ")
+      .replace(/^(?:third|3rd|ikatlong?|ikatlo)\s+/i, "3 ")
+      .replace(/^iii[\s\.\-_]+/i, "3 ")
+      .replace(/^ii[\s\.\-_]+/i, "2 ")
+      .replace(/^i[\s\.\-_]+/i, "1 ");
 
     let parsedBookStr = "";
 

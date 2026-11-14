@@ -1,7 +1,7 @@
-<div class="flex flex-col h-full bg-slate-50 text-slate-800 font-sans">
+<div class="flex flex-col flex-1 min-h-0 bg-slate-50 text-slate-800 font-sans">
 
   <!-- Scrollable Form Content -->
-  <div class="p-5 space-y-4 overflow-y-auto max-h-[calc(90vh-120px)] custom-scrollbar">
+  <div class="p-5 space-y-4 overflow-y-auto flex-1 min-h-0 custom-scrollbar">
 
     <!-- Song Metadata Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
@@ -60,13 +60,70 @@
             <i class="fa-solid fa-layer-group text-brand-500"></i> <span id="se_slideCountNumber">0 Slides</span>
           </span>
         </div>
-        <span class="text-[11px] text-slate-400 font-medium">Tip: Separate stanzas / slides with a <b>blank line</b></span>
+        <span class="text-[11px] text-slate-400 font-medium">Tip: Separate slides with a <b>blank line</b>; use a lone <b>.</b> on a line for a blank line inside the same slide</span>
       </div>
 
       <!-- Unified Lyrics Textarea -->
       <div class="relative">
         <textarea id="se_lyricsInput" rows="10" placeholder="Paste or type full lyrics here...&#10;&#10;Stanza 1 line 1&#10;Stanza 1 line 2&#10;&#10;Stanza 2 line 1&#10;Stanza 2 line 2" 
                   class="w-full p-3 bg-slate-50 border border-slate-300 rounded-lg text-xs leading-relaxed text-slate-900 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition custom-scrollbar font-sans"></textarea>
+      </div>
+    </div>
+
+    <!-- Audio Track & Synchronized Lyrics Section -->
+    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col space-y-3">
+      <div class="flex items-center justify-between">
+        <label class="text-[11px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+          <i class="fa-solid fa-music text-purple-600"></i> Audio Backing Track & Sync Lyrics (Optional)
+        </label>
+        <span class="text-[11px] text-slate-400 font-medium">Plays automatically on presentation with auto-advancing slides</span>
+      </div>
+
+      <input type="file" id="se_audioFileInput" accept=".mp3, .wav, .m4a, .ogg, .aac, .flac, .mp4, .wma" class="hidden" onchange="if(songEditObj && songEditObj.handleAudioUpload) songEditObj.handleAudioUpload(event);">
+      <input type="hidden" id="se_audioFileName" value="">
+
+      <!-- No Audio Attached State -->
+      <div id="se_noAudioWrap" class="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg">
+        <div class="flex items-center gap-2 text-xs text-slate-600">
+          <i class="fa-regular fa-file-audio text-slate-400 text-sm"></i>
+          <span>No audio track attached.</span>
+        </div>
+        <button type="button" onclick="event.stopPropagation(); document.getElementById('se_audioFileInput').click();" class="px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+          <i class="fa-solid fa-cloud-arrow-up"></i> Choose Audio File
+        </button>
+      </div>
+
+      <!-- Audio Attached State -->
+      <div id="se_audioBadgeWrap" style="display:none;" class="flex items-center justify-between p-3 bg-purple-50/60 border border-purple-200 rounded-lg">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-music text-xs"></i>
+          </div>
+          <div class="min-w-0">
+            <div id="se_audioNameDisplay" class="text-xs font-bold text-slate-900 truncate">Song Audio</div>
+            <div class="text-[10px] text-purple-700 font-medium">Ready for synchronized presentation</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button type="button" id="se_audioPreviewBtn" onclick="event.stopPropagation(); if(songEditObj && songEditObj.toggleAudioPreview) songEditObj.toggleAudioPreview();" class="px-2.5 py-1 text-xs font-semibold bg-white border border-purple-200 text-purple-700 hover:bg-purple-100 rounded-lg transition flex items-center gap-1 cursor-pointer">
+            <i id="se_audioPreviewIcon" class="fa-solid fa-play text-[10px]"></i> Preview
+          </button>
+          <button type="button" onclick="event.stopPropagation(); document.getElementById('se_audioFileInput').click();" class="px-2.5 py-1 text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 rounded-lg transition cursor-pointer">
+            Replace
+          </button>
+          <button type="button" onclick="event.stopPropagation(); if(songEditObj && songEditObj.removeAudio) songEditObj.removeAudio();" class="px-2 py-1 text-xs font-semibold text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition cursor-pointer">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between pt-1">
+        <div class="text-[11px] text-slate-500">
+          Use timestamps like <code class="bg-slate-100 px-1 py-0.5 rounded text-purple-700 font-mono">[00:15.50]</code> at the start of each line.
+        </div>
+        <button type="button" id="se_tapSyncBtn" onclick="if(songEditObj && songEditObj.openTapSyncModal) songEditObj.openTapSyncModal();" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+          <i class="fa-solid fa-stopwatch text-purple-600"></i> Tap to Sync Timestamps
+        </button>
       </div>
     </div>
 

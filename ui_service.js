@@ -48,8 +48,9 @@
       this.dialog.appendChild(this.header);
       this.dialog.appendChild(this.body);
 
-      // Close when clicking modal backdrop
+      // Close when clicking modal backdrop (only if click target is the dialog backdrop itself)
       this.dialog.addEventListener('click', (e) => {
+        if (e.target !== this.dialog) return;
         const rect = this.dialog.getBoundingClientRect();
         const isInDialog = (rect.top <= e.clientY && e.clientY <= rect.top + rect.height
           && rect.left <= e.clientX && e.clientX <= rect.left + rect.width);

@@ -156,6 +156,12 @@ class UECFI_API_Admin {
         $ext_url = get_post_meta($post->ID, UECFI_API_Catalog::META_URL, true);
         $size    = get_post_meta($post->ID, UECFI_API_Catalog::META_SIZE, true);
         $sha     = get_post_meta($post->ID, UECFI_API_Catalog::META_SHA256, true);
+        $titles_raw = (string) get_post_meta($post->ID, UECFI_API_Catalog::META_TITLES, true);
+        $titles_list = UECFI_API_Catalog::parse_titles_list($titles_raw);
+        if ($post->post_type === UECFI_API_CPT_SONG && empty($titles_list) && ($file_id > 0 || $ext_url !== '')) {
+            $titles_list = UECFI_API_Catalog::refresh_song_titles($post->ID, $file_id, $ext_url);
+            $titles_raw  = implode("\n", $titles_list);
+        }
         $file_name = $file_id ? basename((string) get_attached_file($file_id)) : '';
         ?>
         <table class="form-table" role="presentation">
@@ -201,6 +207,37 @@ class UECFI_API_Admin {
                     <?php endif; ?>
                 </td>
             </tr>
+            <?php if ($post->post_type === UECFI_API_CPT_SONG) : ?>
+            <tr>
+                <th scope="row"><?php esc_html_e('Song titles (auto-preview)', 'uecfi-presenter-api'); ?></th>
+                <td>
+                    <input type="hidden" name="uecfi_song_titles_auto" id="uecfi-song-titles-auto" value="<?php echo esc_attr($titles_raw); ?>">
+                    <p style="margin-top:0;margin-bottom:6px;">
+                        <strong id="uecfi-song-titles-count">
+                            <?php
+                            if (!empty($titles_list)) {
+                                printf(
+                                    /* translators: %d: number of detected songs */
+                                    esc_html(_n('%d song detected in pack', '%d songs detected in pack', count($titles_list), 'uecfi-presenter-api')),
+                                    count($titles_list)
+                                );
+                            } else {
+                                esc_html_e('No songs extracted yet — choose a song pack XML/JSON file above.', 'uecfi-presenter-api');
+                            }
+                            ?>
+                        </strong>
+                    </p>
+                    <div id="uecfi-song-titles-preview" style="max-height:180px;overflow-y:auto;background:#f6f7f7;border:1px solid #dcdcde;border-radius:4px;padding:8px 12px;max-width:650px;<?php echo empty($titles_list) ? 'display:none;' : ''; ?>">
+                        <ol style="margin:0 0 0 18px;padding:0;">
+                            <?php foreach ($titles_list as $song_title) : ?>
+                                <li style="margin-bottom:2px;"><?php echo esc_html($song_title); ?></li>
+                            <?php endforeach; ?>
+                        </ol>
+                    </div>
+                    <p class="description"><?php esc_html_e('Song titles are extracted automatically from the attached XML/JSON song pack file (or external URL) — no manual entry needed.', 'uecfi-presenter-api'); ?></p>
+                </td>
+            </tr>
+            <?php endif; ?>
         </table>
         <?php
     }
@@ -235,6 +272,13 @@ class UECFI_API_Admin {
             $manual_sha = '';
         }
         UECFI_API_Catalog::refresh_file_meta($post_id, $file_id, $ext_url, $manual_sha);
+
+        if ($post->post_type === UECFI_API_CPT_SONG) {
+            $auto_fallback = isset($_POST['uecfi_song_titles_auto'])
+                ? sanitize_textarea_field(wp_unslash($_POST['uecfi_song_titles_auto']))
+                : '';
+            UECFI_API_Catalog::refresh_song_titles($post_id, $file_id, $ext_url, $auto_fallback);
+        }
     }
 
     /**

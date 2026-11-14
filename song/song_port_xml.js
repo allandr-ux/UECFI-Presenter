@@ -1,8 +1,9 @@
 /**
- * Song Port XML Class
+ * Song XML Import & Export Engine (Rebuilt)
  *
- * Handles XML export and import of songs without Adobe AIR dependencies.
- * Uses native Electron save/open dialogs, AppStorage, DOMParser, and web fallbacks.
+ * Handles exporting songs (all, by category, or single) to UECFI Presenter XML
+ * and importing songs from XML files with resilient parsing, CDATA/entity handling,
+ * slide normalization, and transactional batch import via songManagerObj.
  */
 function songPortXML() {
   this.init = init;
@@ -10,6 +11,7 @@ function songPortXML() {
   this.exportByCat = exportByCat;
   this.exportSingle = exportSingle;
   this.importXML = importXML;
+  this.parseXMLString = parseSongsFromXML;
 
   var songData = null;
   var targetCategory = null;
@@ -20,136 +22,285 @@ function songPortXML() {
     songData = data;
     targetCategory = category;
     exportFilter = filter;
-    exportType = type;
+    exportType = type || 1;
   }
 
-  function getExportFileName() {
+  function escapeXmlText(val) {
+    if (val == null) return "";
+    return String(val)
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+  }
+
+  function decodeXmlEntities(val) {
+    if (!val) return "";
+    return String(val)
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/&#(\d+);/g, function (_, dec) {
+        return String.fromCharCode(parseInt(dec, 10));
+      })
+      .replace(/&#x([0-9a-fA-F]+);/g, function (_, hex) {
+        return String.fromCharCode(parseInt(hex, 16));
+      })
+      .replace(/&amp;/g, "&");
+  }
+
+  function normalizeLyricsForStorage(rawSlidesInput) {
+    if (!rawSlidesInput) return "";
+    var parts = [];
+    if (Array.isArray(rawSlidesInput)) {
+      parts = rawSlidesInput;
+    } else {
+      var str = String(rawSlidesInput).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
+      if (/<slide>/i.test(str)) {
+        parts = str.split(/<slide>/i);
+      } else {
+        parts = str.split(/\r?\n\s*\r?\n+/);
+      }
+    }
+
+    var cleanedSlides = [];
+    for (var i = 0; i < parts.length; i++) {
+      var s = String(parts[i] || "")
+        .replace(/\r\n/g, "\n")
+        .replace(/\r/g, "\n")
+        .trim();
+      if (!s) continue;
+      // Convert raw newlines to <BR> if not already HTML line breaks
+      s = s.replace(/\n/g, "<BR>");
+      cleanedSlides.push(s);
+    }
+
+    if (cleanedSlides.length === 0) return "";
+    return cleanedSlides.join("<slide>") + "<slide>";
+  }
+
+  function getLiveSongRows() {
+    if (typeof songManagerObj !== "undefined" && songManagerObj) {
+      if (typeof songManagerObj.getRawSongRows === "function") {
+        var live = songManagerObj.getRawSongRows();
+        if (Array.isArray(live) && live.length > 0) return live;
+      }
+      if (typeof songManagerObj.getAllSongs === "function") {
+        var all = songManagerObj.getAllSongs();
+        if (Array.isArray(all) && all.length > 0) return all;
+      }
+    }
+    if (songData && Array.isArray(songData.data) && songData.data.length > 0) {
+      return songData.data;
+    }
+    return [];
+  }
+
+  function getActiveCategorySelection() {
+    var modernCat = typeof document !== "undefined" ? document.getElementById("modernSongCategory") : null;
+    if (modernCat && modernCat.options && modernCat.selectedIndex >= 0) {
+      var opt = modernCat.options[modernCat.selectedIndex];
+      if (opt && opt.text && opt.text !== "_ALL") return opt.text;
+    }
+    var legacyCat = typeof document !== "undefined" ? document.getElementById("songnav_category") : null;
+    if (legacyCat && legacyCat.options && legacyCat.selectedIndex >= 0) {
+      var lOpt = legacyCat.options[legacyCat.selectedIndex];
+      if (lOpt && lOpt.text && lOpt.text !== "_ALL") return lOpt.text;
+    }
+    if (targetCategory && targetCategory !== "" && targetCategory !== "_ALL") {
+      return targetCategory;
+    }
+    return "_ALL";
+  }
+
+  function getExportFileName(catName) {
     var now = new Date();
     var dateStr = now.toDateString().replace(/\s+/g, "_");
-    var fileName = "";
-    switch (exportType) {
-      case 1:
-        fileName = "vvsongs_" + dateStr + ".xml";
-        break;
-      case 2:
-        fileName = targetCategory + "_songs_" + dateStr + ".xml";
-        break;
-      case 3:
-        fileName = "vvsongs_" + dateStr + ".xml";
-        break;
-      default:
-        fileName = "vvsongs_" + dateStr + ".xml";
-        break;
+    if (exportType === 2 && catName && catName !== "_ALL") {
+      var safeCat = String(catName).replace(/[^a-zA-Z0-9_-]/g, "_");
+      return safeCat + "_songs_" + dateStr + ".xml";
+    }
+    return "vvsongs_" + dateStr + ".xml";
+  }
+
+  function resolveDefaultSavePath(fileName) {
+    if (typeof require === "function") {
+      try {
+        var path = require("path");
+        var os = require("os");
+        var fs = require("fs");
+        if (path.isAbsolute(fileName)) return fileName;
+        var downloadsDir = path.join(os.homedir(), "Downloads");
+        var baseDir = fs.existsSync(downloadsDir) ? downloadsDir : os.homedir();
+        return path.join(baseDir, fileName);
+      } catch (e) {}
     }
     return fileName;
   }
 
-  function buildSongXML(song) {
+  function buildSongXMLFromRow(row) {
+    var name = row.name || "";
+    var cat = row.cat != null ? row.cat : (row.catIndex || "");
+    var font = row.font || "Arial";
+    var bkgnd = row.bkgndfname != null ? row.bkgndfname : (row.bkgnd_fname || "");
+    if (bkgnd === "null" || bkgnd === "undefined") bkgnd = "";
+    var key = row.key || "";
+    var copyright = row.copy != null ? row.copy : (row.copyright || "");
+    var notes = row.notes || "";
+    var rawLyrics = row.lyrics != null ? row.lyrics : (row.slides || "");
+    var normalizedSlides = normalizeLyricsForStorage(rawLyrics);
+    // Safe CDATA wrapping even if lyrics contain "]]>"
+    var safeCdata = normalizedSlides.replace(/\]\]>/g, "]]]]><![CDATA[>");
+
     var xml = "";
     xml += "<song>\n";
-    xml += "  <category>" + (song.catIndex || "") + "</category>\n";
-    xml += "  <name>" + (song.name || "") + "</name>\n";
-    xml += "  <font>" + (song.font || "") + "</font>\n";
-    xml += "  <bkgnd>" + (song.bkgnd_fname || "") + "</bkgnd>\n";
-    xml += "  <key>" + (song.key || "") + "</key>\n";
-    xml += "  <copyright>" + (song.copyright || "") + "</copyright>\n";
-    xml += "  <notes>" + (song.notes || "") + "</notes>\n";
-    xml += "  <slide><![CDATA[" + (song.slides || "") + "]]></slide>\n";
+    xml += "  <category>" + escapeXmlText(cat) + "</category>\n";
+    xml += "  <name>" + escapeXmlText(name) + "</name>\n";
+    xml += "  <font>" + escapeXmlText(font) + "</font>\n";
+    xml += "  <bkgnd>" + escapeXmlText(bkgnd) + "</bkgnd>\n";
+    xml += "  <key>" + escapeXmlText(key) + "</key>\n";
+    xml += "  <copyright>" + escapeXmlText(copyright) + "</copyright>\n";
+    xml += "  <notes>" + escapeXmlText(notes) + "</notes>\n";
+    xml += "  <slide><![CDATA[" + safeCdata + "]]></slide>\n";
     xml += "</song>\n";
     return xml;
   }
 
-  function exportAll() {
-    var song = new songObj();
-    song.init();
-    var fileName = getExportFileName();
-    var xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+  function buildFullXMLDocument(rows) {
+    var xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
     xml += "<songDB>\n";
     xml += "<type>XMLsong</type>\n";
-
-    if (songData && songData.data) {
-      var len = songData.data.length;
-      for (var i = 0; i < len; i++) {
-        var row = songData.data[i];
-        song.name = row.name;
-        song.catIndex = row.cat;
-        song.font = row.font;
-        song.bkgnd_fname = row.bkgndfname;
-        song.key = row.key;
-        song.copyright = row.copy;
-        song.notes = row.notes;
-        var lyrics = row.lyrics || "";
-        song.slides = lyrics.replace(/\x0B/g, "");
-        xml += buildSongXML(song);
-      }
+    for (var i = 0; i < rows.length; i++) {
+      xml += buildSongXMLFromRow(rows[i]);
     }
     xml += "</songDB>\n";
-    saveXmlFile(xml, fileName);
+    return xml;
+  }
+
+  function exportAll() {
+    exportType = 1;
+    var rows = getLiveSongRows();
+    if (!rows || rows.length === 0) {
+      alert("There are no songs in the database to export.");
+      return;
+    }
+    var xml = buildFullXMLDocument(rows);
+    var fileName = getExportFileName("_ALL");
+    saveXmlFile(xml, fileName, rows.length);
   }
 
   function exportByCat() {
-    if (targetCategory === "_ALL") {
-      exportType = 1;
+    var cat = getActiveCategorySelection();
+    if (!cat || cat === "_ALL") {
       exportAll();
       return false;
     }
-    var song = new songObj();
-    song.init();
-    var fileName = getExportFileName();
-    var xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-    xml += "<songDB>\n";
-    xml += "<type>XMLsong</type>\n";
-
-    var invalidCategory = true;
-    if (songData && songData.data) {
-      var len = songData.data.length;
-      for (var i = 0; i < len; i++) {
-        var row = songData.data[i];
-        if (row.cat === targetCategory) {
-          invalidCategory = false;
-          song.name = row.name;
-          song.catIndex = row.cat;
-          song.font = row.font;
-          song.bkgnd_fname = row.bkgndfname;
-          song.key = row.key;
-          song.copyright = row.copy;
-          song.notes = row.notes;
-          var lyrics = row.lyrics || "";
-          song.slides = lyrics.replace(/\x0B/g, "");
-          xml += buildSongXML(song);
-        }
+    exportType = 2;
+    var allRows = getLiveSongRows();
+    var filtered = [];
+    for (var i = 0; i < allRows.length; i++) {
+      var rCat = allRows[i].cat != null ? allRows[i].cat : (allRows[i].catIndex || "");
+      if (rCat === cat) {
+        filtered.push(allRows[i]);
       }
     }
-    xml += "</songDB>\n";
-
-    if (invalidCategory) {
-      alert("Database contains invalid Category. Contact UECFI Presenter");
-    } else {
-      saveXmlFile(xml, fileName);
+    if (filtered.length === 0) {
+      alert('No songs found in category "' + cat + '" to export.');
+      return false;
     }
+    var xml = buildFullXMLDocument(filtered);
+    var fileName = getExportFileName(cat);
+    saveXmlFile(xml, fileName, filtered.length);
+    return true;
   }
 
-  function exportSingle() {
+  function exportSingle(songRowOrObj) {
+    var target = songRowOrObj;
+    if (!target) {
+      var rows = getLiveSongRows();
+      var idx = (typeof window !== "undefined" && typeof window.selectedSongIdx === "number" && window.selectedSongIdx >= 0)
+        ? window.selectedSongIdx
+        : 0;
+      if (typeof window !== "undefined" && window.songDataStore && Array.isArray(window.songDataStore.songTitle) && window.songDataStore.songTitle[idx]) {
+        var selectedItem = window.songDataStore.songTitle[idx];
+        target = rows.find(function (r) { return r && (r.id === selectedItem.id || r.name === selectedItem.Title); }) || rows[selectedItem.ID] || rows[idx] || null;
+      } else {
+        target = rows[idx] || null;
+      }
+    }
+    if (!target) {
+      alert("No song selected to export.");
+      return;
+    }
+    var xml = buildFullXMLDocument([target]);
+    var safeName = String(target.name || "song").replace(/[^a-zA-Z0-9_-]/g, "_");
+    saveXmlFile(xml, safeName + ".xml", 1);
   }
 
-  function saveXmlFile(xmlContent, defaultName) {
-    if (typeof window !== "undefined" && window.electronBridge && window.electronBridge.showSaveDialogAsync) {
-      window.electronBridge.showSaveDialogAsync({
-        title: "Export Song DB to XML",
-        defaultPath: defaultName,
-        filters: [{ name: "XML Files", extensions: ["xml"] }]
-      }).then(function (res) {
-        var targetPath = (typeof res === "string") ? res : (res && res.filePath ? res.filePath : null);
-        if (targetPath) {
-          if (typeof AppStorage !== "undefined" && AppStorage.writeFile) {
-            Promise.resolve(AppStorage.writeFile(targetPath, xmlContent)).then(function() {
-              alert("Song database exported successfully to: " + targetPath);
-            });
+  async function promptSaveXmlPath(dialogOptions) {
+    if (typeof window !== "undefined" && window.electronBridge) {
+      if (typeof window.electronBridge.showSaveDialogAsync === "function") {
+        var asyncRes = await window.electronBridge.showSaveDialogAsync(dialogOptions);
+        if (asyncRes) return asyncRes;
+      } else if (typeof window.electronBridge.showSaveDialog === "function") {
+        var syncRes = window.electronBridge.showSaveDialog(dialogOptions);
+        if (syncRes) return syncRes;
+      }
+    }
+    if (typeof require === "function") {
+      try {
+        var ipcRenderer = require("electron").ipcRenderer;
+        if (ipcRenderer) {
+          return await ipcRenderer.invoke("dialog:show-save", dialogOptions);
+        }
+      } catch (e) {}
+    }
+    return null;
+  }
+
+  async function saveXmlFile(xmlContent, defaultName, exportedCount) {
+    var hasDesktopSave = (typeof window !== "undefined" && window.electronBridge && (window.electronBridge.showSaveDialogAsync || window.electronBridge.showSaveDialog)) || (typeof require === "function");
+    if (hasDesktopSave) {
+      try {
+        var dialogOpts = {
+          title: "Export Song DB to XML",
+          defaultPath: resolveDefaultSavePath(defaultName),
+          filters: [{ name: "XML Files (*.xml)", extensions: ["xml"] }]
+        };
+        var res = await promptSaveXmlPath(dialogOpts);
+        var targetPath = (typeof res === "string")
+          ? res
+          : (res && res.filePath ? res.filePath : null);
+        if (!targetPath) return;
+
+        if (!/\.xml$/i.test(targetPath)) {
+          targetPath += ".xml";
+        }
+
+        var wroteDirect = false;
+        if (typeof require === "function") {
+          try {
+            var fs = require("fs");
+            var path = require("path");
+            fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+            fs.writeFileSync(targetPath, xmlContent, "utf8");
+            wroteDirect = true;
+          } catch (fsErr) {
+            console.warn("[SongPortXML] Direct fs write failed, falling back to AppStorage:", fsErr);
           }
         }
-      }).catch(function (err) {
+        if (!wroteDirect && typeof AppStorage !== "undefined" && AppStorage.writeFile) {
+          await AppStorage.writeFile(targetPath, xmlContent);
+        }
+        var countMsg = typeof exportedCount === "number" ? (" (" + exportedCount + " song" + (exportedCount === 1 ? "" : "s") + ")") : "";
+        alert("Song database" + countMsg + " exported successfully to:\n" + targetPath);
+      } catch (err) {
         console.error("[SongPortXML] Error saving XML file:", err);
-      });
+        alert("Error exporting XML file: " + (err && err.message ? err.message : err));
+      }
     } else {
       try {
         var blob = new Blob([xmlContent], { type: "text/xml;charset=utf-8;" });
@@ -167,135 +318,248 @@ function songPortXML() {
     }
   }
 
+  function extractDialogFilePath(res) {
+    if (!res) return null;
+    if (typeof res === "string") return res;
+    if (res.canceled) return null;
+    if (Array.isArray(res.filePaths) && res.filePaths.length > 0) return res.filePaths[0];
+    if (typeof res.filePath === "string" && res.filePath) return res.filePath;
+    if (Array.isArray(res) && res.length > 0) return res[0];
+    return null;
+  }
+
   function importXML() {
     if (typeof window !== "undefined" && window.electronBridge && window.electronBridge.showOpenDialogAsync) {
       window.electronBridge.showOpenDialogAsync({
-        title: "Select Song DB in XML format.",
-        filters: [{ name: "UECFI Presenter Song DB", extensions: ["xml"] }],
+        title: "Select Song DB in XML format",
+        filters: [{ name: "UECFI Presenter Song DB (*.xml)", extensions: ["xml"] }],
         properties: ["openFile"]
       }).then(function (res) {
-        var filePath = null;
-        if (typeof res === "string") {
-          filePath = res;
-        } else if (res && res.filePaths && res.filePaths.length > 0) {
-          filePath = res.filePaths[0];
-        } else if (Array.isArray(res) && res.length > 0) {
-          filePath = res[0];
-        }
+        var filePath = extractDialogFilePath(res);
         if (filePath) {
-          readXmlFile(filePath);
+          readXmlFileAndImport(filePath);
         }
       }).catch(function (err) {
         console.error("[SongPortXML] Error opening XML dialog:", err);
+        alert("Error opening file dialog: " + (err && err.message ? err.message : err));
       });
     } else {
       var input = document.createElement("input");
       input.type = "file";
-      input.accept = ".xml";
+      input.accept = ".xml,text/xml,application/xml";
       input.onchange = function (e) {
-        var file = e.target.files[0];
+        var file = e.target.files && e.target.files[0];
         if (file) {
           var reader = new FileReader();
           reader.onload = function (evt) {
-            parseAndImportXML(evt.target.result);
+            processXmlContent(evt.target.result);
           };
-          reader.readAsText(file);
+          reader.onerror = function () {
+            alert("Failed to read the selected XML file.");
+          };
+          reader.readAsText(file, "UTF-8");
         }
       };
       input.click();
     }
   }
 
-  async function readXmlFile(filePath) {
+  async function readXmlFileAndImport(filePath) {
     try {
-      var xmlStr = "";
-      if (typeof AppStorage !== "undefined" && AppStorage.readFile) {
-        xmlStr = await AppStorage.readFile(filePath);
-      } else if (typeof require === "function") {
-        var fs = require("fs");
-        xmlStr = fs.readFileSync(filePath, "utf-8");
+      var xmlStr = null;
+      if (typeof require === "function") {
+        try {
+          var fs = require("fs");
+          var cleanPath = String(filePath).replace(/^file:\/+/i, "");
+          if (fs.existsSync(cleanPath)) {
+            xmlStr = fs.readFileSync(cleanPath, "utf8");
+          }
+        } catch (fsErr) {
+          console.warn("[SongPortXML] Direct fs.readFileSync failed, trying AppStorage:", fsErr);
+        }
       }
-      parseAndImportXML(xmlStr);
+      if ((xmlStr === null || xmlStr === "") && typeof AppStorage !== "undefined" && AppStorage.readFile) {
+        xmlStr = await AppStorage.readFile(filePath);
+      }
+      processXmlContent(xmlStr);
     } catch (err) {
       console.error("[SongPortXML] Error reading XML file:", err);
-      alert("Error reading XML file: " + err.message);
+      alert("Error reading XML file: " + (err && err.message ? err.message : err));
     }
   }
 
-  function parseAndImportXML(xmlStr) {
-    if (!xmlStr || typeof xmlStr !== "string") {
-      alert("Invalid database for UECFI Presenter Songs in XML format. (Empty content)");
-      return;
-    }
-    var parser = new DOMParser();
-    var xmlDoc = parser.parseFromString(xmlStr, "text/xml");
-    validateAndProcessXML(xmlDoc);
-  }
-
-  function validateAndProcessXML(xmlDoc) {
-    if (!xmlDoc) {
-      alert("Invalid database for UECFI Presenter Songs in XML format. (Invalid XML format)");
-      return;
-    }
-    var typeElem = xmlDoc.getElementsByTagName("type")[0];
-    if (typeElem && typeElem.textContent === "XMLsong") {
-      processImportDoc(xmlDoc);
-    } else if (!typeElem) {
-      alert("Invalid database for UECFI Presenter Songs in XML format. (Type field not present)");
-    } else {
-      alert("Invalid database for UECFI Presenter Songs in XML format. (Wrong type field)");
-    }
-  }
-
-  function processImportDoc(xmlDoc) {
-    var songNodes = xmlDoc.getElementsByTagName("song");
-    var totalSongs = songNodes.length;
-    console.log("[SongPortXML] Record Length XML: " + totalSongs);
-
-    var lastIdx = getLastNewSongIndex(xmlDoc);
-    if (lastIdx === -1) {
-      alert("All songs in this XML file already exist in the database.");
-      return;
-    }
-
-    for (var i = 0; i < totalSongs; i++) {
-      var node = songNodes[i];
-      var name = getTagText(node, "name");
-      var exists = songManagerObj.checkSongExists(name);
-      if (!exists) {
-        var song = new songObj();
-        song.init();
-        song.name = name;
-        song.catIndex = getTagText(node, "category");
-        song.font = getTagText(node, "font");
-        song.bkgnd_fname = getTagText(node, "bkgnd");
-        song.key = getTagText(node, "key");
-        song.copyright = getTagText(node, "copyright");
-        song.notes = getTagText(node, "notes");
-        song.slides = getTagText(node, "slide");
-
-        var isLast = (lastIdx === i);
-        songManagerObj.addSong(song, isLast, true);
+  function sanitizeXmlString(raw) {
+    if (!raw || typeof raw !== "string") return "";
+    // Remove UTF-8 BOM and invalid XML control characters
+    var cleaned = raw.replace(/^\uFEFF/, "").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
+    // Escape bare '&' outside CDATA blocks so DOMParser doesn't abort on song titles like "Praise & Worship"
+    var parts = cleaned.split(/(<!\[CDATA\[[\s\S]*?\]\]>)/g);
+    for (var i = 0; i < parts.length; i++) {
+      if (i % 2 === 0) {
+        parts[i] = parts[i].replace(/&(?!amp;|lt;|gt;|quot;|apos;|#\d+;|#x[0-9a-fA-F]+;)/g, "&amp;");
       }
     }
+    return parts.join("");
   }
 
-  function getTagText(parent, tagName) {
-    var elem = parent.getElementsByTagName(tagName)[0];
-    return elem ? elem.textContent : "";
-  }
-
-  function getLastNewSongIndex(xmlDoc) {
-    var songNodes = xmlDoc.getElementsByTagName("song");
-    var totalSongs = songNodes.length;
-    var lastIdx = -1;
-    for (var i = 0; i < totalSongs; i++) {
-      var name = getTagText(songNodes[i], "name");
-      var exists = songManagerObj.checkSongExists(name);
-      if (!exists) {
-        lastIdx = i;
+  function getDirectTagText(parentNode, tagNames) {
+    var names = Array.isArray(tagNames) ? tagNames : [tagNames];
+    for (var i = 0; i < names.length; i++) {
+      var elems = parentNode.getElementsByTagName(names[i]);
+      if (elems && elems.length > 0 && elems[0].textContent != null) {
+        return elems[0].textContent;
       }
     }
-    return lastIdx;
+    return "";
+  }
+
+  function extractSlidesFromDomNode(songNode) {
+    var slideElems = songNode.getElementsByTagName("slide");
+    if (!slideElems || slideElems.length === 0) {
+      slideElems = songNode.getElementsByTagName("slides");
+    }
+    if (!slideElems || slideElems.length === 0) {
+      slideElems = songNode.getElementsByTagName("lyrics");
+    }
+    if (!slideElems || slideElems.length === 0) return "";
+
+    if (slideElems.length === 1) {
+      return normalizeLyricsForStorage(slideElems[0].textContent || "");
+    }
+    var multi = [];
+    for (var i = 0; i < slideElems.length; i++) {
+      multi.push(slideElems[i].textContent || "");
+    }
+    return normalizeLyricsForStorage(multi.join("<slide>"));
+  }
+
+  function parseSongsViaRegexFallback(xmlStr) {
+    var results = [];
+    var songBlocks = String(xmlStr).match(/<song\b[^>]*>[\s\S]*?<\/song>/gi) || [];
+
+    function extractField(block, tagList) {
+      for (var t = 0; t < tagList.length; t++) {
+        var re = new RegExp("<" + tagList[t] + "\\b[^>]*>([\\s\\S]*?)<\\/" + tagList[t] + ">", "i");
+        var m = block.match(re);
+        if (m && m[1] != null) {
+          var inner = m[1].trim();
+          var cdataMatch = inner.match(/^<!\[CDATA\[([\s\S]*?)\]\]>$/);
+          if (cdataMatch) {
+            return cdataMatch[1];
+          }
+          return decodeXmlEntities(inner.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1"));
+        }
+      }
+      return "";
+    }
+
+    for (var i = 0; i < songBlocks.length; i++) {
+      var block = songBlocks[i];
+      var name = extractField(block, ["name", "title"]).trim();
+      if (!name) continue;
+      var cat = extractField(block, ["category", "cat"]).trim() || "Uncategorized";
+      var font = extractField(block, ["font"]).trim() || "Arial";
+      var bkgnd = extractField(block, ["bkgnd", "bkgndfname"]).trim();
+      if (bkgnd === "null" || bkgnd === "undefined") bkgnd = "";
+      var key = extractField(block, ["key"]).trim();
+      var copy = extractField(block, ["copyright", "copy"]).trim();
+      var notes = extractField(block, ["notes"]).trim();
+      var slideRaw = extractField(block, ["slide", "slides", "lyrics"]);
+      var lyrics = normalizeLyricsForStorage(slideRaw);
+
+      results.push({
+        name: name,
+        cat: cat,
+        font: font,
+        bkgndfname: bkgnd,
+        key: key,
+        copy: copy,
+        notes: notes,
+        lyrics: lyrics
+      });
+    }
+    return results;
+  }
+
+  function parseSongsFromXML(xmlStr) {
+    if (!xmlStr || typeof xmlStr !== "string" || !xmlStr.trim()) {
+      throw new Error("The selected XML file is empty.");
+    }
+
+    var sanitized = sanitizeXmlString(xmlStr);
+    var parsedSongs = [];
+
+    if (typeof DOMParser !== "undefined") {
+      try {
+        var parser = new DOMParser();
+        var xmlDoc = parser.parseFromString(sanitized, "text/xml");
+        var parseErrors = xmlDoc ? xmlDoc.getElementsByTagName("parsererror") : [];
+        var songNodes = xmlDoc ? xmlDoc.getElementsByTagName("song") : [];
+
+        if (songNodes && songNodes.length > 0 && (!parseErrors || parseErrors.length === 0)) {
+          for (var i = 0; i < songNodes.length; i++) {
+            var node = songNodes[i];
+            var name = getDirectTagText(node, ["name", "title"]).trim();
+            if (!name) continue;
+            var cat = getDirectTagText(node, ["category", "cat"]).trim() || "Uncategorized";
+            var font = getDirectTagText(node, ["font"]).trim() || "Arial";
+            var bkgnd = getDirectTagText(node, ["bkgnd", "bkgndfname"]).trim();
+            if (bkgnd === "null" || bkgnd === "undefined") bkgnd = "";
+            var key = getDirectTagText(node, ["key"]).trim();
+            var copy = getDirectTagText(node, ["copyright", "copy"]).trim();
+            var notes = getDirectTagText(node, ["notes"]).trim();
+            var lyrics = extractSlidesFromDomNode(node);
+
+            parsedSongs.push({
+              name: name,
+              cat: cat,
+              font: font,
+              bkgndfname: bkgnd,
+              key: key,
+              copy: copy,
+              notes: notes,
+              lyrics: lyrics
+            });
+          }
+        }
+      } catch (domErr) {
+        console.warn("[SongPortXML] DOMParser error, using fallback parser:", domErr);
+      }
+    }
+
+    if (parsedSongs.length === 0) {
+      parsedSongs = parseSongsViaRegexFallback(sanitized);
+    }
+
+    return parsedSongs;
+  }
+
+  function processXmlContent(xmlStr) {
+    var songs = [];
+    try {
+      songs = parseSongsFromXML(xmlStr);
+    } catch (err) {
+      alert("Invalid Song XML file: " + (err && err.message ? err.message : err));
+      return;
+    }
+
+    if (!songs || songs.length === 0) {
+      alert("Invalid database for UECFI Presenter Songs in XML format (no <song> records found).");
+      return;
+    }
+
+    console.log("[SongPortXML] Parsed songs from XML: " + songs.length);
+
+    if (typeof songManagerObj === "undefined" || !songManagerObj) {
+      alert("Song Manager is not initialized.");
+      return;
+    }
+
+    if (typeof songManagerObj.importSongsBatch === "function") {
+      var stats = songManagerObj.importSongsBatch(songs, { source: "xml", showAlert: true });
+      console.log("[SongPortXML] Import stats:", stats);
+    } else if (typeof songManagerObj.addImportSongs === "function") {
+      songManagerObj.addImportSongs({ data: songs });
+    }
   }
 }

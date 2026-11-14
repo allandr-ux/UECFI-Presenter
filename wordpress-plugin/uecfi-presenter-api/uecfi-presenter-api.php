@@ -2,7 +2,7 @@
 /**
  * Plugin Name: UECFI Presenter API
  * Description: Versioned REST API for the UECFI Presenter desktop app: app-update manifest, Bible catalog, and song-pack catalog with downloads.
- * Version: 1.0.4
+ * Version: 1.0.6
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Author: UECFI
@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('UECFI_API_VERSION', '1.0.4');
+define('UECFI_API_VERSION', '1.0.6');
 define('UECFI_API_NS', 'uecfi/v1');
 define('UECFI_API_DIR', plugin_dir_path(__FILE__));
 define('UECFI_API_URL', plugin_dir_url(__FILE__));

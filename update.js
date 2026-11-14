@@ -7,17 +7,17 @@
  *   GET <base>/songs           song-pack catalog (same shape)
  *   <item.url>                 direct file download
  *
- * Song-pack file format (JSON):
- *   {"songs":[{"name":"...","lyrics":"...","copy":"","cat":"","font":"","key":"","notes":""}]}
- * A bare array of song objects is accepted too. Entries without a name are
- * skipped; songs already in the library (same name) are left untouched.
+ * Song-pack file format (XML or JSON):
+ *   UECFI Presenter XML export (<songDB><type>XMLsong</type><song>...</song></songDB>)
+ *   or JSON ({"songs":[...]} / bare array). Entries without a name are
+ *   skipped; songs already in the library (same name & lyrics) are left untouched.
  *
  * The update-server base URL is baked into the app (see UPDATE_SERVER_BASE).
  */
 
 // Installed app version. Bump on every release (matches the UI badge).
 // Compared with the manifest's `latest` field (semver, numeric parts).
-var UPDATE_CLIENT_VERSION = "1.0.0";
+var UPDATE_CLIENT_VERSION = "1.1.0";
 
 // Update server, baked in. All API calls go to <base>/app|/bibles|/songs.
 var UPDATE_SERVER_BASE = "https://uecfi.net/wp-json/uecfi/v1";
@@ -52,11 +52,11 @@ function normalizeServerBase(v) {
   }
 }
 
-// Normalize a downloaded song pack into {songs:[...]} or throw.
+// Normalize a downloaded song pack into [{name,lyrics,copy,cat,font,bkgndfname,key,notes}] or throw.
 function normalizeSongPack(parsed) {
   const rows = Array.isArray(parsed) ? parsed : (parsed && parsed.songs);
   if (!Array.isArray(rows)) {
-    throw new Error("Song pack is not a JSON song list.");
+    throw new Error("Song pack is not a valid XML or JSON song list.");
   }
   const clean = [];
   for (let i = 0; i < rows.length; i++) {
@@ -69,11 +69,41 @@ function normalizeSongPack(parsed) {
       copy: String(r.copy == null ? "" : r.copy),
       cat: String(r.cat == null ? "" : r.cat),
       font: String(r.font == null ? "" : r.font),
+      bkgndfname: String(r.bkgndfname == null ? (r.bkgnd == null ? "" : r.bkgnd) : r.bkgndfname),
       key: String(r.key == null ? "" : r.key),
       notes: String(r.notes == null ? "" : r.notes),
     });
   }
   return clean;
+}
+
+// Parse a downloaded song pack text (supports UECFI Presenter XML export and JSON).
+function parseSongPack(rawText) {
+  const text = String(rawText == null ? "" : rawText).replace(/^\uFEFF/, "").trim();
+  if (!text) {
+    throw new Error("Downloaded song pack file is empty.");
+  }
+
+  // Primary format: UECFI Presenter XML (<songDB>...</songDB> or <?xml ...>)
+  if (text.charAt(0) === "<" || /<song\b/i.test(text)) {
+    if (typeof songPortXML === "function") {
+      const xmlPort = new songPortXML();
+      if (typeof xmlPort.parseXMLString === "function") {
+        const xmlRows = xmlPort.parseXMLString(text);
+        return normalizeSongPack(xmlRows);
+      }
+    }
+    throw new Error("XML song parser is unavailable in this runtime.");
+  }
+
+  // Fallback format: JSON array or {"songs":[...]}
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch (e) {
+    throw new Error("Song pack is not valid UECFI Presenter XML or JSON.");
+  }
+  return normalizeSongPack(parsed);
 }
 
 function updateClass() {
@@ -323,17 +353,101 @@ function updateClass() {
       try { sel.options[0] = new Option("(nothing published yet)", ""); } catch (e) {}
       sel.selectedIndex = 0;
       setDisabled(loadBtnId, true);
+      if (listId === "updSongList") renderSongPackPreview(null);
       return;
     }
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i] || {};
+      const countNote = (Array.isArray(r.titles) && r.titles.length > 0)
+        ? "  (" + r.titles.length + " songs)"
+        : (r.song_count ? "  (" + r.song_count + " songs)" : (r.version ? "  (v" + r.version + ")" : ""));
       const label = String(r.name || r.slug || ("item " + (i + 1)))
-        + (r.version ? "  (v" + r.version + ")" : "")
+        + countNote
         + (r.size ? "  [" + fmtSize(r.size) + "]" : "");
       try { sel.options[i] = new Option(label, i); } catch (e) {}
     }
     sel.selectedIndex = 0;
     setDisabled(loadBtnId, false);
+    if (listId === "updSongList") {
+      renderSongPackPreview(rows[0] || null);
+    }
+  }
+
+  function renderSongPackPreview(row) {
+    const previewBox = el("updSongPreview");
+    if (!previewBox) return;
+    if (!row) {
+      previewBox.classList.add("hidden");
+      return;
+    }
+
+    const titleEl = el("updSongPreviewTitle");
+    const badgeEl = el("updSongPreviewBadge");
+    const descEl = el("updSongPreviewDesc");
+    const listEl = el("updSongPreviewList");
+
+    if (titleEl) titleEl.textContent = row.name || row.slug || "Song Pack";
+
+    const titles = Array.isArray(row.titles) ? row.titles : [];
+    const count = titles.length || Number(row.song_count) || 0;
+    if (badgeEl) badgeEl.textContent = count + " song" + (count === 1 ? "" : "s");
+
+    if (descEl) {
+      if (row.description && String(row.description).trim() !== "") {
+        descEl.textContent = String(row.description).trim();
+        descEl.style.display = "block";
+      } else {
+        descEl.style.display = "none";
+      }
+    }
+
+    if (listEl) {
+      listEl.innerHTML = "";
+      if (titles.length === 0) {
+        listEl.innerHTML = '<div class="text-[11px] text-slate-400 italic py-1">No individual song titles listed in preview metadata for this pack.</div>';
+      } else {
+        // Check which songs might already be in local library
+        const existingNames = {};
+        try {
+          if (typeof songManagerObj !== "undefined" && songManagerObj && typeof songManagerObj.getAllSongs === "function") {
+            const current = songManagerObj.getAllSongs();
+            if (Array.isArray(current)) {
+              for (let c = 0; c < current.length; c++) {
+                if (current[c] && current[c].name) {
+                  existingNames[String(current[c].name).trim().toLowerCase()] = true;
+                }
+              }
+            }
+          }
+        } catch (e) {}
+
+        for (let i = 0; i < titles.length; i++) {
+          const t = titles[i];
+          const isInstalled = !!existingNames[String(t).trim().toLowerCase()];
+          const itemDiv = document.createElement("div");
+          itemDiv.className = "flex items-center justify-between px-2 py-1 bg-white rounded border border-slate-200/80 text-[11px]";
+
+          const nameSpan = document.createElement("span");
+          nameSpan.className = "truncate text-slate-700 font-medium";
+          nameSpan.textContent = (i + 1) + ". " + t;
+
+          const tagSpan = document.createElement("span");
+          if (isInstalled) {
+            tagSpan.className = "text-[9px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 text-slate-500 shrink-0 ml-1.5";
+            tagSpan.textContent = "in library";
+          } else {
+            tagSpan.className = "text-[9px] font-semibold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-700 shrink-0 ml-1.5";
+            tagSpan.textContent = "new";
+          }
+
+          itemDiv.appendChild(nameSpan);
+          itemDiv.appendChild(tagSpan);
+          listEl.appendChild(itemDiv);
+        }
+      }
+    }
+
+    previewBox.classList.remove("hidden");
   }
 
   function selectedRow(rows, listId) {
@@ -430,6 +544,7 @@ function updateClass() {
         : (songRows.length + " pack" + (songRows.length === 1 ? "" : "s") + " available. Pick one and download."));
     } catch (e) {
       setStatus("updSongStatus", esc(e && e.message ? e.message : e));
+      renderSongPackPreview(null);
     } finally {
       setDisabled("updSongCheck", false);
     }
@@ -453,7 +568,7 @@ function updateClass() {
       return;
     }
     if (typeof songManagerObj === "undefined" || !songManagerObj ||
-        typeof songManagerObj.addImportSongs !== "function") {
+        (typeof songManagerObj.importSongsBatch !== "function" && typeof songManagerObj.addImportSongs !== "function")) {
       setStatus("updSongStatus", "Song library is unavailable in this runtime.");
       return;
     }
@@ -464,26 +579,27 @@ function updateClass() {
       const dl = await apiDownload(row.url);
       checkSize(dl, row);
       const verdict = await verifyOrWarn(dl.bytes, row.sha256);
-      let parsed;
-      try {
-        parsed = JSON.parse(dl.text);
-      } catch (e) {
-        throw new Error("Song pack is not valid JSON.");
-      }
-      const clean = normalizeSongPack(parsed);
+      const clean = parseSongPack(dl.text);
       if (clean.length === 0) {
         throw new Error("Song pack contains no usable songs.");
       }
-      const before = songCount();
-      songManagerObj.addImportSongs({ data: clean });
-      const after = songCount();
       let report;
-      if (before >= 0 && after >= 0) {
-        const added = Math.max(0, after - before);
-        report = added + " new song" + (added === 1 ? "" : "s")
-          + " imported (" + (clean.length - added) + " already in library). ";
+      if (typeof songManagerObj.importSongsBatch === "function") {
+        const stats = songManagerObj.importSongsBatch(clean, { source: "update", showAlert: false });
+        const importedTotal = (stats.added || 0) + (stats.updated || 0);
+        report = importedTotal + " song" + (importedTotal === 1 ? "" : "s")
+          + " imported (" + (stats.skipped || 0) + " already in library). ";
       } else {
-        report = clean.length + " songs imported. ";
+        const before = songCount();
+        songManagerObj.addImportSongs({ data: clean });
+        const after = songCount();
+        if (before >= 0 && after >= 0) {
+          const added = Math.max(0, after - before);
+          report = added + " new song" + (added === 1 ? "" : "s")
+            + " imported (" + (clean.length - added) + " already in library). ";
+        } else {
+          report = clean.length + " songs imported. ";
+        }
       }
       setStatus("updSongStatus", esc(report) + esc(verdict));
     } catch (e) {
@@ -505,6 +621,9 @@ function updateClass() {
     on("updBibleLoad", "click", loadBible);
     on("updSongCheck", "click", checkSongs);
     on("updSongLoad", "click", loadSongs);
+    on("updSongList", "change", () => {
+      renderSongPackPreview(selectedRow(songRows, "updSongList"));
+    });
     showDownload(false);
     setDisabled("updBibleLoad", true);
     setDisabled("updSongLoad", true);

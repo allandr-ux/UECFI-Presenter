@@ -1,6 +1,6 @@
 {
   "name": "uecfi-presenter",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "UECFI Church Presentation & Worship Projection Software",
   "main": "main.js",
   "author": "UECFI",
@@ -19,10 +19,11 @@
   "build": {
     "appId": "org.uecfi.presenter",
     "productName": "UECFI Presenter",
+    "npmRebuild": false,
     "directories": {
       "output": "dist"
     },
-    "asar": false,
+    "asar": true,
     "files": [
       "**/*",
       "!**/*.map",
@@ -33,28 +34,22 @@
       "!tailwind.config.js",
       "!.github/**",
       "!dist/**",
-      "!Philippine_Bibles/**",
-      "!bible/kjv.db",
-      "!bible/lbla.xml",
-      "!bible/malabible.xml",
-      "!Grapevine.jpg",
-      "!splash.htm",
-      "!test_strip.js",
-      "!xml/schedule.db",
-      "!storage/network/**",
+      "!scratch/**",
+      "!uecfi-presenter-android/**",
+      "!electron_test/**",
+      "!installed-app.apk",
+      "!*.log",
+      "!Code Cache/**",
+      "!GPUCache/**",
+      "!Dawn*Cache/**",
+      "!Local Storage/**",
+      "!ShaderCache/**",
+      "!blob_storage/**",
+      "!Shared Dictionary/**",
       "!storage/*.log",
-      "!graphics/banner4.png",
-      "!graphics/banner41.png",
-      "!graphics/f.png",
-      "!graphics/margin_stand.jpg",
-      "!graphics/marginbig.jpg",
-      "!graphics/hue_thumb.png",
-      "!graphics/picker_thumb.png",
-      "!graphics/loader.gif",
-      "!graphics/loadcomplete.gif",
-      "!graphics/margin.gif",
-      "!graphics/icon/add_bkg.png",
-      "!graphics/icon/del_bkg.png"
+      "!storage/song/default.db",
+      "!storage/program/program.json",
+      "!storage/xml/schedule.db"
     ],
     "mac": {
       "target": [
@@ -68,7 +63,8 @@
     "win": {
       "target": [
         "nsis",
-        "portable"
+        "portable",
+        "zip"
       ],
       "icon": "app-icon.png"
     },
@@ -81,15 +77,17 @@
     }
   },
   "devDependencies": {
-    "electron": "^44.6.0",
+    "electron": "^33.4.11",
     "electron-builder": "^26.15.3",
     "tailwindcss": "^3.4.19"
   },
   "dependencies": {
-    "better-sqlite3": "^13.0.3"
+    "better-sqlite3": "^13.0.3",
+    "bonjour-service": "^1.4.4"
   },
   "allowScripts": {
     "better-sqlite3@13.0.3": true,
-    "electron-winstaller@5.4.0": true
+    "electron-winstaller@5.4.0": true,
+    "electron@33.4.11": true
   }
 }
