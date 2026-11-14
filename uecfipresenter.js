@@ -47,7 +47,6 @@ if (typeof SIGNALING_URL === 'undefined') {
 
   initSignaling();
 }
-}
 // Signaling logic
 const SIGNALING_URL = 'https://uecfi-signaling.onrender.com';
 let socket = null;
