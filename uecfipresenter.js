@@ -1,53 +1,4 @@
-// Signaling logic (Ensured unique declaration)
-if (typeof SIGNALING_URL === 'undefined') {
-  const SIGNALING_URL = 'https://uecfi-signaling.onrender.com';
-  var socket = null;
-  var roomSecret = "";
-  var hostPeer = null;
-
-  function initSignaling() {
-    socket = window.electronBridge.io(SIGNALING_URL);
-    
-    socket.on("connect", () => {
-      console.log("Connected to signaling server:", socket.id);
-    });
-
-    socket.on("signal", ({ from, signal }) => {
-      if (hostPeer) {
-          hostPeer.signal(signal);
-      } else {
-          startHostPeer(from, signal);
-      }
-    });
-  }
-
-  function startHostPeer(guestId, incomingSignal) {
-      hostPeer = new window.electronBridge.SimplePeer({ initiator: false, trickle: false });
-
-      hostPeer.on('signal', data => {
-          socket.emit("signal", { to: guestId, signal: data });
-      });
-
-      hostPeer.on('stream', stream => {
-          console.log("Received guest stream:", stream);
-      });
-
-      if (incomingSignal) {
-          hostPeer.signal(incomingSignal);
-      }
-  }
-
-  function createLiveRoom() {
-    const roomId = "UECFI-" + Math.random().toString(36).substr(2, 6).toUpperCase();
-    roomSecret = Math.random().toString(36).substr(2, 6).toUpperCase();
-    
-    socket.emit("create-room", { roomId, secret: roomSecret });
-    alert(`Room Created! ID: ${roomId} Secret: ${roomSecret}`);
-  }
-
-  initSignaling();
-}
-// Signaling logic
+// Signaling logic (Unified)
 const SIGNALING_URL = 'https://uecfi-signaling.onrender.com';
 let socket = null;
 let roomSecret = "";
@@ -78,7 +29,6 @@ function startHostPeer(guestId, incomingSignal) {
 
     hostPeer.on('stream', stream => {
         console.log("Received guest stream:", stream);
-        // Will be routed to the Canvas engine in the next phase
     });
 
     if (incomingSignal) {
@@ -91,33 +41,10 @@ function createLiveRoom() {
   roomSecret = Math.random().toString(36).substr(2, 6).toUpperCase();
   
   socket.emit("create-room", { roomId, secret: roomSecret });
-  alert(`Room Created! ID: ${roomId} Secret: ${roomSecret}`);
+  alert('Room Created! ID: ' + roomId + ' Secret: ' + roomSecret);
 }
 
 initSignaling();
-// Signaling logic
-const SIGNALING_URL = 'https://uecfi-signaling.onrender.com';
-let socket = null;
-let roomSecret = "";
-
-function initSignaling() {
-  socket = window.electronBridge.io(SIGNALING_URL);
-  
-  socket.on("connect", () => {
-    console.log("Connected to signaling server:", socket.id);
-  });
-}
-
-function createLiveRoom() {
-  const roomId = "UECFI-" + Math.random().toString(36).substr(2, 6).toUpperCase();
-  roomSecret = Math.random().toString(36).substr(2, 6).toUpperCase();
-  
-  socket.emit("create-room", { roomId, secret: roomSecret });
-  alert(`Room Created! ID: ${roomId} Secret: ${roomSecret}`);
-}
-
-initSignaling();
-let bookIndex = 0;
 let chapterIndex = 0;
 let verseIndex = 0;
 let bible = new Array();
