@@ -49,6 +49,7 @@ class LiveStudioManager {
     // Local Camera Stream
     this.cameraStream = null;
     this.cameraDeviceId = localStorage.getItem(this.STORAGE_KEYS.selectedCameraId) || '';
+    this.operatorMicId = localStorage.getItem(this.STORAGE_KEYS.selectedMicId) || '';
 
     // Public STUN servers for WebRTC direct peer-to-peer connection
     this.rtcConfig = {
@@ -94,18 +95,20 @@ class LiveStudioManager {
   // ===========================================================================
 
   /**
-   * Enumerate connected video input devices (webcams, Cam Links, capture cards)
+   * Enumerate connected video and audio input devices
    */
   async enumerateCameras() {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
+      
+      // Video Inputs (Cameras, Capture Cards)
       const videoInputs = devices.filter(d => d.kind === 'videoinput');
-      const selectEl = document.getElementById('studioCameraSelect');
+      const camSelect = document.getElementById('studioCameraSelect');
 
-      if (selectEl) {
-        selectEl.innerHTML = '';
+      if (camSelect) {
+        camSelect.innerHTML = '';
         if (videoInputs.length === 0) {
-          selectEl.innerHTML = '<option value="">No cameras found</option>';
+          camSelect.innerHTML = '<option value="">No cameras found</option>';
         } else {
           videoInputs.forEach((dev, idx) => {
             const opt = document.createElement('option');
@@ -114,17 +117,40 @@ class LiveStudioManager {
             if (dev.deviceId === this.cameraDeviceId || (!this.cameraDeviceId && idx === 0)) {
               opt.selected = true;
             }
-            selectEl.appendChild(opt);
+            camSelect.appendChild(opt);
           });
         }
       }
+
+      // Audio Inputs (Operator Microphone)
+      const audioInputs = devices.filter(d => d.kind === 'audioinput');
+      const micSelect = document.getElementById('studioMicSelect');
+      if (micSelect) {
+        micSelect.innerHTML = '';
+        if (audioInputs.length === 0) {
+          micSelect.innerHTML = '<option value="">Default Microphone</option>';
+        } else {
+          audioInputs.forEach((dev, idx) => {
+            const opt = document.createElement('option');
+            opt.value = dev.deviceId;
+            opt.textContent = dev.label || `Microphone ${idx + 1}`;
+            if (dev.deviceId === this.operatorMicId || (!this.operatorMicId && idx === 0)) {
+              opt.selected = true;
+            }
+            micSelect.appendChild(opt);
+          });
+        }
+      }
+
+      // Pre-warm operator microphone stream in background so talkback is instant
+      this.ensureOperatorMic().catch(() => {});
     } catch (e) {
-      console.warn('[LIVE STUDIO] Could not enumerate camera devices:', e);
+      console.warn('[LIVE STUDIO] Could not enumerate devices:', e);
     }
   }
 
   /**
-   * Start capturing selected camera feed
+   * Start capturing selected camera feed with automatic fallback
    */
   async startCamera(deviceId = null) {
     if (this.cameraStream) {
@@ -132,34 +158,51 @@ class LiveStudioManager {
     }
 
     const targetDeviceId = deviceId || document.getElementById('studioCameraSelect')?.value || this.cameraDeviceId;
-    const constraints = {
-      video: {
-        deviceId: targetDeviceId ? { exact: targetDeviceId } : undefined,
-        width: { ideal: 1920, min: 1280 },
-        height: { ideal: 1080, min: 720 },
-        frameRate: { ideal: 30, min: 24 }
-      },
-      audio: false // Church audio is managed by soundboard
-    };
 
     try {
+      // First attempt: Ideal 1080p without strict min bounds (handles webcams and USB HDMI capture cards)
+      const constraints = {
+        video: targetDeviceId
+          ? { deviceId: { exact: targetDeviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+          : { width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false // Church house audio is managed independently by soundboard
+      };
       this.cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
-      this.cameraDeviceId = targetDeviceId;
-      localStorage.setItem(this.STORAGE_KEYS.selectedCameraId, targetDeviceId);
-
-      const previewEl = document.getElementById('studioCameraPreview');
-      if (previewEl) {
-        previewEl.srcObject = this.cameraStream;
-        previewEl.play().catch(() => {});
+    } catch (idealErr) {
+      console.warn('[LIVE STUDIO] Ideal camera constraints failed, attempting fallback { video: true }:', idealErr);
+      try {
+        const fallbackConstraints = {
+          video: targetDeviceId ? { deviceId: { exact: targetDeviceId } } : true,
+          audio: false
+        };
+        this.cameraStream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+      } catch (fallbackErr) {
+        console.error('[LIVE STUDIO] All camera constraints failed:', fallbackErr);
+        alert('Could not start camera: ' + (fallbackErr.message || fallbackErr.name));
+        this.updateCameraStatusUI(false);
+        return;
       }
-
-      this.updateCameraStatusUI(true);
-      console.log('[LIVE STUDIO] Camera started successfully.');
-    } catch (err) {
-      console.error('[LIVE STUDIO] Camera start failed:', err);
-      alert('Could not start camera: ' + (err.message || err.name));
-      this.updateCameraStatusUI(false);
     }
+
+    this.cameraDeviceId = targetDeviceId;
+    if (targetDeviceId) {
+      localStorage.setItem(this.STORAGE_KEYS.selectedCameraId, targetDeviceId);
+    }
+
+    const previewEl = document.getElementById('studioCameraPreview');
+    if (previewEl) {
+      previewEl.muted = true;
+      previewEl.playsInline = true;
+      previewEl.autoplay = true;
+      previewEl.srcObject = this.cameraStream;
+      previewEl.onloadedmetadata = () => {
+        previewEl.play().catch(e => console.warn('[LIVE STUDIO] Camera preview play deferred:', e));
+      };
+      previewEl.play().catch(() => {});
+    }
+
+    this.updateCameraStatusUI(true);
+    console.log('[LIVE STUDIO] Camera started successfully.');
   }
 
   /**
@@ -351,7 +394,7 @@ class LiveStudioManager {
     this.initGuestPeerConnection(guestObj);
   }
 
-  initGuestPeerConnection(guestObj) {
+  async initGuestPeerConnection(guestObj) {
     const pc = new RTCPeerConnection(this.rtcConfig);
     guestObj.peerConnection = pc;
 
@@ -384,9 +427,13 @@ class LiveStudioManager {
       }
     };
 
-    // If operator is currently talking on intercom, attach operator mic track
-    if (this.operatorMicTrack) {
-      pc.addTrack(this.operatorMicTrack, this.operatorMicStream);
+    // Crucial: ensure operator mic is attached upfront to peer connection before answer
+    // so bidirectional sendrecv audio is negotiated in initial SDP. Track starts muted (enabled = false).
+    await this.ensureOperatorMic();
+    if (this.operatorMicStream && this.operatorMicTrack) {
+      guestObj.audioSender = pc.addTrack(this.operatorMicTrack, this.operatorMicStream);
+    } else {
+      pc.addTransceiver('audio', { direction: 'sendrecv' });
     }
   }
 
@@ -399,6 +446,17 @@ class LiveStudioManager {
 
     try {
       const pc = guestObj.peerConnection;
+
+      // Ensure operator mic track is attached if not already
+      await this.ensureOperatorMic();
+      if (pc && this.operatorMicStream && this.operatorMicTrack) {
+        const senders = pc.getSenders();
+        const hasAudioSender = senders.some(s => s.track && s.track.kind === 'audio');
+        if (!hasAudioSender) {
+          guestObj.audioSender = pc.addTrack(this.operatorMicTrack, this.operatorMicStream);
+        }
+      }
+
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
 
       // Create answer back to guest
@@ -521,31 +579,54 @@ class LiveStudioManager {
   }
 
   // ===========================================================================
-  // 5. OPERATOR TALKBACK INTERCOM (PUSH-TO-TALK)
+  // 5. OPERATOR TALKBACK INTERCOM (TAP-TO-TALK & MIC SELECTION)
   // ===========================================================================
 
   /**
-   * Start operator microphone for private talkback to Green Room guests
+   * Acquire or switch operator microphone stream, pre-warm track, and bind VU meter
    */
-  async startOperatorTalkback() {
-    if (this.isOperatorTalking) return;
+  async ensureOperatorMic(deviceId = null) {
+    const targetMicId = deviceId || document.getElementById('studioMicSelect')?.value || this.operatorMicId;
+
+    // If stream is already active with the desired device, reuse it
+    if (this.operatorMicStream && this.operatorMicTrack && (!targetMicId || this.operatorMicId === targetMicId)) {
+      return this.operatorMicStream;
+    }
+
+    if (this.operatorMicStream) {
+      this.operatorMicStream.getTracks().forEach(t => t.stop());
+      this.operatorMicStream = null;
+    }
+
     try {
-      if (!this.operatorMicStream) {
-        this.operatorMicStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          },
-          video: false
-        });
-        this.operatorMicTrack = this.operatorMicStream.getAudioTracks()[0];
+      const constraints = {
+        audio: targetMicId
+          ? {
+              deviceId: { exact: targetMicId },
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true
+            }
+          : {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true
+            },
+        video: false
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      this.operatorMicStream = stream;
+      this.operatorMicTrack = stream.getAudioTracks()[0];
+      this.operatorMicId = targetMicId;
+      if (targetMicId) {
+        localStorage.setItem(this.STORAGE_KEYS.selectedMicId, targetMicId);
       }
 
-      this.isOperatorTalking = true;
-      this.operatorMicTrack.enabled = true;
+      // Track starts MUTED by default unless operator is actively talking
+      this.operatorMicTrack.enabled = Boolean(this.isOperatorTalking);
 
-      // Add or enable audio track on all guest peer connections
+      // Instantly update audio tracks across all connected guest peer connections
       this.guests.forEach((g) => {
         if (g.peerConnection) {
           const senders = g.peerConnection.getSenders();
@@ -553,21 +634,89 @@ class LiveStudioManager {
           if (audioSender) {
             audioSender.replaceTrack(this.operatorMicTrack);
           } else {
-            g.peerConnection.addTrack(this.operatorMicTrack, this.operatorMicStream);
+            g.audioSender = g.peerConnection.addTrack(this.operatorMicTrack, this.operatorMicStream);
           }
         }
       });
 
-      this.updateTalkbackUI(true);
-      console.log('[LIVE STUDIO] Operator talkback LIVE to Green Room.');
+      // Hook up operator mic VU meter so operator can see mic activity
+      this.setupOperatorMicMeter(stream);
+      return stream;
     } catch (err) {
-      console.error('[LIVE STUDIO] Operator microphone error:', err);
-      alert('Could not access microphone for talkback: ' + err.message);
+      console.warn('[LIVE STUDIO] Operator microphone access failed:', err);
+      return null;
     }
   }
 
+  async changeOperatorMic(deviceId) {
+    await this.ensureOperatorMic(deviceId);
+  }
+
+  setupOperatorMicMeter(stream) {
+    try {
+      this.initAudioContext();
+      if (!this.audioCtx) return;
+
+      const source = this.audioCtx.createMediaStreamSource(stream);
+      const analyser = this.audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      const updateOpMeter = () => {
+        if (!this.operatorMicStream) return;
+        analyser.getByteFrequencyData(dataArray);
+
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) sum += dataArray[i];
+        const avg = sum / bufferLength;
+        const percent = Math.min(100, Math.round((avg / 128) * 100));
+
+        const meterBar = document.getElementById('studioOperatorMicMeter');
+        if (meterBar) {
+          meterBar.style.width = percent + '%';
+          if (percent > 65) meterBar.className = 'h-full bg-rose-500 transition-all duration-75';
+          else if (percent > 35) meterBar.className = 'h-full bg-amber-400 transition-all duration-75';
+          else meterBar.className = 'h-full bg-emerald-500 transition-all duration-75';
+        }
+        requestAnimationFrame(updateOpMeter);
+      };
+      requestAnimationFrame(updateOpMeter);
+    } catch (e) {
+      console.warn('[LIVE STUDIO] Operator VU meter setup failed:', e);
+    }
+  }
+
+  /**
+   * Toggle Talkback ON/OFF (Tap to Talk)
+   */
+  async toggleOperatorTalkback() {
+    if (this.isOperatorTalking) {
+      this.stopOperatorTalkback();
+    } else {
+      await this.startOperatorTalkback();
+    }
+  }
+
+  /**
+   * Start operator microphone talkback (instant, zero renegotiation)
+   */
+  async startOperatorTalkback() {
+    await this.ensureOperatorMic();
+    if (!this.operatorMicTrack) return;
+
+    this.isOperatorTalking = true;
+    this.operatorMicTrack.enabled = true;
+    this.updateTalkbackUI(true);
+    console.log('[LIVE STUDIO] Operator talkback LIVE (mic unmuted to Green Room).');
+  }
+
+  /**
+   * Stop operator microphone talkback
+   */
   stopOperatorTalkback() {
-    if (!this.isOperatorTalking) return;
     this.isOperatorTalking = false;
     if (this.operatorMicTrack) {
       this.operatorMicTrack.enabled = false;
@@ -578,15 +727,24 @@ class LiveStudioManager {
 
   updateTalkbackUI(isLive) {
     const btn = document.getElementById('btnStudioTalkback');
+    const icon = document.getElementById('studioTalkbackIcon');
+    const btnText = document.getElementById('studioTalkbackBtnText');
     const statusText = document.getElementById('studioTalkbackStatus');
+
     if (btn) {
       btn.className = isLive
-        ? 'px-4 py-2 text-xs font-bold rounded-xl bg-rose-600 text-white shadow-lg shadow-rose-600/30 flex items-center gap-2 select-none animate-pulse'
-        : 'px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-2 select-none transition';
+        ? 'px-4 py-2 text-xs font-bold rounded-xl bg-rose-600 text-white shadow-lg shadow-rose-600/30 flex items-center gap-2 select-none animate-pulse cursor-pointer'
+        : 'px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-2 select-none transition cursor-pointer shadow-xs';
+    }
+    if (icon) {
+      icon.className = isLive ? 'fa-solid fa-microphone-lines text-white' : 'fa-solid fa-microphone text-slate-300';
+    }
+    if (btnText) {
+      btnText.textContent = isLive ? 'Mute Intercom' : 'Tap to Talk (Intercom)';
     }
     if (statusText) {
-      statusText.textContent = isLive ? 'TALKING (Live to Green Room)' : 'Push-to-Talk Muted';
-      statusText.className = isLive ? 'text-xs font-bold text-rose-500' : 'text-xs text-slate-500';
+      statusText.textContent = isLive ? 'TALKING (Live to Green Room)' : 'Intercom: Muted';
+      statusText.className = isLive ? 'text-[11px] font-bold text-rose-600' : 'text-[11px] font-bold text-slate-600';
     }
   }
 

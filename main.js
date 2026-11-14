@@ -1,4 +1,4 @@
-let { app, BrowserWindow, ipcMain } = require('electron');
+let { app, BrowserWindow, ipcMain, session, systemPreferences } = require('electron');
 
 let path = require("path");
 let fs = require("fs");
@@ -251,7 +251,31 @@ ipcMain.on('set-menu', (event, template) => {
     Menu.setApplicationMenu(menu);
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  // Grant media permissions (camera, microphone) for local studio capture & WebRTC
+  if (session && session.defaultSession) {
+    session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+      if (permission === 'media' || permission === 'camera' || permission === 'microphone') {
+        return callback(true);
+      }
+      callback(false);
+    });
+    session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
+      if (permission === 'media' || permission === 'camera' || permission === 'microphone') {
+        return true;
+      }
+      return false;
+    });
+  }
+
+  // Request macOS system media permissions if running on darwin
+  if (process.platform === 'darwin' && systemPreferences && typeof systemPreferences.askForMediaAccess === 'function') {
+    systemPreferences.askForMediaAccess('camera').catch(() => {});
+    systemPreferences.askForMediaAccess('microphone').catch(() => {});
+  }
+
+  createWindow();
+});
 
 app.on("window-all-closed", () => {
   app.quit();

@@ -437,26 +437,42 @@
           </div>
 
           <!-- Operator Talkback Intercom Control Bar -->
-          <div class="mt-2 p-3 bg-white border border-slate-200 rounded-2xl shadow-xs flex items-center justify-between shrink-0">
-            <div class="flex items-center gap-3">
-              <!-- Push-to-Talk Button (Mousedown / Mouseup) -->
-              <button id="btnStudioTalkback" type="button"
-                onmousedown="window.liveStudio.startOperatorTalkback()"
-                onmouseup="window.liveStudio.stopOperatorTalkback()"
-                class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-2 select-none transition cursor-pointer">
-                <i class="fa-solid fa-microphone"></i>
-                <span>Hold to Talk to Green Room</span>
-              </button>
-              
-              <div class="flex flex-col">
-                <span id="studioTalkbackStatus" class="text-xs text-slate-500">Push-to-Talk Muted</span>
-                <span class="text-[10px] text-slate-400">Only people in the Green Room will hear you</span>
+          <div class="mt-2 p-3 bg-white border border-slate-200 rounded-2xl shadow-xs flex flex-col gap-2 shrink-0">
+            <div class="flex items-center justify-between gap-3 flex-wrap">
+              <div class="flex items-center gap-2 flex-1 min-w-[280px]">
+                <!-- Push-to-Talk / Tap-to-Talk Button -->
+                <button id="btnStudioTalkback" type="button"
+                  onclick="window.liveStudio.toggleOperatorTalkback()"
+                  class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center gap-2 select-none transition cursor-pointer shadow-xs active:scale-98">
+                  <i id="studioTalkbackIcon" class="fa-solid fa-microphone"></i>
+                  <span id="studioTalkbackBtnText">Tap to Talk (Intercom)</span>
+                </button>
+
+                <!-- Status & Live VU Meter -->
+                <div class="flex flex-col flex-1 min-w-[120px]">
+                  <div class="flex items-center justify-between">
+                    <span id="studioTalkbackStatus" class="text-[11px] font-bold text-slate-600">Intercom: Muted</span>
+                    <span class="text-[10px] text-slate-400">Private to Green Room</span>
+                  </div>
+                  <!-- Operator Mic Live VU Meter Bar -->
+                  <div class="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1">
+                    <div id="studioOperatorMicMeter" class="h-full bg-emerald-500 w-0 transition-all duration-75"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Operator Mic Hardware Selector -->
+              <div class="flex items-center gap-2 shrink-0">
+                <span class="text-[11px] font-semibold text-slate-500"><i class="fa-solid fa-headset mr-1"></i>Mic:</span>
+                <select id="studioMicSelect" onchange="window.liveStudio.changeOperatorMic(this.value)" class="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-800 focus:outline-none focus:border-blue-500 max-w-[170px]">
+                  <option value="">Default Microphone</option>
+                </select>
+
+                <button type="button" onclick="window.liveStudio.clearStageVideo()" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer shrink-0" title="Remove any live video and return to slide-only projection">
+                  <i class="fa-solid fa-ban text-[11px] mr-1 text-slate-400"></i> Clear Stage
+                </button>
               </div>
             </div>
-
-            <button type="button" onclick="window.liveStudio.clearStageVideo()" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer" title="Remove any live video and return to slide-only projection">
-              <i class="fa-solid fa-ban text-[11px] mr-1 text-slate-400"></i> Clear Stage Video
-            </button>
           </div>
         </div>
 
