@@ -1,3 +1,25 @@
+// Signaling logic
+const SIGNALING_URL = 'https://uecfi-signaling.onrender.com';
+let socket = null;
+let roomSecret = "";
+
+function initSignaling() {
+  socket = window.electronBridge.io(SIGNALING_URL);
+  
+  socket.on("connect", () => {
+    console.log("Connected to signaling server:", socket.id);
+  });
+}
+
+function createLiveRoom() {
+  const roomId = "UECFI-" + Math.random().toString(36).substr(2, 6).toUpperCase();
+  roomSecret = Math.random().toString(36).substr(2, 6).toUpperCase();
+  
+  socket.emit("create-room", { roomId, secret: roomSecret });
+  alert(`Room Created! ID: ${roomId} Secret: ${roomSecret}`);
+}
+
+initSignaling();
 let bookIndex = 0;
 let chapterIndex = 0;
 let verseIndex = 0;
@@ -412,6 +434,8 @@ function launch(g) {
   if (typeof window !== "undefined") window.liveProgramActive = false;  if (typeof window.updateScheduleHighlight === "function") window.updateScheduleHighlight();
   if (typeof window.updateScheduleSlideHighlight === "function") window.updateScheduleSlideHighlight();
   p_footnote = p_footer;
+  window.p_person_title = "";
+  window.p_person_title_arr = [];
   p_current_index = k;
   p_last_index = j;
   // Design (fonts, colors, scales, background, margins) comes exclusively
@@ -439,13 +463,84 @@ function launch(g) {
     if (card && typeof card.scrollIntoView === "function") card.scrollIntoView({ block: "center" });
   } catch (e) {}
 }
+/**
+ * Asynchronously loads and parses a Bible XML file into bible[e] via AppStorage
+ * so startup never stalls the UI thread with synchronous XMLHttpRequest calls.
+ */
+async function loadBibleAsync(e) {
+  if (!bibleVersionArray || !bibleVersionArray[e] || !bibleVersionArray[e][1]) return;
+  if (bible[e]) return;
+  const fileName = bibleVersionArray[e][1];
+  const candidates = [];
+  if (typeof AppStorage !== "undefined" && typeof AppStorage.resolveStoragePath === "function") {
+    candidates.push(AppStorage.resolveStoragePath("bible", fileName));
+  }
+  candidates.push(`bible/${fileName}`);
+
+  for (const candidate of candidates) {
+    try {
+      if (typeof AppStorage !== "undefined" && typeof AppStorage.readFile === "function") {
+        const xmlText = await AppStorage.readFile(candidate);
+        if (xmlText) {
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(xmlText, "application/xml");
+          if (xmlDoc && xmlDoc.documentElement) {
+            bible[e] = xmlDoc.documentElement;
+            return;
+          }
+        }
+      }
+    } catch (err) {}
+  }
+}
+
 function loadBible(e, a) {
   if (!bibleVersionArray || !bibleVersionArray[e]) return;
   if (bible[e]) return; // Already cached in memory
 
-  let fileUrl = AppStorage.resolveStoragePath("bible", bibleVersionArray[e][1]);
-  // Native absolute paths (Windows backslashes/drive letters) are not
-  // valid XHR URLs -- convert to file:// form. Relative paths pass through.
+  // When async loading is requested (a === true), delegate to loadBibleAsync
+  // to avoid deprecated main-thread XMLHttpRequest calls.
+  if (a === true) {
+    if (typeof printStatus === "function") {
+      printStatus(`Loading ${bibleVersionArray[e][0]} Bible Database.`, true);
+    }
+    loadBibleAsync(e).then(() => {
+      if (typeof printStatus === "function") {
+        printStatus(`Loaded ${bibleVersionArray[e][0]} Bible Database.`, false);
+      }
+    });
+    return;
+  }
+
+  // Synchronous caller fallback (e.g. version switching in saveVersionSelection):
+  // In Electron/Node, read directly via fs + DOMParser to avoid Chromium's
+  // synchronous XMLHttpRequest IPC bottleneck.
+  let filePath = AppStorage.resolveStoragePath("bible", bibleVersionArray[e][1]);
+  try {
+    if (typeof require === "function") {
+      const fs = require("fs");
+      const path = require("path");
+      const cleanPath = filePath.startsWith("file://") ? filePath.replace("file://", "") : filePath;
+      const fullPath = path.isAbsolute(cleanPath)
+        ? cleanPath
+        : path.join((typeof AppStorage !== "undefined" && AppStorage.appDir) ? AppStorage.appDir() : "", cleanPath);
+      if (fs.existsSync(fullPath)) {
+        const xmlText = fs.readFileSync(fullPath, "utf8");
+        if (xmlText) {
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(xmlText, "application/xml");
+          if (xmlDoc && xmlDoc.documentElement) {
+            bible[e] = xmlDoc.documentElement;
+            return;
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[BIBLE] Direct fs read fallback failed, trying XHR:", err);
+  }
+
+  let fileUrl = filePath;
   if (typeof AppStorage !== "undefined" && typeof AppStorage.toFileUrl === "function") {
     try {
       fileUrl = AppStorage.toFileUrl(fileUrl);
@@ -454,36 +549,24 @@ function loadBible(e, a) {
 
   const b = new XMLHttpRequest();
   b.onreadystatechange = () => {
-    if (b.readyState == 1) {
-      if (a && typeof printStatus === "function") {
-        var f = `Loading ${bibleVersionArray[e][0]} Bible Database.`;
-        printStatus(f, true);
-      }
-    }
-    if (b.readyState == 4) {
-      if (b.status === 200 || b.status === 0) {
-        if (b.responseXML && b.responseXML.documentElement) {
-          bible[e] = b.responseXML.documentElement;
-        } else if (b.responseText) {
-          try {
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(b.responseText, "application/xml");
-            bible[e] = xmlDoc.documentElement;
-          } catch(err) {
-            console.error("[BIBLE] Error parsing XML:", err);
-          }
-        }
-        if (a && typeof printStatus === "function") {
-          var f = `Loaded ${bibleVersionArray[e][0]} Bible Database.`;
-          printStatus(f, false);
+    if (b.readyState == 4 && (b.status === 200 || b.status === 0)) {
+      if (b.responseXML && b.responseXML.documentElement) {
+        bible[e] = b.responseXML.documentElement;
+      } else if (b.responseText) {
+        try {
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(b.responseText, "application/xml");
+          bible[e] = xmlDoc.documentElement;
+        } catch (err) {
+          console.error("[BIBLE] Error parsing XML:", err);
         }
       }
     }
   };
   try {
-    b.open("GET", fileUrl, a);
+    b.open("GET", fileUrl, Boolean(a));
     b.send(null);
-  } catch(err) {
+  } catch (err) {
     console.error("[BIBLE] Error loading Bible file:", fileUrl, err);
   }
 }
@@ -599,6 +682,8 @@ function presentTheme() {
     p_title = "";
     p_footnote = "";
     p_title_arr = [];
+    window.p_person_title = "";
+    window.p_person_title_arr = [];
     p_last_index = 0;
     if (typeof window !== "undefined") window.liveProgramActive = false;
     content1[0] = "";
@@ -692,15 +777,16 @@ function updateVerseContainer() {
     const j = `VC1_${i}`;
     const d = `VC2_${i}`;
     const c = `NC_${i}`;
+    const numPrefix = new RegExp(`^\\s*${i + 1}\\s+`);
     l[i] = new postit();
     l[i].init(c, bookIndex + 1, chapterIndex + 1, i + 1);
     b[i] = new verseClass();
-    var h = content1[i];
+    var h = String(content1[i] || "").replace(numPrefix, "").trimStart();
     var g = bibleVersionArray[version1][6];
     b[i].init(j, h, bookIndex + 1, chapterIndex + 1, i + 1, g);
     if (navDualLanguage) {
       a[i] = new verseClass();
-      var h = content2[i];
+      var h = String(content2[i] || "").replace(numPrefix, "").trimStart();
       var g = bibleVersionArray[version2][6];
       a[i].init(d, h, bookIndex + 1, chapterIndex + 1, i + 1, g);
     }
@@ -788,7 +874,44 @@ window.updateScheduleHighlight = function() {
     }
   } catch (e) {}
 };
-function vvinit() {
+/**
+ * Preloads UI HTML templates from ./content/*.txt asynchronously into memory
+ * (window._templateCache) so generateTabContent() runs without synchronous XHR
+ * or main-thread disk stalls.
+ */
+async function preloadContentTemplates() {
+  if (typeof window === "undefined") return;
+  if (!window._templateCache) window._templateCache = {};
+  const files = [
+    "./content/setup_biblesel.txt",
+    "./content/setup_remote.txt",
+    "./content/setup_presentui.txt",
+    "./content/setup_update.txt",
+    "./content/config.txt",
+    "./content/nav.txt",
+    "./content/search.txt",
+    "./content/schedule.txt",
+    "./content/song_nav.txt",
+    "./content/help.txt",
+    "./content/song_edit.txt",
+    "./content/song_lyrics.txt",
+    "./content/program_nav.txt",
+    "./content/program_workspace.txt"
+  ];
+  await Promise.all(files.map(async (f) => {
+    try {
+      if (typeof AppStorage !== "undefined" && typeof AppStorage.readFile === "function") {
+        const txt = await AppStorage.readFile(f);
+        if (txt) {
+          window._templateCache[f] = txt;
+          window._templateCache[f.replace(/^\.\//, "")] = txt;
+        }
+      }
+    } catch (e) {}
+  }));
+}
+
+async function vvinit() {
   splash(true);
   const a = firstTimeCheck();
   if (!a) {
@@ -796,43 +919,62 @@ function vvinit() {
   }
   tabFrame();
   tabFrameVerse();
-  loadBibleVersion();
-  loadConfig();
-  setTimeout(() => {
-    loadBible(version1, false);
-    loadBible(version2, false);
-    loadBookNames(version1);
-    generateTabContent();
-    splash(false);
-    setupNavWindow();
-    // Every projection context must resolve to a real theme bundle --
-    // warns in console if any design falls back to factory defaults.
-    if (typeof window !== "undefined" && window.themeManager && typeof window.themeManager.validateProjectionContexts === "function") {
-      window.themeManager.validateProjectionContexts();
-    }
-    syncTabHeaderHeights();
-    if (typeof sizeSidebarPreview === "function") {
-      try { sizeSidebarPreview(); } catch (e) {}
-    }
-    if (typeof initNotepad === "function") {
-      try { initNotepad(); } catch (e) {}
-    }
-    if (typeof loadLogoScreenConfig === "function") {
-      try { loadLogoScreenConfig(); } catch (e) {}
-    }
-    if (typeof renderLogoOverlay === "function") {
-      try { renderLogoOverlay(); } catch (e) {}
-    }
-    if (typeof maybeShowRemoteToast === "function") {
-      try { maybeShowRemoteToast(); } catch (e) {}
-    }
-    if (typeof updateProjectionControls === "function") {
-      try { updateProjectionControls(); } catch (e) {}
-    }
-    AppUI.setupApplicationMenu("menu/menu.xml");
-    window.addEventListener("resize", setupNavWindow);
-    window.addEventListener("beforeunload", processExit);
-  }, 500);
+
+  // Await async version registry, configuration, and UI template preloading
+  // deterministically instead of relying on a blind 500ms setTimeout.
+  try {
+    await Promise.all([
+      loadBibleVersion(),
+      loadConfig(),
+      preloadContentTemplates()
+    ]);
+    await Promise.all([
+      loadBibleAsync(version1),
+      loadBibleAsync(version2)
+    ]);
+  } catch (e) {
+    console.warn("[INIT] Async preload warning, continuing with fallback:", e);
+  }
+
+  loadBible(version1, false);
+  loadBible(version2, false);
+  loadBookNames(version1);
+  generateTabContent();
+  splash(false);
+  setupNavWindow();
+  // Every projection context must resolve to a real theme bundle --
+  // warns in console if any design falls back to factory defaults.
+  if (typeof window !== "undefined" && window.themeManager && typeof window.themeManager.validateProjectionContexts === "function") {
+    window.themeManager.validateProjectionContexts();
+  }
+  syncTabHeaderHeights();
+  if (typeof sizeSidebarPreview === "function") {
+    try { sizeSidebarPreview(); } catch (e) {}
+  }
+  if (typeof initNotepad === "function") {
+    try { initNotepad(); } catch (e) {}
+  }
+  if (typeof loadLogoScreenConfig === "function") {
+    try { loadLogoScreenConfig(); } catch (e) {}
+  }
+  if (typeof renderLogoOverlay === "function") {
+    try { renderLogoOverlay(); } catch (e) {}
+  }
+  if (typeof loadAttentionScreenConfig === "function") {
+    try { loadAttentionScreenConfig(); } catch (e) {}
+  }
+  if (typeof renderAttentionOverlay === "function") {
+    try { renderAttentionOverlay(); } catch (e) {}
+  }
+  if (typeof maybeShowRemoteToast === "function") {
+    try { maybeShowRemoteToast(); } catch (e) {}
+  }
+  if (typeof updateProjectionControls === "function") {
+    try { updateProjectionControls(); } catch (e) {}
+  }
+  AppUI.setupApplicationMenu("menu/menu.xml");
+  window.addEventListener("resize", setupNavWindow);
+  window.addEventListener("beforeunload", processExit);
 }
 function setupNavWindow() {
   const e = 20;
@@ -993,6 +1135,11 @@ function generateTabContent() {
   songNavObj.init();
   songManagerObj = new songManagerClass();
   songManagerObj.init(true);
+  // Initialize modern song list & lyric card sync immediately after songManagerObj
+  // populates the first song so Song #0's lyric cards and title highlight on first open.
+  if (typeof setupModernSongNavSync === "function") {
+    setupModernSongNavSync();
+  }
   songEditObj = new songEditClass();
   songEditObj.init(songEditUI);
   helpObj = new vvhelpClass();
@@ -1003,11 +1150,18 @@ function generateTabContent() {
 }
 /**
  * Reads text content from a file path into global varID.
- * Uses synchronous Node.js fs if available to preserve execution timing,
- * or synchronous localStorage / cached AppStorage, falling back to fetch.
+ * Checks the async-preloaded window._templateCache first (0ms in-memory hit),
+ * then falls back to Node.js fs or AppStorage/XHR for dynamic paths.
  */
 function readContentFile2Var(a) {
   try {
+    if (typeof window !== "undefined" && window._templateCache) {
+      const cached = window._templateCache[a] || window._templateCache[String(a).replace(/^\.\//, "")];
+      if (typeof cached === "string" && cached.length > 0) {
+        varID = cached;
+        return;
+      }
+    }
     if (typeof require === "function") {
       const fs = require("fs");
       const path = require("path");
@@ -1040,11 +1194,18 @@ function readContentFile2Var(a) {
 
 /**
  * Reads tab template content and injects into target DOM element, then initializes the tab.
+ * Uses the async-preloaded window._templateCache when available to avoid main-thread stalls.
  */
 function readTabContentFile(a, b) {
   let content = "";
   try {
-    if (typeof require === "function") {
+    if (typeof window !== "undefined" && window._templateCache) {
+      const cached = window._templateCache[a] || window._templateCache[String(a).replace(/^\.\//, "")];
+      if (typeof cached === "string" && cached.length > 0) {
+        content = cached;
+      }
+    }
+    if (!content && typeof require === "function") {
       const fs = require("fs");
       const path = require("path");
       const cleanPath = a.startsWith("file://") ? a.replace("file://", "") : a;
@@ -1701,8 +1862,8 @@ function setupModernNavSync() {
         let html = '';
         for(let i=0; i < legacySelect.options.length; i++) {
             
-            // If typeahead is active with candidates, hide books that don't match
-            if (typeahead && typeahead.candidates && typeahead.candidates.length > 0) {
+            // If typeahead search is active, hide books that don't match candidates
+            if (typeahead && typeahead.query) {
                 if (!candidateMap.has(i)) {
                     continue; // Hide books that don't match the search
                 }
@@ -1752,11 +1913,22 @@ function setupModernNavSync() {
                 const hlClass = isActive 
                     ? 'bg-amber-300 text-slate-900 px-0.5 rounded font-extrabold'
                     : 'bg-amber-200 text-amber-900 px-0.5 rounded font-bold';
-                const cleanQ = typeahead.query.trim().replace(/[^a-zA-Z0-9]/g, '');
-                if (cleanQ) {
-                    const regex = new RegExp(`(${cleanQ})`, 'gi');
-                    primaryName = primaryName.replace(regex, `<span class="${hlClass}">$1</span>`);
-                    secondaryName = secondaryName.replace(regex, `<span class="${hlClass}">$1</span>`);
+                const tokens = typeahead.query.trim().split(/\s+/).map(t => t.replace(/[^a-zA-Z0-9]/g, '')).filter(Boolean);
+                if (tokens.length > 0) {
+                    const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const patterns = [];
+                    if (tokens.length > 1) {
+                        patterns.push(tokens.map(esc).join('\\s+'));
+                        patterns.push(tokens.map(esc).join(''));
+                    }
+                    tokens.forEach(t => {
+                        if (t.length >= 2 || !patterns.length) patterns.push(esc(t));
+                    });
+                    if (patterns.length > 0) {
+                        const regex = new RegExp(`(${patterns.join('|')})`, 'gi');
+                        primaryName = primaryName.replace(regex, `<span class="${hlClass}">$1</span>`);
+                        secondaryName = secondaryName.replace(regex, `<span class="${hlClass}">$1</span>`);
+                    }
                 }
             }
 
@@ -1876,6 +2048,7 @@ function setupModernNavSync() {
 
 let songNavSyncRetries = 0;
 function setupModernSongNavSync() {
+    if (window._modernSongNavSynced) return;
     const legacyCategory = document.getElementById('songnav_category');
     const modernCategory = document.getElementById('modernSongCategory');
     const legacySearch = document.getElementById('songnav_editbox');
@@ -1891,33 +2064,277 @@ function setupModernSongNavSync() {
         }
         return;
     }
+    window._modernSongNavSynced = true;
     console.log("Modern song nav sync initialized successfully.");
 
     // Sync categories
     setTimeout(() => { modernCategory.innerHTML = legacyCategory.innerHTML; }, 500);
     modernCategory.addEventListener('change', () => {
+        if (modernSearch && modernSearch.value) {
+            modernSearch.value = '';
+            window.currentSongTypeaheadResult = null;
+            const clearBtn = document.getElementById('modernSongClearBtn');
+            if (clearBtn) clearBtn.classList.add('hidden');
+        }
+        legacyCategory.selectedIndex = modernCategory.selectedIndex;
         legacyCategory.value = modernCategory.value;
-        if(typeof songCategoryFilter === 'function') songCategoryFilter();
+        legacyCategory.dispatchEvent(new Event('change'));
     });
 
-    // Sync search
+    // Intelligent real-time Song Search (mirrors Bible Book Search)
+    window.currentSongTypeaheadResult = null;
+
+    function normSongText(str) {
+        if (!str) return "";
+        return str
+            .toString()
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]/g, "");
+    }
+
+    function songLevenshtein(s1, s2) {
+        const len1 = s1.length;
+        const len2 = s2.length;
+        const dp = Array.from({ length: len1 + 1 }, () => new Int32Array(len2 + 1));
+        for (let i = 0; i <= len1; i++) dp[i][0] = i;
+        for (let k = 0; k <= len2; k++) dp[0][k] = k;
+        for (let i = 1; i <= len1; i++) {
+            for (let k = 1; k <= len2; k++) {
+                const cost = s1[i - 1] === s2[k - 1] ? 0 : 1;
+                dp[i][k] = Math.min(dp[i - 1][k] + 1, dp[i][k - 1] + 1, dp[i - 1][k - 1] + cost);
+            }
+        }
+        return dp[len1][len2];
+    }
+
+    function searchCandidateSongs(input) {
+        if (!input || typeof input !== "string") return null;
+        const qClean = input.trim();
+        const qNorm = normSongText(qClean);
+        if (!qNorm) return null;
+
+        const songData = (window.songDataStore && Array.isArray(window.songDataStore.songTitle))
+            ? window.songDataStore.songTitle
+            : [];
+        if (songData.length === 0) return null;
+
+        // Collect raw rows map for lyrics and extra metadata
+        const rawMap = new Map();
+        if (typeof songManagerObj !== 'undefined' && songManagerObj) {
+            let rawList = [];
+            if (typeof songManagerObj.getRawSongRows === 'function') {
+                rawList = songManagerObj.getRawSongRows();
+            } else if (songManagerObj.allSongsResult && Array.isArray(songManagerObj.allSongsResult.data)) {
+                rawList = songManagerObj.allSongsResult.data;
+            }
+            if (Array.isArray(rawList)) {
+                rawList.forEach(r => {
+                    if (r) {
+                        if (r.id != null) rawMap.set(String(r.id), r);
+                        if (r.name) rawMap.set(String(r.name).trim().toLowerCase(), r);
+                    }
+                });
+            }
+        }
+
+        const numMatch = qClean.replace(/^#/, '').match(/^(\d+)$/);
+        const qNum = numMatch ? parseInt(numMatch[1], 10) : null;
+
+        const scoredCandidates = [];
+
+        for (let i = 0; i < songData.length; i++) {
+            const item = songData[i];
+            const title = item.Title || item.name || '';
+            const tNorm = normSongText(title);
+            if (!tNorm) continue;
+
+            const raw = rawMap.get(String(item.id)) || rawMap.get(title.trim().toLowerCase()) || null;
+            const lyrics = raw ? (raw.lyrics || '') : '';
+
+            let bestScore = -1;
+            let matchType = '';
+            let snippet = '';
+
+            // 1. Number match (e.g. typing "1" or "#1" matches song #1 or title starting with number)
+            if (qNum !== null) {
+                const titleNumMatch = title.match(/(?:^|[^\d])0*(\d+)(?:[^\d]|$)/);
+                if (titleNumMatch && parseInt(titleNumMatch[1], 10) === qNum) {
+                    bestScore = 920;
+                    matchType = 'number_title';
+                } else if (item.id === qNum) {
+                    bestScore = 750;
+                    matchType = 'number_id';
+                }
+            }
+
+            // 2. Exact Title Match
+            if (tNorm === qNorm) {
+                bestScore = 1000;
+                matchType = 'exact';
+            }
+            // 3. Title Prefix Match
+            else if (tNorm.startsWith(qNorm)) {
+                const score = 850 - Math.min(100, (tNorm.length - qNorm.length) * 2);
+                if (score > bestScore) {
+                    bestScore = score;
+                    matchType = 'prefix';
+                }
+            }
+            // 4. Word-initial prefix in title (e.g. searching "Upaya" matches "Calam At Upaya")
+            else {
+                const words = title.split(/[\s\-_,\.;:]+/).map(normSongText).filter(Boolean);
+                for (let w of words) {
+                    if (w.startsWith(qNorm)) {
+                        const score = 800 - Math.min(100, (w.length - qNorm.length) * 2);
+                        if (score > bestScore) {
+                            bestScore = score;
+                            matchType = 'word_prefix';
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // 5. Title Substring Match
+            if (bestScore < 650 && tNorm.includes(qNorm) && qNorm.length >= 2) {
+                const score = 650 - Math.min(100, (tNorm.length - qNorm.length) * 2);
+                if (score > bestScore) {
+                    bestScore = score;
+                    matchType = 'substring';
+                }
+            }
+
+            // 6. Fuzzy Match on Title / Words (tolerates typos)
+            if (bestScore < 450 && qNorm.length >= 3) {
+                let minDist = songLevenshtein(qNorm, tNorm);
+                const words = title.split(/[\s\-_,\.;:]+/).map(normSongText).filter(Boolean);
+                for (let w of words) {
+                    if (w.length >= 3) {
+                        const d = songLevenshtein(qNorm, w);
+                        if (d < minDist) minDist = d;
+                    }
+                }
+                const maxAllowed = qNorm.length >= 7 ? 3 : (qNorm.length >= 4 ? 2 : 1);
+                if (minDist <= maxAllowed) {
+                    const score = 450 - minDist * 50;
+                    if (score > bestScore) {
+                        bestScore = score;
+                        matchType = 'fuzzy';
+                    }
+                }
+            }
+
+            // 7. Lyrics match (secondary fallback)
+            if (bestScore < 400 && lyrics && qNorm.length >= 3) {
+                const cleanLyrics = lyrics.replace(/<slide>|<br\s*\/?>/gi, ' ').replace(/\s+/g, ' ');
+                const lNorm = normSongText(cleanLyrics);
+                if (lNorm.includes(qNorm)) {
+                    const score = 350;
+                    if (score > bestScore) {
+                        bestScore = score;
+                        matchType = 'lyrics';
+                        const pos = cleanLyrics.toLowerCase().indexOf(qClean.toLowerCase());
+                        if (pos >= 0) {
+                            const start = Math.max(0, pos - 20);
+                            const end = Math.min(cleanLyrics.length, pos + qClean.length + 25);
+                            snippet = (start > 0 ? '...' : '') + cleanLyrics.substring(start, end).trim() + (end < cleanLyrics.length ? '...' : '');
+                        }
+                    }
+                }
+            }
+
+            if (bestScore > 0) {
+                scoredCandidates.push({
+                    index: i,
+                    score: bestScore,
+                    matchType: matchType,
+                    name: title,
+                    snippet: snippet
+                });
+            }
+        }
+
+        scoredCandidates.sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            return String(a.name || '').trim().localeCompare(String(b.name || '').trim(), undefined, { sensitivity: 'base' });
+        });
+
+        return {
+            query: qClean,
+            strongestCandidate: scoredCandidates.length > 0 ? scoredCandidates[0].index : -1,
+            candidates: scoredCandidates
+        };
+    }
+
+    function handleSongSearchInput(val) {
+        if (legacySearch) legacySearch.value = val;
+        const clearBtn = document.getElementById('modernSongClearBtn');
+        if (clearBtn) {
+            if (val && val.trim() !== '') clearBtn.classList.remove('hidden');
+            else clearBtn.classList.add('hidden');
+        }
+
+        if (!val || val.trim() === '') {
+            window.currentSongTypeaheadResult = null;
+            renderSongList();
+            return;
+        }
+
+        const searchRes = searchCandidateSongs(val);
+        window.currentSongTypeaheadResult = searchRes;
+
+        // Auto-select strongest candidate to show lyrics immediately (matching book search behavior)
+        if (searchRes && searchRes.strongestCandidate >= 0) {
+            if (window.selectedSongIdx !== searchRes.strongestCandidate) {
+                window.selectSongByIndex(searchRes.strongestCandidate);
+            }
+        }
+        renderSongList();
+    }
+
+    // Sync modern search events
+    modernSearch.addEventListener('input', (e) => {
+        handleSongSearchInput(e.target.value);
+    });
+
+    modernSearch.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const res = window.currentSongTypeaheadResult;
+            if (res && res.strongestCandidate >= 0) {
+                window.selectSongByIndex(res.strongestCandidate);
+            }
+        } else if (e.key === 'Escape') {
+            modernSearch.value = '';
+            handleSongSearchInput('');
+        }
+    });
+
     modernSearchBtn.addEventListener('click', () => {
-        legacySearch.value = modernSearch.value;
-        legacySearchBtn.click();
-    });
-    modernSearch.addEventListener('keyup', (e) => {
-        if(e.key === 'Enter') modernSearchBtn.click();
+        handleSongSearchInput(modernSearch.value);
     });
 
-    window.presentedSongIdx = -1;
-    window.selectedSongIdx = -1;
-    window.presentedSlideIdx = -1;
+    const modernClearBtn = document.getElementById('modernSongClearBtn');
+    if (modernClearBtn) {
+        modernClearBtn.addEventListener('click', () => {
+            modernSearch.value = '';
+            handleSongSearchInput('');
+            modernSearch.focus();
+        });
+    }
+
+    // Preserve any existing selection/presentation state instead of resetting to -1
+    if (typeof window.presentedSongIdx !== 'number') window.presentedSongIdx = -1;
+    if (typeof window.selectedSongIdx !== 'number' || window.selectedSongIdx < 0) window.selectedSongIdx = 0;
+    if (typeof window.presentedSlideIdx !== 'number') window.presentedSlideIdx = -1;
 
     // Helper to highlight slides
     window.updateSongSlideHighlight = function() {
         const slideDivs = document.querySelectorAll('#ly_slide div[id^="lyricsID"]');
         slideDivs.forEach((div, sIdx) => {
-            if (sIdx === window.presentedSlideIdx && window.presentedSongIdx === window.selectedSongIdx) {
+            if (sIdx === window.presentedSlideIdx && window.presentedSongIdx >= 0 && window.presentedSongIdx === window.selectedSongIdx) {
                 div.classList.add('slide-presented');
             } else {
                 div.classList.remove('slide-presented');
@@ -1946,12 +2363,14 @@ function setupModernSongNavSync() {
     const legacyPresentBtn = document.getElementById('songnav_presentbutton');
     if (legacyPresentBtn) {
         legacyPresentBtn.addEventListener('click', () => {
-            if (window.selectedSongIdx >= 0) {
-                window.presentedSongIdx = window.selectedSongIdx;
-                window.presentedSlideIdx = 0; // Default to first slide
-                renderSongList();
-                updateSongSlideHighlight();
+            if (typeof window.selectedSongIdx !== 'number' || window.selectedSongIdx < 0) {
+                window.selectedSongIdx = 0;
             }
+            window.presentedSongIdx = window.selectedSongIdx;
+            window.presentedSlideIdx = 0; // Default to first slide
+            renderSongList();
+            attachSlideClickListeners();
+            updateSongSlideHighlight();
         });
     }
 
@@ -1970,7 +2389,8 @@ function setupModernSongNavSync() {
             songNavObj.setSelectedSong(idx, title);
         }
         renderSongList();
-        setTimeout(attachSlideClickListeners, 300);
+        attachSlideClickListeners();
+        setTimeout(attachSlideClickListeners, 100);
     };
 
     // Double-clicking the song title highlights it in green, projects first slide, highlights first slide card in green
@@ -1993,10 +2413,12 @@ function setupModernSongNavSync() {
             presentBtn.click();
         }
         renderSongList();
+        attachSlideClickListeners();
+        updateSongSlideHighlight();
         setTimeout(() => {
             attachSlideClickListeners();
             updateSongSlideHighlight();
-        }, 300);
+        }, 150);
     };
 
     function attachSlideClickListeners() {
@@ -2006,6 +2428,9 @@ function setupModernSongNavSync() {
                 div.dataset.highlightHooked = "true";
                 div.addEventListener('click', () => {
                     // Clicking a slide/card will project that slide, highlight that card in green and highlight the song title in green
+                    if (typeof window.selectedSongIdx !== 'number' || window.selectedSongIdx < 0) {
+                        window.selectedSongIdx = 0;
+                    }
                     window.presentedSongIdx = window.selectedSongIdx;
                     window.presentedSlideIdx = sIdx;
                     renderSongList();
@@ -2072,12 +2497,41 @@ function setupModernSongNavSync() {
             modernList.innerHTML = '<div class="p-4 text-center text-xs text-slate-400">No songs found.</div>';
             return;
         }
+
+        const typeahead = window.currentSongTypeaheadResult;
+        const candidateMap = new Map();
+        if (typeahead && typeahead.candidates && typeahead.candidates.length > 0) {
+            typeahead.candidates.forEach(c => candidateMap.set(c.index, c));
+        }
+
+        if (typeahead && typeahead.query && candidateMap.size === 0) {
+            modernList.innerHTML = `<div class="p-4 text-center text-xs text-slate-400 italic">No matching songs found for "${typeahead.query}"</div>`;
+            return;
+        }
+
+        // Keep window.presentedSongIdx in sync with currently live song
+        if (window.liveSongState && window.liveSongState.title && songData) {
+            const liveTitle = String(window.liveSongState.title).trim().toLowerCase();
+            const foundLive = songData.findIndex(s => (s.Title || s.name || "").trim().toLowerCase() === liveTitle);
+            window.presentedSongIdx = foundLive;
+        }
+
+        // Clamp selectedSongIdx if out of bounds
+        if (typeof window.selectedSongIdx === 'number' && window.selectedSongIdx >= totalItems) {
+            window.selectedSongIdx = totalItems > 0 ? 0 : -1;
+        }
+
         let html = '';
-        for (let i = 0; i < totalItems; i++) {
+        const count = (typeahead && typeahead.query) ? typeahead.candidates.length : totalItems;
+
+        for (let idx = 0; idx < count; idx++) {
+            const i = (typeahead && typeahead.query) ? typeahead.candidates[idx].index : idx;
+            const cand = (typeahead && typeahead.query) ? typeahead.candidates[idx] : null;
+
             let title = '';
             let isLegacySelected = false;
 
-            if (songData) {
+            if (songData && songData[i]) {
                 title = songData[i].Title || songData[i].name || '';
                 if (rows[i] && rows[i].classList.contains('app-row-selected')) {
                     isLegacySelected = true;
@@ -2092,7 +2546,7 @@ function setupModernSongNavSync() {
 
             if (!title || title.trim() === 'Data Table Shim' || title.trim() === 'No records found.') continue;
 
-            if (isLegacySelected && window.selectedSongIdx === -1) {
+            if (isLegacySelected && (window.selectedSongIdx === -1 || window.selectedSongIdx >= totalItems)) {
                 window.selectedSongIdx = i;
             }
 
@@ -2106,13 +2560,56 @@ function setupModernSongNavSync() {
                 classes = 'song-selected';
             }
 
+            let displayTitle = title;
+            if (typeahead && typeahead.query) {
+                const hlClass = isSelected 
+                    ? 'bg-amber-300 text-slate-900 px-0.5 rounded font-extrabold'
+                    : 'bg-amber-200 text-amber-900 px-0.5 rounded font-bold';
+                const tokens = typeahead.query.trim().split(/\s+/).map(t => t.replace(/[^a-zA-Z0-9]/g, '')).filter(Boolean);
+                if (tokens.length > 0) {
+                    const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const patterns = [];
+                    if (tokens.length > 1) {
+                        patterns.push(tokens.map(esc).join('\\s+'));
+                        patterns.push(tokens.map(esc).join(''));
+                    }
+                    tokens.forEach(t => {
+                        if (t.length >= 2 || !patterns.length) patterns.push(esc(t));
+                    });
+                    if (patterns.length > 0) {
+                        const regex = new RegExp(`(${patterns.join('|')})`, 'gi');
+                        displayTitle = displayTitle.replace(regex, `<span class="${hlClass}">$1</span>`);
+                    }
+                }
+            }
+
+            let snippetHtml = '';
+            if (cand && cand.matchType === 'lyrics' && cand.snippet) {
+                let snip = cand.snippet;
+                const tokens = typeahead.query.trim().split(/\s+/).map(t => t.replace(/[^a-zA-Z0-9]/g, '')).filter(Boolean);
+                if (tokens.length > 0) {
+                    const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const regex = new RegExp(`(${tokens.map(esc).join('|')})`, 'gi');
+                    snip = snip.replace(regex, '<span class="bg-amber-200 text-amber-900 px-0.5 rounded font-bold">$1</span>');
+                }
+                snippetHtml = `<div class="text-[10px] text-slate-500 italic mt-0.5 truncate flex items-center gap-1"><span class="px-1 py-0.2 rounded bg-slate-200/70 text-[9px] font-semibold text-slate-600 uppercase tracking-wider shrink-0">In Lyrics</span> <span class="truncate">${snip}</span></div>`;
+            }
+
+            const songHasAudio = !!(songData && songData[i] && songData[i].audio);
+
             html += `
                 <div id="songRow_${i}"
                      onclick="selectSongByIndex(${i})" 
                      ondblclick="presentSongByIndex(${i})"
                      class="p-2.5 border rounded-lg cursor-pointer transition ${classes}">
                     <div class="flex items-center justify-between gap-1">
-                        <p class="text-xs font-bold leading-snug truncate flex-1 min-w-0">${title}</p>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-bold leading-snug truncate flex items-center">
+                              <span class="truncate">${displayTitle}</span>
+                              ${songHasAudio ? '<i class="fa-solid fa-music text-purple-600 text-[10px] ml-1.5 shrink-0" title="Has backing track audio"></i>' : ''}
+                            </p>
+                            ${snippetHtml}
+                        </div>
                         ${isPresented ? '<span class="px-1.5 py-0.2 rounded-full bg-emerald-600 text-white text-[9px] font-bold uppercase tracking-wider shrink-0">LIVE</span>' : ''}
                         <div class="flex items-center gap-1 opacity-90 shrink-0 text-[10px]">
                             <div class="has-tooltip"><button onclick="quickPresentSong(${i}, event)" class="p-1 hover:bg-black/10 text-emerald-600 hover:text-emerald-700 rounded transition"><i class="fa-solid fa-play"></i></button><div class="tooltip-content tooltip-bottom">Present Song</div></div>
@@ -2125,16 +2622,27 @@ function setupModernSongNavSync() {
             `;
         }
         modernList.innerHTML = html;
-        try { if (modernList) modernList.scrollTop = savedScroll; } catch (e) {}
+        try {
+            if (modernList) {
+                const selectedEl = modernList.querySelector('.song-selected');
+                if (typeahead && typeahead.query && selectedEl && typeof selectedEl.scrollIntoView === 'function') {
+                    selectedEl.scrollIntoView({ block: 'nearest' });
+                } else {
+                    modernList.scrollTop = savedScroll;
+                }
+            }
+        } catch (e) {}
     }
     window.renderModernSongList = renderSongList;
     window.updateSongListHighlight = renderSongList;
 
-    // Immediately sync categories and render songs if already available in DOM
+    // Immediately sync categories, render songs, and hook initial Song #0 lyric cards
+    // that were already rendered into #ly_slide prior to MutationObserver setup.
     if (legacyCategory.options.length > 0) {
         modernCategory.innerHTML = legacyCategory.innerHTML;
     }
     renderSongList();
+    attachSlideClickListeners();
 
     const listObserver = new MutationObserver(() => renderSongList());
     listObserver.observe(legacyListContainer, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
