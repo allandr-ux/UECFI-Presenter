@@ -121,9 +121,36 @@
         <div class="text-[11px] text-slate-500">
           Use timestamps like <code class="bg-slate-100 px-1 py-0.5 rounded text-purple-700 font-mono">[00:15.50]</code> at the start of each line.
         </div>
-        <button type="button" id="se_tapSyncBtn" onclick="if(songEditObj && songEditObj.openTapSyncModal) songEditObj.openTapSyncModal();" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
-          <i class="fa-solid fa-stopwatch text-purple-600"></i> Tap to Sync Timestamps
-        </button>
+        <div class="flex items-center gap-2">
+          <label for="se_leadAdvanceMs" class="text-[11px] font-semibold text-slate-600 flex items-center gap-1" title="How many milliseconds in advance a line advances (up to 2000ms in 100ms increments)">
+            <i class="fa-solid fa-clock-rotate-left text-[10px] text-purple-600"></i> Lead:
+          </label>
+          <input type="number" id="se_leadAdvanceMs" min="0" max="2000" step="100" placeholder="0" 
+                 class="w-16 px-2 py-1 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono text-center text-slate-800 focus:outline-none focus:border-brand-500">
+          <span class="text-[10px] text-slate-400">ms</span>
+
+          <label for="se_teleprompterFontSize" class="ml-2 text-[11px] font-semibold text-slate-600 flex items-center gap-1">
+            <i class="fa-solid fa-font text-[10px] text-purple-600"></i> Font Size:
+          </label>
+          <input type="number" id="se_teleprompterFontSize" min="24" max="140" step="1" placeholder="56" 
+                 class="w-16 px-2 py-1 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono text-center text-slate-800 focus:outline-none focus:border-brand-500">
+          <span class="text-[10px] text-slate-400">px</span>
+
+          <!-- Highlighted Text Outline Option (Color & Thickness) -->
+          <label class="ml-2 text-[11px] font-semibold text-slate-600 flex items-center gap-1 cursor-pointer" title="Add text outline to highlighted singing line">
+            <input type="checkbox" id="se_activeOutlineEnabled" onchange="const c = document.getElementById('se_outlineControls'); if(c) c.style.display = this.checked ? 'flex' : 'none';" class="rounded border-slate-300 text-purple-600 focus:ring-purple-500">
+            <span>Outline:</span>
+          </label>
+          <div id="se_outlineControls" style="display:none;" class="flex items-center gap-1.5">
+            <input type="color" id="se_activeOutlineColor" value="#000000" title="Outline Color" class="w-6 h-6 rounded border border-slate-300 cursor-pointer p-0.5">
+            <input type="number" id="se_activeOutlineThickness" min="1" max="12" step="1" value="2" placeholder="2" title="Outline Thickness (px)" class="w-12 px-1.5 py-1 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono text-center text-slate-800 focus:outline-none focus:border-brand-500">
+            <span class="text-[10px] text-slate-400">px</span>
+          </div>
+
+          <button type="button" id="se_tapSyncBtn" onclick="if(songEditObj && songEditObj.openTapSyncModal) songEditObj.openTapSyncModal();" class="ml-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer">
+            <i class="fa-solid fa-stopwatch text-purple-600"></i> Tap to Sync Timestamps
+          </button>
+        </div>
       </div>
     </div>
 
@@ -142,10 +169,6 @@
       <input type="button" id="songEdit_addSlideButtonID" value="ADD">
       <input type="button" id="songEdit_deleteSlideButtonID" value="DELETE">
       <input type="button" id="songEdit_createSlidesButtonID" value="CREATE">
-      <select id="se_fontID2"></select>
-      <input type="button" id="se_addFontButtonID2" value="ADD Font">
-      <input type="text" id="se_fontTextID" value="">
-      <input type="button" id="se_submitFontButtonID2" value="OK">
     </div>
 
   </div>

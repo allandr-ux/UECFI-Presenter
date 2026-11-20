@@ -143,6 +143,9 @@ function saveVersionSelection() {
   window.bibleVersionArray = bibleVersionArray;
   saveConfigXML();
   updateVerseContainer();
+  if (typeof updateBibleModeUI === "function") {
+    try { updateBibleModeUI(); } catch (e) {}
+  }
   if (typeof window.renderModernBookList === "function") {
     window.renderModernBookList();
   }

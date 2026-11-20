@@ -20,6 +20,7 @@ process.on("unhandledRejection", (reason) => {
 });
 
 app.commandLine.appendSwitch("disable-http-cache");
+app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 
 function createWindow() {
   logDebug("createWindow called");

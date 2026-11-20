@@ -7,7 +7,7 @@
         <h2 class="text-base font-bold text-slate-800 tracking-tight leading-tight flex items-center gap-1.5">
           <i class="fa-regular fa-calendar-check text-brand-600"></i> Service Schedule Manager
         </h2>
-        <p class="text-[11px] text-slate-400 mt-0.5">Prepare and order verses and songs for the church service</p>
+        <p class="text-[11px] text-slate-400 mt-0.5">Prepare and order verses, songs, and readings for the centro service</p>
       </div>
 
       <!-- Action Toolbar -->

@@ -366,8 +366,8 @@ function launch(g) {
   let h = 0;
   h = p_last_index + 1;
   j = p_last_index;
-  b = content1;
-  a = content2;
+  b = (typeof content1 !== "undefined" && content1) ? content1.slice() : [];
+  a = (typeof content2 !== "undefined" && content2) ? content2.slice() : [];
   if (e == 2) {
     const l = h % 2;
     if (l == 0) {
@@ -396,11 +396,66 @@ function launch(g) {
     var j = (n > 0) ? n - 1 : parseInt(p_last_index / e) - 1;
   }
   const k = parseInt(g / e);
-  if (singleVersion) {
+
+  // Always preserve full dual verse arrays and dual footnote for speaker remote mode.
+  // The speaker at the pulpit always needs both verse translations (e.g. Tagalog & English)
+  // regardless of whether the projectionist sets the main centro screen to single version (v1 or v2).
+  window.p_dual_text1_arr = b.slice();
+  window.p_dual_text2_arr = a.slice();
+  window.p_dual_footnote = (typeof bibleVersionArray !== "undefined" && typeof version1 !== "undefined" && typeof version2 !== "undefined" && bibleVersionArray[version1] && bibleVersionArray[version2])
+    ? `${bibleVersionArray[version1][3]} / ${bibleVersionArray[version2][3]}`
+    : (p_footer || "");
+
+  // Apply Quick Bible Display Mode: 'dual' | 'v1' | 'v2'
+  let displayMode = window.bibleDisplayMode || localStorage.getItem('uecfi_bible_display_mode') || (singleVersion ? 'v1' : 'dual');
+
+  const studio = (typeof window !== "undefined" && window.liveStudio) ? window.liveStudio : null;
+  const hasStageVideo = Boolean(studio && studio.activeStageSource && studio.activeStageSource.stream);
+
+  // Main display should always be dual verse mode when no video feed present.
+  // When no video feed is active on stage, enforce dual verse mode.
+  if (!hasStageVideo && displayMode !== 'dual') {
+    displayMode = 'dual';
+    window.bibleDisplayMode = 'dual';
+    try { localStorage.setItem('uecfi_bible_display_mode', 'dual'); } catch (e) {}
+    if (typeof updateBibleModeUI === "function") updateBibleModeUI();
+  }
+
+  // Lower third should always be single version only.
+  const isLowerThird = Boolean(hasStageVideo && studio.stageLayout === 'lower-third');
+  if (isLowerThird && displayMode === 'dual') {
+    displayMode = 'v1';
+    window.bibleDisplayMode = 'v1';
+    try { localStorage.setItem('uecfi_bible_display_mode', 'v1'); } catch (e) {}
+    if (typeof updateBibleModeUI === "function") updateBibleModeUI();
+    if (typeof window.promptLowerThirdVersion === "function") {
+      window.promptLowerThirdVersion();
+    }
+  }
+  window.bibleDisplayMode = displayMode;
+
+  if (displayMode === 'v1') {
     const d = a.length;
     for (f = 0; f < d; f++) {
       a[f] = "";
     }
+    singleVersion = true;
+    p_footer = (typeof bibleVersionArray !== "undefined" && bibleVersionArray[version1]) ? bibleVersionArray[version1][3] : "";
+  } else if (displayMode === 'v2') {
+    // Show Version 2 as primary on projection!
+    b = a.slice();
+    const d = a.length;
+    for (f = 0; f < d; f++) {
+      a[f] = "";
+    }
+    singleVersion = true;
+    p_footer = (typeof bibleVersionArray !== "undefined" && bibleVersionArray[version2]) ? bibleVersionArray[version2][3] : "";
+  } else {
+    // Dual mode
+    singleVersion = false;
+    p_footer = (typeof bibleVersionArray !== "undefined" && bibleVersionArray[version1] && bibleVersionArray[version2])
+      ? `${bibleVersionArray[version1][3]} / ${bibleVersionArray[version2][3]}`
+      : "";
   }
   p_text1_arr = b;
   p_text2_arr = a;
@@ -409,8 +464,12 @@ function launch(g) {
   // A verse present supersedes any schedule highlight and any live program:
   // monitor/remote transport returns to verse navigation.
   window.presentedScheduleId = null;
-  if (typeof window !== "undefined") window.liveProgramActive = false;  if (typeof window.updateScheduleHighlight === "function") window.updateScheduleHighlight();
+  if (typeof window !== "undefined") window.liveProgramActive = false;
+  if (typeof window.updateScheduleHighlight === "function") window.updateScheduleHighlight();
   if (typeof window.updateScheduleSlideHighlight === "function") window.updateScheduleSlideHighlight();
+  if (typeof window !== "undefined" && window.programManager && typeof window.programManager.clearPresentationHighlight === "function") {
+    window.programManager.clearPresentationHighlight();
+  }
   p_footnote = p_footer;
   window.p_person_title = "";
   window.p_person_title_arr = [];
@@ -441,6 +500,212 @@ function launch(g) {
     if (card && typeof card.scrollIntoView === "function") card.scrollIntoView({ block: "center" });
   } catch (e) {}
 }
+
+/**
+ * Quick Toggle Bible Display Mode: 'dual' | 'v1' | 'v2'
+ * Switches live projection immediately without needing to re-select verses.
+ */
+function setBibleDisplayMode(mode) {
+  const studio = (typeof window !== "undefined" && window.liveStudio) ? window.liveStudio : null;
+  const hasStageVideo = Boolean(studio && studio.activeStageSource && studio.activeStageSource.stream);
+  const isLowerThirdActive = Boolean(hasStageVideo && studio.stageLayout === 'lower-third');
+
+  // Main display should always be dual verse mode when no video feed present.
+  // When no video feed is present on stage, single version (Version 1 / Version 2) is disabled
+  // because the main display must always remain in dual verse mode.
+  if (!hasStageVideo && mode !== 'dual') {
+    console.log('[BIBLE MODE] No video feed present: Main display must always be in dual verse mode.');
+    mode = 'dual';
+  }
+
+  // Lower third should always be single version only.
+  if (mode === 'dual' && isLowerThirdActive) {
+    console.log('[BIBLE MODE] Lower third is active: single version only allowed.');
+    if (typeof window.promptLowerThirdVersion === 'function') {
+      window.promptLowerThirdVersion();
+    }
+    return;
+  }
+
+  if (mode !== 'dual' && mode !== 'v1' && mode !== 'v2') mode = 'dual';
+  window.bibleDisplayMode = mode;
+  try {
+    localStorage.setItem('uecfi_bible_display_mode', mode);
+  } catch (e) {}
+
+  singleVersion = (mode !== 'dual');
+  const box = document.getElementById("singleVersionBoxID");
+  if (box) box.checked = (mode === 'v1');
+
+  if (typeof updateBibleModeUI === "function") {
+    updateBibleModeUI();
+  }
+
+  // If verses are currently being projected, refresh presentation live across all projection screens
+  // (external centro projector, operator live preview monitor, and remote companion streams)
+  const isVersesLive = (window.liveProjectionType === 'verses') ||
+    (typeof window.presentedVerseIndex === 'number' && window.presentedVerseIndex >= 0 && !window.presentedScheduleId && !window.liveProgramActive);
+
+  if (isVersesLive) {
+    if (typeof content1 !== "undefined" && content1 && content1.length > 0) {
+      const curIdx = (typeof window.presentedVerseIndex === "number" && window.presentedVerseIndex >= 0)
+        ? window.presentedVerseIndex
+        : ((typeof p_current_index === "number" && p_current_index >= 0) ? p_current_index : 0);
+
+      launch(curIdx);
+    } else if (mode === 'dual' && window.p_dual_text1_arr && window.p_dual_text1_arr.length > 0) {
+      p_text1_arr = window.p_dual_text1_arr.slice();
+      p_text2_arr = window.p_dual_text2_arr.slice();
+      if (window.p_dual_footnote) p_footnote = window.p_dual_footnote;
+      presentation();
+    }
+
+    passVariable();
+    if (typeof newWindow !== "undefined" && newWindow && newWindow.window) {
+      const win = newWindow.window;
+      try {
+        if (typeof win.passVariable === "function") win.passVariable();
+        if (typeof win.updatePresentation === "function") win.updatePresentation();
+        if (typeof win.updateContent2 === "function") win.updateContent2();
+      } catch (err) {
+        console.warn("[BIBLE MODE] Error updating projection window:", err);
+      }
+    }
+    if (typeof pushSidebarPreview === "function") {
+      pushSidebarPreview();
+    }
+  }
+}
+window.setBibleDisplayMode = setBibleDisplayMode;
+
+/**
+ * Updates Bible Mode button labels and active states in both toolbar and sidebar.
+ * Per centro projection design, buttons are strictly labeled "Version 1" and "Version 2".
+ */
+function updateBibleModeUI() {
+  const mode = window.bibleDisplayMode || localStorage.getItem('uecfi_bible_display_mode') || 'dual';
+  window.bibleDisplayMode = mode;
+
+  // Top toolbar buttons
+  const btnDual = document.getElementById("btnBibleModeDual");
+  const btnV1 = document.getElementById("btnBibleModeV1");
+  const btnV2 = document.getElementById("btnBibleModeV2");
+
+  if (btnV1) {
+    btnV1.textContent = "Version 1";
+    btnV1.title = "Display Version 1 Only";
+  }
+  if (btnV2) {
+    btnV2.textContent = "Version 2";
+    btnV2.title = "Display Version 2 Only";
+  }
+
+  const activeTopClass = "px-2.5 py-1 rounded-md text-xs font-bold transition cursor-pointer bg-white text-brand-700 shadow-xs";
+  const inactiveTopClass = "px-2.5 py-1 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer";
+
+  if (btnDual) btnDual.className = (mode === 'dual') ? activeTopClass : inactiveTopClass;
+  if (btnV1) btnV1.className = (mode === 'v1') ? activeTopClass : inactiveTopClass;
+  if (btnV2) btnV2.className = (mode === 'v2') ? activeTopClass : inactiveTopClass;
+
+  // Sidebar buttons
+  const sBtnDual = document.getElementById("quickBtnBibleDual");
+  const sBtnV1 = document.getElementById("quickBtnBibleV1");
+  const sBtnV2 = document.getElementById("quickBtnBibleV2");
+
+  if (sBtnV1) {
+    sBtnV1.textContent = "Version 1";
+    sBtnV1.title = "Version 1 Only";
+  }
+  if (sBtnV2) {
+    sBtnV2.textContent = "Version 2";
+    sBtnV2.title = "Version 2 Only";
+  }
+
+  const activeSideClass = "px-2 py-0.5 rounded text-[10px] font-bold bg-brand-600 text-white shadow-xs cursor-pointer";
+  const inactiveSideClass = "px-2 py-0.5 rounded text-[10px] font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer";
+
+  if (sBtnDual) sBtnDual.className = (mode === 'dual') ? activeSideClass : inactiveSideClass;
+  if (sBtnV1) sBtnV1.className = (mode === 'v1') ? activeSideClass : inactiveSideClass;
+  if (sBtnV2) sBtnV2.className = (mode === 'v2') ? activeSideClass : inactiveSideClass;
+}
+window.updateBibleModeUI = updateBibleModeUI;
+
+/**
+ * Lower-Third Bible Version Selection Dialog
+ * Lower third should always be single version only; prompts user to choose Version 1 or Version 2.
+ */
+let _pendingLowerThirdVersionCallback = null;
+
+function promptLowerThirdVersion(callback) {
+  _pendingLowerThirdVersionCallback = callback || null;
+
+  const modal = document.getElementById('lowerThirdVersionPromptModal');
+  if (!modal) {
+    if (callback) callback('v1');
+    return;
+  }
+
+  // Update helper subtitles if version names are loaded
+  try {
+    const v1El = document.getElementById('lowerThirdV1Label');
+    const v2El = document.getElementById('lowerThirdV2Label');
+    if (v1El && typeof bibleVersionArray !== "undefined" && typeof version1 !== "undefined" && bibleVersionArray[version1]) {
+      v1El.textContent = bibleVersionArray[version1][3] || "Primary Translation";
+    }
+    if (v2El && typeof bibleVersionArray !== "undefined" && typeof version2 !== "undefined" && bibleVersionArray[version2]) {
+      v2El.textContent = bibleVersionArray[version2][3] || "Secondary Translation";
+    }
+  } catch (e) {}
+
+  modal.style.display = 'flex';
+  modal.classList.remove('hidden');
+
+  if (window._ltVersionKeyHandler) {
+    window.removeEventListener('keydown', window._ltVersionKeyHandler, true);
+  }
+  window._ltVersionKeyHandler = (e) => {
+    if (modal.style.display === 'none') return;
+    if (e.key === '1' || e.key.toLowerCase() === 'v') {
+      e.preventDefault(); e.stopPropagation();
+      chooseLowerThirdVersion('v1');
+    } else if (e.key === '2') {
+      e.preventDefault(); e.stopPropagation();
+      chooseLowerThirdVersion('v2');
+    } else if (e.key === 'Escape') {
+      e.preventDefault(); e.stopPropagation();
+      closeLowerThirdVersionPrompt();
+    }
+  };
+  window.addEventListener('keydown', window._ltVersionKeyHandler, true);
+}
+window.promptLowerThirdVersion = promptLowerThirdVersion;
+
+function chooseLowerThirdVersion(mode) {
+  closeLowerThirdVersionPrompt();
+  if (typeof setBibleDisplayMode === 'function') {
+    setBibleDisplayMode(mode);
+  }
+  if (_pendingLowerThirdVersionCallback) {
+    const cb = _pendingLowerThirdVersionCallback;
+    _pendingLowerThirdVersionCallback = null;
+    cb(mode);
+  }
+}
+window.chooseLowerThirdVersion = chooseLowerThirdVersion;
+
+function closeLowerThirdVersionPrompt() {
+  const modal = document.getElementById('lowerThirdVersionPromptModal');
+  if (modal) {
+    modal.style.display = 'none';
+    modal.classList.add('hidden');
+  }
+  if (window._ltVersionKeyHandler) {
+    window.removeEventListener('keydown', window._ltVersionKeyHandler, true);
+    window._ltVersionKeyHandler = null;
+  }
+  _pendingLowerThirdVersionCallback = null;
+}
+window.closeLowerThirdVersionPrompt = closeLowerThirdVersionPrompt;
 /**
  * Asynchronously loads and parses a Bible XML file into bible[e] via AppStorage
  * so startup never stalls the UI thread with synchronous XMLHttpRequest calls.
@@ -628,6 +893,9 @@ function getdata() {
   }
   content1 = c;
   content2 = a;
+  // Expose on window so the remote webserver can dynamically reconstruct dual verses for speaker mode
+  window.content1 = c;
+  window.content2 = a;
 }
 function present() {
   bookIndex = document.getElementById("bookList").selectedIndex;
@@ -873,6 +1141,9 @@ async function preloadContentTemplates() {
     "./content/help.txt",
     "./content/song_edit.txt",
     "./content/song_lyrics.txt",
+    "./content/reading_nav.txt",
+    "./content/reading_slides.txt",
+    "./content/reading_edit.txt",
     "./content/program_nav.txt",
     "./content/program_workspace.txt"
   ];
@@ -944,6 +1215,9 @@ async function vvinit() {
   if (typeof renderAttentionOverlay === "function") {
     try { renderAttentionOverlay(); } catch (e) {}
   }
+  if (typeof updateBibleModeUI === "function") {
+    try { updateBibleModeUI(); } catch (e) {}
+  }
   if (typeof maybeShowRemoteToast === "function") {
     try { maybeShowRemoteToast(); } catch (e) {}
   }
@@ -997,6 +1271,11 @@ function setupNavWindow() {
     lyricsTab.style.width = b - 25;
     lyricsTab.style.height = tabHeight - 55;
   }
+  const readingSlidesTab = document.getElementById("readingSlidesTab");
+  if (readingSlidesTab) {
+    readingSlidesTab.style.width = b - 25;
+    readingSlidesTab.style.height = tabHeight - 55;
+  }
   const programTab = document.getElementById("programTab");
   if (programTab) {
     programTab.style.width = b - 25;
@@ -1025,6 +1304,7 @@ function syncTabHeaderHeights() {
     if (!refH) return false;
     const sels = [
       "#lyricsTab > div > div.shrink-0",
+      "#readingSlidesTab > div > div.shrink-0",
       "#searchTab > div > div.shrink-0",
       "#programWorkspace > div > div.shrink-0",
     ];
@@ -1077,6 +1357,10 @@ function generateTabContent() {
   readContentFile2Var("./content/song_edit.txt");
   songEditUI = varID;
   readTabContentFile("./content/song_lyrics.txt", "lyricsTab");
+  readTabContentFile("./content/reading_nav.txt", "readingNavTab");
+  readTabContentFile("./content/reading_slides.txt", "readingSlidesTab");
+  readContentFile2Var("./content/reading_edit.txt");
+  var readingEditUI = varID;
   readTabContentFile("./content/program_nav.txt", "programNavTab");
   readTabContentFile("./content/program_workspace.txt", "programTab");
   cpObj = new cp();
@@ -1120,6 +1404,14 @@ function generateTabContent() {
   }
   songEditObj = new songEditClass();
   songEditObj.init(songEditUI);
+
+  // Initialize Readings module (3rd tab)
+  readingNavObj = new readingNavClass();
+  readingNavObj.init();
+  readingManagerObj = new readingManagerClass();
+  readingManagerObj.init(true);
+  readingEditObj = new readingEditClass();
+  readingEditObj.init(readingEditUI);
   helpObj = new vvhelpClass();
   helpObj.init(helpContent);
   if (typeof window.programManager !== "undefined" && window.programManager && typeof window.programManager.init === "function") {
@@ -1397,6 +1689,10 @@ function tabFrame() {
     content: '<div id="songNavTab">Songs</div>',
   });
   b.addTab({
+    label: " Readings ",
+    content: '<div id="readingNavTab">Readings</div>',
+  });
+  b.addTab({
     label: " Program ",
     content: '<div id="programNavTab">Program</div>',
   });
@@ -1406,7 +1702,8 @@ function tabFrame() {
     const tabs = document.querySelectorAll('#container .app-modern-tabs ul li');
     if(tabs[0]) tabs[0].innerHTML = '<i class="fa-solid fa-book-bible"></i> Bible';
     if(tabs[1]) tabs[1].innerHTML = '<i class="fa-solid fa-music"></i> Songs';
-    if(tabs[2]) tabs[2].innerHTML = '<i class="fa-solid fa-list-check"></i> Program';
+    if(tabs[2]) tabs[2].innerHTML = '<i class="fa-solid fa-book-open-reader"></i> Readings';
+    if(tabs[3]) tabs[3].innerHTML = '<i class="fa-solid fa-list-check"></i> Program';
   }, 100);
 
   b.addListener("activeTabChange", a);
@@ -1418,24 +1715,35 @@ function tabFrame() {
       const d = c ? c.label : "";
       const bibleBar = document.getElementById("modernActionButtons");
       const songBar = document.getElementById("modernSongActionButtons");
+      const readingBar = document.getElementById("modernReadingActionButtons");
       const progBar = document.getElementById("modernProgramActionButtons");
 
       if (d == " Bible ") {
         tabViewN.selectTab(0);
         if (bibleBar) bibleBar.style.display = "flex";
         if (songBar) songBar.style.display = "none";
+        if (readingBar) readingBar.style.display = "none";
         if (progBar) progBar.style.display = "none";
       }
       if (d == " Songs ") {
         tabViewN.selectTab(1);
         if (bibleBar) bibleBar.style.display = "none";
         if (songBar) songBar.style.display = "flex";
+        if (readingBar) readingBar.style.display = "none";
         if (progBar) progBar.style.display = "none";
       }
-      if (d == " Program ") {
+      if (d == " Readings ") {
         tabViewN.selectTab(2);
         if (bibleBar) bibleBar.style.display = "none";
         if (songBar) songBar.style.display = "none";
+        if (readingBar) readingBar.style.display = "flex";
+        if (progBar) progBar.style.display = "none";
+      }
+      if (d == " Program ") {
+        tabViewN.selectTab(3);
+        if (bibleBar) bibleBar.style.display = "none";
+        if (songBar) songBar.style.display = "none";
+        if (readingBar) readingBar.style.display = "none";
         if (progBar) progBar.style.display = "flex";
       }
     } finally {
@@ -1453,6 +1761,10 @@ function tabFrameVerse() {
   a.addTab({
     label: " Lyrics ",
     content: '<div id="lyricsTab" class="tabSubContainer" >Lyrics</div>',
+  });
+  a.addTab({
+    label: " Readings ",
+    content: '<div id="readingSlidesTab" class="tabSubContainer" >Readings</div>',
   });
   a.addTab({
     label: " Slides ",
@@ -1505,9 +1817,10 @@ function tabFrameVerse() {
     const tabs = document.querySelectorAll('#container2 .app-modern-tabs ul li');
     if(tabs[0]) tabs[0].innerHTML = '<i class="fa-solid fa-list-ol"></i> Verses';
     if(tabs[1]) tabs[1].innerHTML = '<i class="fa-solid fa-align-left"></i> Lyrics';
-    if(tabs[2]) tabs[2].innerHTML = '<i class="fa-solid fa-layer-group"></i> Slides';
-    if(tabs[3]) tabs[3].innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Search';
-    if(tabs[4]) tabs[4].innerHTML = '<i class="fa-regular fa-calendar-check"></i> Schedule';
+    if(tabs[2]) tabs[2].innerHTML = '<i class="fa-solid fa-book-open-reader"></i> Readings';
+    if(tabs[3]) tabs[3].innerHTML = '<i class="fa-solid fa-layer-group"></i> Slides';
+    if(tabs[4]) tabs[4].innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> Search';
+    if(tabs[5]) tabs[5].innerHTML = '<i class="fa-regular fa-calendar-check"></i> Schedule';
   }, 100);
 
   tabViewN = a;
@@ -1529,6 +1842,7 @@ function tabFrameVerse() {
       const rightLabel = (activeRightTab.get("label") || "").trim();
       const bibleBar = document.getElementById("modernActionButtons");
       const songBar = document.getElementById("modernSongActionButtons");
+      const readingBar = document.getElementById("modernReadingActionButtons");
       const progBar = document.getElementById("modernProgramActionButtons");
 
       // For search, schedule and graphics, do nothing to the left panel
@@ -1537,8 +1851,10 @@ function tabFrameVerse() {
         leftTabIndex = 0; // Bible tab in left panel
       } else if (rightLabel === "Lyrics") {
         leftTabIndex = 1; // Songs tab in left panel
+      } else if (rightLabel === "Readings") {
+        leftTabIndex = 2; // Readings tab in left panel
       } else if (rightLabel === "Slides" || rightLabel === "Program") {
-        leftTabIndex = 2; // Program tab in left panel
+        leftTabIndex = 3; // Program tab in left panel
       }
 
       // If this tab has a corresponding parent tab in the left panel, switch to it
@@ -1551,14 +1867,22 @@ function tabFrameVerse() {
         if (leftTabIndex === 0) {
           if (bibleBar) bibleBar.style.display = "flex";
           if (songBar) songBar.style.display = "none";
+          if (readingBar) readingBar.style.display = "none";
           if (progBar) progBar.style.display = "none";
         } else if (leftTabIndex === 1) {
           if (bibleBar) bibleBar.style.display = "none";
           if (songBar) songBar.style.display = "flex";
+          if (readingBar) readingBar.style.display = "none";
           if (progBar) progBar.style.display = "none";
         } else if (leftTabIndex === 2) {
           if (bibleBar) bibleBar.style.display = "none";
           if (songBar) songBar.style.display = "none";
+          if (readingBar) readingBar.style.display = "flex";
+          if (progBar) progBar.style.display = "none";
+        } else if (leftTabIndex === 3) {
+          if (bibleBar) bibleBar.style.display = "none";
+          if (songBar) songBar.style.display = "none";
+          if (readingBar) readingBar.style.display = "none";
           if (progBar) progBar.style.display = "flex";
         }
       }
@@ -2214,7 +2538,7 @@ function setupModernSongNavSync() {
 
             // 7. Lyrics match (secondary fallback)
             if (bestScore < 400 && lyrics && qNorm.length >= 3) {
-                const cleanLyrics = lyrics.replace(/<slide>|<br\s*\/?>/gi, ' ').replace(/\s+/g, ' ');
+                const cleanLyrics = lyrics.replace(/\[\s*\d{1,2}:\d{2}(?:[.:]\d{1,3})?\s*\]\s*/g, '').replace(/<slide>|<br\s*\/?>/gi, ' ').replace(/\s+/g, ' ');
                 const lNorm = normSongText(cleanLyrics);
                 if (lNorm.includes(qNorm)) {
                     const score = 350;
@@ -2419,6 +2743,10 @@ function setupModernSongNavSync() {
                     }
                     window.presentedSongIdx = window.selectedSongIdx;
                     window.presentedSlideIdx = sIdx;
+                    // If audio-synced song is running in teleprompter mode, seek audio directly to selected slide's lines
+                    if (window.songAudioEngine && Array.isArray(window.songAudioEngine.allTimedLines) && window.songAudioEngine.allTimedLines.length > 0 && typeof window.songAudioEngine.seekToSlide === "function") {
+                        window.songAudioEngine.seekToSlide(sIdx);
+                    }
                     renderSongList();
                     updateSongSlideHighlight();
                 });

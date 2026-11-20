@@ -5,15 +5,20 @@ function getNumofVerses() {
   return numofch[bookIndex + 1][chapterIndex + 1];
 }
 function processNextButton() {
-  let a;
-  const b = getNumofVerses();
-  if (verseIndex + 1 == b) {
-    a = 0;
-  } else {
-    a = verseIndex + 1;
+  window.isAdvancingSlide = true;
+  try {
+    let a;
+    const b = getNumofVerses();
+    if (verseIndex + 1 == b) {
+      a = 0;
+    } else {
+      a = verseIndex + 1;
+    }
+    verseIndex = a;
+    launch(verseIndex);
+  } finally {
+    setTimeout(() => { window.isAdvancingSlide = false; }, 120);
   }
-  verseIndex = a;
-  launch(verseIndex);
 }
 function processNextButton_hold() {
   console.log(`CurrentIndex : ${newWindow.p_current_index}`);
@@ -30,15 +35,20 @@ function processNextButton_hold() {
   present();
 }
 function processPrevButton() {
-  let a;
-  const b = getNumofVerses();
-  if (verseIndex + 1 == 1) {
-    a = b - 1;
-  } else {
-    a = verseIndex - 1;
+  window.isAdvancingSlide = true;
+  try {
+    let a;
+    const b = getNumofVerses();
+    if (verseIndex + 1 == 1) {
+      a = b - 1;
+    } else {
+      a = verseIndex - 1;
+    }
+    verseIndex = a;
+    launch(verseIndex);
+  } finally {
+    setTimeout(() => { window.isAdvancingSlide = false; }, 120);
   }
-  verseIndex = a;
-  launch(verseIndex);
 }
 function processPrevButton_hold() {
   console.log(`CurrentIndex : ${newWindow.p_current_index}`);

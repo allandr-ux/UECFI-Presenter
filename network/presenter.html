@@ -91,6 +91,20 @@
   <button id="themeBtn" type="button" title="Toggle dark theme">&#127769;</button>
   <main id="remoteLayout">
     <section id="colLive">
+      <!-- Confidence & Preacher Stage Timer Bar -->
+      <div id="speakerTimerBar" style="display:none; align-items:center; justify-content:space-between; background:var(--card); border:1px solid var(--card-border); border-radius:10px; padding:10px 14px; box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+        <div style="display:flex; flex-direction:column; gap:2px;">
+          <span style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--muted);" id="speakerTimerLabel">Pulpit Clock</span>
+          <span id="speakerCurrentTime" style="font-size:16px; font-weight:800; font-family:monospace; color:var(--fg);">10:00 AM</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button type="button" onclick="sendCmd('timer', 'action=adjust-sermon&delta=60')" style="padding:4px 8px; border:1px solid var(--btn-border); border-radius:6px; background:var(--btn-bg); color:var(--btn-fg); font-size:11px; font-weight:bold; cursor:pointer;" title="Add 1 minute">+1m</button>
+          <div id="speakerTimerBadge" style="padding:4px 14px; border-radius:8px; font-size:24px; font-weight:900; font-family:monospace; letter-spacing:1.5px; background:#10b981; color:#ffffff; box-shadow:0 2px 6px rgba(0,0,0,0.18);">
+            <span id="speakerTimerText">35:00</span>
+          </div>
+        </div>
+      </div>
+
       <div id="engineBox">
         <iframe id="engine" title="Live projection" src="presentation.htm" scrolling="no" width="800" height="600"></iframe>
         <div id="offair">OFF AIR</div>
@@ -152,6 +166,66 @@
     applyRemoteTheme(saved);
     try { document.getElementById('themeBtn').addEventListener('click', toggleRemoteTheme); } catch (e) {}
   })();
+
+  // Live Real-Time Clock for Speaker Pulpit
+  function updateSpeakerClock() {
+    var el = document.getElementById('speakerCurrentTime');
+    if (!el) return;
+    var d = new Date();
+    var h = d.getHours();
+    var m = d.getMinutes();
+    var ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12; h = h ? h : 12;
+    el.textContent = h + ':' + (m < 10 ? '0' + m : m) + ' ' + ampm;
+  }
+  setInterval(updateSpeakerClock, 1000);
+  updateSpeakerClock();
+
+  function formatTimerSec(sec) {
+    var isNeg = sec < 0;
+    var abs = Math.abs(sec);
+    var m = Math.floor(abs / 60);
+    var s = abs % 60;
+    return (isNeg ? '+' : '') + (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
+  }
+
+  window.onRemoteTimerState = function(tState) {
+    var bar = document.getElementById('speakerTimerBar');
+    var badge = document.getElementById('speakerTimerBadge');
+    var txt = document.getElementById('speakerTimerText');
+    var lbl = document.getElementById('speakerTimerLabel');
+    if (!bar || !badge || !txt) return;
+
+    if (tState && tState.sermonTimer && tState.sermonTimer.active && tState.sermonTimer.showOnStage) {
+      bar.style.display = 'flex';
+      var sm = tState.sermonTimer;
+      lbl.textContent = 'Preaching Clock';
+      txt.textContent = formatTimerSec(sm.remainingSeconds);
+
+      if (sm.remainingSeconds <= 0) {
+        badge.style.background = '#dc2626'; // Overtime Red
+        badge.style.animation = 'pulse 1s infinite';
+      } else if (sm.remainingSeconds <= (sm.dangerSeconds || 120)) {
+        badge.style.background = '#ef4444'; // Red danger
+        badge.style.animation = 'none';
+      } else if (sm.remainingSeconds <= (sm.warningSeconds || 300)) {
+        badge.style.background = '#f59e0b'; // Amber warning
+        badge.style.animation = 'none';
+      } else {
+        badge.style.background = '#10b981'; // Green safe
+        badge.style.animation = 'none';
+      }
+    } else if (tState && tState.serviceCountdown && tState.serviceCountdown.active && tState.serviceCountdown.showOnStage) {
+      bar.style.display = 'flex';
+      var sc = tState.serviceCountdown;
+      lbl.textContent = 'Service Countdown';
+      txt.textContent = formatTimerSec(sc.remainingSeconds);
+      badge.style.background = '#4f46e5';
+      badge.style.animation = 'none';
+    } else {
+      bar.style.display = 'none';
+    }
+  };
   function sendCmd(cmd, value) {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', 'test.txt?command=' + encodeURIComponent(cmd) + '&value=' + encodeURIComponent(value || '0') + '?', true);

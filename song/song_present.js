@@ -20,11 +20,18 @@ function songPresentObj() {
     p_title = activeSong.name || "";
     p_title_arr = [];
     p_footnote = activeSong.copyright || "";
-    // A song present supersedes any schedule highlight and any live program
+    // A song present supersedes any schedule highlight, live program, and stale verse state
     window.presentedScheduleId = null;
+    window.presentedVerseIndex = -1;
+    window.p_dual_text1_arr = null;
+    window.p_dual_text2_arr = null;
+    window.p_dual_footnote = null;
     if (typeof window !== "undefined") window.liveProgramActive = false;
     if (typeof window.updateScheduleHighlight === "function") window.updateScheduleHighlight();
     if (typeof window.updateScheduleSlideHighlight === "function") window.updateScheduleSlideHighlight();
+    if (typeof window !== "undefined" && window.programManager && typeof window.programManager.clearPresentationHighlight === "function") {
+      window.programManager.clearPresentationHighlight();
+    }
     
     if (slideIndex == null) {
       p_current_index = 0;
@@ -33,6 +40,7 @@ function songPresentObj() {
     }
     p_last_index = activeSong.slides.length - 1;
 
+    // Song typography and styles are strictly governed by global settings (themeManager)
     if (typeof window !== "undefined" && window.themeManager && typeof window.themeManager.applyThemeToProjection === "function") {
       window.themeManager.applyThemeToProjection("songs");
     }
@@ -49,6 +57,8 @@ function songPresentObj() {
           title: activeSong.name || "",
           font: activeSong.font || "",
           copyright: activeSong.copyright || "",
+          audio: activeSong.audio || "",
+          lyrics: activeSong.lyrics || "",
           index: liveIdx
         };
         // Synchronize song list and lyric card highlights regardless of how
@@ -71,15 +81,7 @@ function songPresentObj() {
       }
     } catch (e) {}
 
-    presentation();
-
-    try {
-      if (typeof window !== "undefined") {
-        if (typeof window.renderModernSongList === "function") window.renderModernSongList();
-        if (typeof window.updateSongSlideHighlight === "function") window.updateSongSlideHighlight();
-      }
-    } catch (e) {}
-
+    // Initialize/start audio engine first so timed lines are ready for teleprompter projection
     try {
       const idx = (slideIndex == null) ? 0 : slideIndex;
       if (typeof window !== "undefined" && window.songAudioEngine) {
@@ -91,12 +93,26 @@ function songPresentObj() {
       }
     } catch (e) {}
 
+    presentation();
+
+    try {
+      if (typeof window !== "undefined") {
+        if (window.presentedSongIdx !== window._lastRenderedSongIdx) {
+          window._lastRenderedSongIdx = window.presentedSongIdx;
+          if (typeof window.renderModernSongList === "function") window.renderModernSongList();
+        }
+        if (typeof window.updateSongSlideHighlight === "function") window.updateSongSlideHighlight();
+      }
+    } catch (e) {}
+
     try {
       const idx = (slideIndex == null) ? 0 : slideIndex;
       if (typeof setLiveMonitorContent === "function") {
         const slides = activeSong.slides || [];
+        const rawSlide = slides[idx] || "";
+        const cleanSlide = rawSlide.replace(/\[\s*\d{1,2}:\d{2}(?:[.:]\d{1,3})?\s*\]\s*/g, "");
         setLiveMonitorContent({
-          primary: slides[idx],
+          primary: cleanSlide,
           secondary: "",
           reference: activeSong.name || "",
           indicator: `Slide ${idx + 1} of ${slides.length}`

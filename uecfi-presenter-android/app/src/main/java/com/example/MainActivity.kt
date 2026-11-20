@@ -14,6 +14,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import android.webkit.WebView
 import com.example.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
@@ -46,6 +47,7 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         applyImmersiveStickyMode()
+        WebView.setWebContentsDebuggingEnabled(true)
 
         setContent {
             MyApplicationTheme {

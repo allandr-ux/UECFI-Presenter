@@ -30,6 +30,21 @@
     </div>
 
     <!-- Items List Scroll Area -->
+    <div class="px-3 py-2 border-b border-slate-200 bg-slate-50 shrink-0 flex items-center gap-1.5">
+        <i class="fa-solid fa-layer-group text-brand-600 text-xs shrink-0" title="Active Session Playlist"></i>
+        <select id="programPlaylistSelect"
+                onchange="if(window.programManager) window.programManager.selectPlaylist(this.value);"
+                class="flex-1 min-w-0 px-2 py-1 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-brand-500 cursor-pointer truncate"
+                title="Switch Session Playlist">
+        </select>
+        <button type="button"
+                onclick="if(window.programManager) window.programManager.openPlaylistModal();"
+                class="px-2 py-1 text-[11px] font-bold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 rounded-lg transition shrink-0 cursor-pointer"
+                title="Manage Session Playlists">
+            <i class="fa-solid fa-folder-open"></i>
+        </button>
+    </div>
+
     <div id="programItemList" class="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar bg-slate-50/50">
     </div>
 </div>

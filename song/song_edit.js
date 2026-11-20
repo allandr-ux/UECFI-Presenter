@@ -17,16 +17,12 @@ function songEditClass() {
   var currentSongObj = null; // song being edited
   var n = "";    // new category cache
   var s = 0;     // selected category index
-  var e = ["Arial", "Times New Roman", "Calibri"];
-  var d = 0;     // selected font index
   var k = 3;
 
   function M(P) {
     v("Initialize Song Edit Panel");
-    e = ["Arial", "Times New Roman", "Calibri"];
     f = P;
     G();
-    l();
     F();
     O();
   }
@@ -56,14 +52,6 @@ function songEditClass() {
     if (btnAddCat) btnAddCat.addEventListener("click", r, false);
     var btnSubmitCat = document.getElementById("se_submitCatButtonID2");
     if (btnSubmitCat) btnSubmitCat.addEventListener("click", a, false);
-
-    // Fonts
-    var btnAddFont = document.getElementById("se_addFontButtonID2");
-    if (btnAddFont) btnAddFont.addEventListener("click", D, false);
-    var btnSubmitFont = document.getElementById("se_submitFontButtonID2");
-    if (btnSubmitFont) btnSubmitFont.addEventListener("click", C, false);
-    var selFont = document.getElementById("se_fontID2");
-    if (selFont) selFont.addEventListener("change", p, false);
 
     // Lyrics live slide counter
     var lyricsInput = document.getElementById("se_lyricsInput");
@@ -176,79 +164,26 @@ function songEditClass() {
     document.getElementById("songnav_category2").selectedIndex = s;
   }
 
-  function l(R) {
-    var V = songManagerObj.getFontList();
-    var Q = new Array();
-    var T = null;
-    if (V != null) {
-      var U = e.length;
-      for (var S = U - 1; S >= 0; S--) {
-        T = V.indexOf(e[S]);
-        if (T != -1) {
-          e.splice(S, 1);
-        }
-      }
-      Q = e.concat(V);
-    } else {
-      Q = e;
-    }
-    Q.sort(function(a, b) {
-      return String(a || "").localeCompare(String(b || ""), undefined, { sensitivity: "base" });
-    });
-    var W = Q.length;
-    clearSelectList("se_fontID2");
-    for (var S = 0; S < W; S++) {
-      document.getElementById("se_fontID2").options[S] = new Option(Q[S], S);
-      if (Q[S] == R) {
-        d = S;
-      }
-    }
-    document.getElementById("se_fontID2").selectedIndex = d;
-    p();
-  }
-
-  function C() {
-    var Q = document.getElementById("se_fontTextID").value;
-    var P = w(Q);
-    if (P) {
-      var fontContainer = document.getElementById("se_fontInputContainer");
-      if (fontContainer) fontContainer.style.display = "none";
-      e.push(Q);
-      l(Q);
-    }
-  }
-
-  function p() {
-    var fontSelect = document.getElementById("se_fontID2");
-    if (!fontSelect || fontSelect.selectedIndex < 0) return;
-    var T = fontSelect.selectedIndex;
-    var S = fontSelect.options[T].text;
-
-    // Apply font to unified lyrics textarea
-    var lyricsInput = document.getElementById("se_lyricsInput");
-    if (lyricsInput) {
-      lyricsInput.style.fontFamily = S;
-    }
-  }
-
-  function w(P) {
-    return true;
-  }
-
   // Populate song data into modal
   function c(P) {
     currentSongObj = P;
-    // Hide inline add category / font inputs by default
+    // Hide inline add category input by default
     var catContainer = document.getElementById("se_catInputContainer");
     if (catContainer) catContainer.style.display = "none";
-    var fontContainer = document.getElementById("se_fontInputContainer");
-    if (fontContainer) fontContainer.style.display = "none";
+
+    // Set lyrics textarea font to match the global theme song font
+    var lyricsInput = document.getElementById("se_lyricsInput");
+    if (lyricsInput) {
+      var songPrimaryFont = (typeof window !== "undefined" && window.themeManager && typeof window.themeManager.resolveProjectionStyle === "function")
+        ? window.themeManager.resolveProjectionStyle("songs").primaryFont
+        : "sans-serif";
+      lyricsInput.style.fontFamily = songPrimaryFont || "sans-serif";
+    }
 
     if (P != null) {
       document.getElementById("songEdit_NameID").value = P.name || "";
       document.getElementById("se_copyrightID").value = P.copyright || "";
       N(P.catIndex);
-      l(P.font);
       document.getElementById("se_keyID").value = P.key || "";
       document.getElementById("se_notesID").value = P.notes || "";
 
@@ -259,7 +194,6 @@ function songEditClass() {
           return s.replace(/<BR>/gi, "\n");
         }).join("\n\n");
       }
-      var lyricsInput = document.getElementById("se_lyricsInput");
       if (lyricsInput) {
         lyricsInput.value = slidesText;
       }
@@ -267,18 +201,40 @@ function songEditClass() {
       document.getElementById("songEdit_NameID").value = "";
       document.getElementById("se_copyrightID").value = "";
       N(null);
-      l(null);
       document.getElementById("se_keyID").value = "";
       document.getElementById("se_notesID").value = "";
-      var lyricsInput = document.getElementById("se_lyricsInput");
       if (lyricsInput) {
         lyricsInput.value = "";
       }
     }
 
     setAudioUI(P ? (P.audio || "") : "");
+    var seFS = document.getElementById("se_teleprompterFontSize");
+    if (seFS) {
+      var savedSongFS = P ? (P.teleprompterFontSize || (typeof localStorage !== "undefined" && P.name ? localStorage.getItem("uecfi_song_fontsize_" + P.name.trim()) : "")) : "";
+      seFS.value = savedSongFS || "";
+    }
+    var seLead = document.getElementById("se_leadAdvanceMs");
+    if (seLead) {
+      var savedLead = P ? (P.leadAdvanceMs != null ? P.leadAdvanceMs : (typeof localStorage !== "undefined" && P.name ? (localStorage.getItem("uecfi_song_lead_" + P.name.trim()) || localStorage.getItem("uecfi_song_lead_advance_ms")) : "")) : "";
+      seLead.value = (savedLead !== "" && savedLead != null) ? savedLead : "";
+    }
+    // Highlighted Text Outline settings per song
+    var seOutCheck = document.getElementById("se_activeOutlineEnabled");
+    var seOutCtrl = document.getElementById("se_outlineControls");
+    var seOutCol = document.getElementById("se_activeOutlineColor");
+    var seOutThick = document.getElementById("se_activeOutlineThickness");
+    var songKey = P && P.name ? P.name.trim().toLowerCase() : "";
+    var savedOutEnabled = P ? (P.activeOutlineEnabled !== undefined ? !!P.activeOutlineEnabled : (typeof localStorage !== "undefined" && songKey ? localStorage.getItem("uecfi_song_outline_enabled_" + songKey) === "true" : false)) : false;
+    var savedOutColor = P ? (P.activeOutlineColor || (typeof localStorage !== "undefined" && songKey ? localStorage.getItem("uecfi_song_outline_color_" + songKey) : "#000000")) : "#000000";
+    var savedOutThick = P ? (P.activeOutlineThickness != null ? P.activeOutlineThickness : (typeof localStorage !== "undefined" && songKey ? Number(localStorage.getItem("uecfi_song_outline_thick_" + songKey)) : 2)) : 2;
+    if (seOutCheck) {
+      seOutCheck.checked = !!savedOutEnabled;
+      if (seOutCtrl) seOutCtrl.style.display = savedOutEnabled ? "flex" : "none";
+    }
+    if (seOutCol) seOutCol.value = savedOutColor || "#000000";
+    if (seOutThick) seOutThick.value = savedOutThick || 2;
     updateSlideCounter();
-    p();
   }
 
   function j(P, Q, R) {
@@ -352,18 +308,6 @@ function songEditClass() {
     }
   }
 
-  function D() {
-    var fontContainer = document.getElementById("se_fontInputContainer");
-    var fontInput = document.getElementById("se_fontTextID");
-    if (fontContainer) {
-      fontContainer.style.display = fontContainer.style.display === "none" ? "flex" : "none";
-      if (fontContainer.style.display !== "none" && fontInput) {
-        fontInput.value = "";
-        fontInput.focus();
-      }
-    }
-  }
-
   // Extract songObj from Form
   function H() {
     v("Extract data from Form");
@@ -397,18 +341,53 @@ function songEditClass() {
       U.catIndex = "English";
     }
 
-    // Song font defaults cleanly to Arial (or preserves previous font) without requiring user input
-    var existingFont = (currentSongObj && currentSongObj.font) ? currentSongObj.font : "Arial";
-    var V = document.getElementById("se_fontID2") ? document.getElementById("se_fontID2").selectedIndex : -1;
-    if (V >= 0 && document.getElementById("se_fontID2").options[V] && document.getElementById("se_fontID2").options[V].text) {
-      U.font = document.getElementById("se_fontID2").options[V].text;
-    } else {
-      U.font = existingFont;
-    }
+    // Font style is determined by global settings; per-song font selection removed
+    U.font = "";
 
     U.key = document.getElementById("se_keyID").value;
     U.notes = document.getElementById("se_notesID").value;
     U.audio = (document.getElementById("se_audioFileName") ? document.getElementById("se_audioFileName").value : "") || "";
+    var fsInput = document.getElementById("se_teleprompterFontSize");
+    if (fsInput && fsInput.value) {
+      var parsedFS = parseInt(fsInput.value, 10);
+      if (!isNaN(parsedFS) && parsedFS >= 24 && parsedFS <= 140) {
+        U.teleprompterFontSize = parsedFS;
+        if (typeof localStorage !== "undefined" && U.name) {
+          try { localStorage.setItem("uecfi_song_fontsize_" + U.name.trim(), String(parsedFS)); } catch (e) {}
+        }
+      }
+    }
+    var leadInput = document.getElementById("se_leadAdvanceMs");
+    if (leadInput && leadInput.value !== "") {
+      var parsedLead = parseInt(leadInput.value, 10);
+      if (!isNaN(parsedLead)) {
+        var clampedLead = Math.max(0, Math.min(2000, Math.round(parsedLead / 100) * 100));
+        U.leadAdvanceMs = clampedLead;
+        if (typeof localStorage !== "undefined" && U.name) {
+          try {
+            localStorage.setItem("uecfi_song_lead_" + U.name.trim().toLowerCase(), String(clampedLead));
+            localStorage.setItem("uecfi_song_lead_" + U.name.trim(), String(clampedLead));
+          } catch (e) {}
+        }
+      }
+    }
+    // Save highlighted text outline options per song
+    var seOutCheck = document.getElementById("se_activeOutlineEnabled");
+    var seOutCol = document.getElementById("se_activeOutlineColor");
+    var seOutThick = document.getElementById("se_activeOutlineThickness");
+    if (seOutCheck) {
+      U.activeOutlineEnabled = !!seOutCheck.checked;
+      U.activeOutlineColor = (seOutCol && seOutCol.value) ? seOutCol.value : "#000000";
+      U.activeOutlineThickness = (seOutThick && seOutThick.value) ? Math.max(1, Math.min(12, parseInt(seOutThick.value, 10) || 2)) : 2;
+      if (typeof localStorage !== "undefined" && U.name) {
+        var sKey = U.name.trim().toLowerCase();
+        try {
+          localStorage.setItem("uecfi_song_outline_enabled_" + sKey, String(U.activeOutlineEnabled));
+          localStorage.setItem("uecfi_song_outline_color_" + sKey, U.activeOutlineColor);
+          localStorage.setItem("uecfi_song_outline_thick_" + sKey, String(U.activeOutlineThickness));
+        } catch (e) {}
+      }
+    }
     if (m != null) U.id = m;
     return U;
   }

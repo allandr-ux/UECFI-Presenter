@@ -278,8 +278,26 @@ function vvWebServer() {
             return;
           }
 
+          // CORS preflight support for remote streaming & modern WebViews
+          if (req.method === "OPTIONS") {
+            res.writeHead(204, {
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type, Authorization",
+              "Access-Control-Max-Age": "86400"
+            });
+            res.end();
+            return;
+          }
+
           // Projection-engine assets for the remote live view (both roles).
           if (serveStatic(urlPath, res, fs, path, req)) return;
+
+          // Local WebRTC video streaming offer endpoint (available to TV and audience displays)
+          if (urlPath === "/api/stage-stream/offer") {
+            handleStageStreamOffer(req, res);
+            return;
+          }
 
           if (role === "audience") {
             // Audience is view-only: the page, the engine assets above and
@@ -796,17 +814,85 @@ function vvWebServer() {
         isVerse = false;
       }
 
+      let text1 = jsonSafe(gv("p_text1_arr", [])) || [];
+      let text2 = jsonSafe(gv("p_text2_arr", [])) || [];
+      let footnote = String(gv("p_footnote", "") || "");
+      let bibleDisplayMode = (typeof window !== "undefined" && window.bibleDisplayMode) ? window.bibleDisplayMode : "dual";
+
+      // For speaker mode (role === "presenter"), verses should ALWAYS be dual mode:
+      // Even if the main projection or audience view is set to single version ('v1' or 'v2'),
+      // the speaker remote receives both verse versions (text1 and text2) and the dual footnote.
+      if (role === "presenter" && isVerse) {
+        bibleDisplayMode = "dual";
+        let dualT1 = jsonSafe(gv("p_dual_text1_arr", null));
+        let dualT2 = jsonSafe(gv("p_dual_text2_arr", null));
+        let dualFootnote = String(gv("p_dual_footnote", "") || "");
+
+        // Dynamic fallback reconstruction if p_dual_text1_arr / p_dual_text2_arr was not cached yet
+        if (!Array.isArray(dualT1) || !Array.isArray(dualT2) || dualT1.length === 0 || dualT2.length === 0) {
+          try {
+            const c1 = gv("content1", null);
+            const c2 = gv("content2", null);
+            if (Array.isArray(c1) && Array.isArray(c2) && c1.length > 0 && c2.length > 0) {
+              const multiple = !!gv("document?.getElementById('multipleVerseID')?.checked", false);
+              const e = multiple ? 2 : 1;
+              const h = c1.length;
+              const bArr = [];
+              const aArr = [];
+              if (e === 2) {
+                const limit = Math.floor(h / 2);
+                for (let f = 0; f < limit; f++) {
+                  bArr[f] = `${c1[f * 2]}<BR>${c1[f * 2 + 1]}`;
+                  aArr[f] = `${c2[f * 2]}<BR>${c2[f * 2 + 1]}`;
+                }
+                if (h % 2 !== 0) {
+                  bArr[limit] = c1[limit * 2];
+                  aArr[limit] = c2[limit * 2];
+                }
+              } else {
+                for (let f = 0; f < h; f++) {
+                  bArr[f] = c1[f];
+                  aArr[f] = c2[f];
+                }
+              }
+              dualT1 = bArr;
+              dualT2 = aArr;
+            }
+          } catch (e) {}
+        }
+
+        // Reconstruct dual footnote if needed
+        if (!dualFootnote) {
+          try {
+            const bva = gv("bibleVersionArray", null);
+            const v1 = gv("version1", 0);
+            const v2 = gv("version2", 1);
+            if (bva && bva[v1] && bva[v2]) {
+              dualFootnote = `${bva[v1][3]} / ${bva[v2][3]}`;
+            }
+          } catch (e) {}
+        }
+
+        if (Array.isArray(dualT1) && dualT1.length > 0 && Array.isArray(dualT2) && dualT2.length > 0) {
+          text1 = dualT1;
+          text2 = dualT2;
+          if (dualFootnote) {
+            footnote = dualFootnote;
+          }
+        }
+      }
+
       return {
         live: live,
         projectionType: String(gv("liveProjectionType", "") || ""),
         isVerse: !!isVerse,
-        text1: jsonSafe(gv("p_text1_arr", [])) || [],
-        text2: jsonSafe(gv("p_text2_arr", [])) || [],
+        text1: text1,
+        text2: text2,
         titleArr: jsonSafe(gv("p_title_arr", [])) || [],
         font1: String(gv("p_text1_font", "Arial") || "Arial"),
         font2: String(gv("p_text2_font", "Arial") || "Arial"),
         title: String(gv("p_title", "") || ""),
-        footnote: String(gv("p_footnote", "") || ""),
+        footnote: footnote,
         index: num(gv("p_current_index", 0), 0),
         last: num(gv("p_last_index", 0), 0),
         bkgnd: mapBkgndForRemote(gv("p_bkgnd_filename", "")),
@@ -830,6 +916,26 @@ function vvWebServer() {
         syncActiveLineIndex: (typeof window !== "undefined" && window.songAudioEngine && typeof window.songAudioEngine.activeLineIndex === "number") ? window.songAudioEngine.activeLineIndex : -1,
         syncActiveColor: (theme && theme.syncActiveColor) || "#F59E0B",
         syncInactiveColor: (theme && theme.syncInactiveColor) || "#94A3B8",
+        syncActiveOutlineEnabled: Boolean(
+          (typeof window !== "undefined" && window.songAudioEngine && window.songAudioEngine.currentSong && window.songAudioEngine.currentSong.activeOutlineEnabled) ||
+          (theme && theme.syncActiveOutlineEnabled) ||
+          (typeof window !== "undefined" && window.p_sync_active_outline_enabled)
+        ),
+        syncActiveOutlineColor: (typeof window !== "undefined" && window.songAudioEngine && window.songAudioEngine.currentSong && window.songAudioEngine.currentSong.activeOutlineEnabled && window.songAudioEngine.currentSong.activeOutlineColor)
+          || (theme && theme.syncActiveOutlineColor)
+          || (typeof window !== "undefined" && window.p_sync_active_outline_color)
+          || (typeof window !== "undefined" && window.songAudioEngine && window.songAudioEngine.currentSong && window.songAudioEngine.currentSong.activeOutlineColor)
+          || "#000000",
+        syncActiveOutlineThickness: (typeof window !== "undefined" && window.songAudioEngine && window.songAudioEngine.currentSong && window.songAudioEngine.currentSong.activeOutlineEnabled && typeof window.songAudioEngine.currentSong.activeOutlineThickness === "number")
+          ? window.songAudioEngine.currentSong.activeOutlineThickness
+          : ((theme && typeof theme.syncActiveOutlineThickness === "number")
+            ? theme.syncActiveOutlineThickness
+            : ((typeof window !== "undefined" && typeof window.p_sync_active_outline_thickness === "number") ? window.p_sync_active_outline_thickness : 2)),
+        teleprompterMode: Boolean(typeof window !== "undefined" && window.songAudioEngine && window.songAudioEngine.syncEnabled && window.songAudioEngine.currentSong && window.songAudioEngine.currentSong.audio && window.songAudioEngine.allTimedLines && window.songAudioEngine.allTimedLines.length > 0),
+        teleprompterLines: (typeof window !== "undefined" && window.songAudioEngine) ? (window.songAudioEngine.allTimedLines || null) : null,
+        teleprompterFontSize: null, // Remote displays automatically scale font size based on the longest line in the song
+        syncCountdown: (typeof window !== "undefined" && window.songAudioEngine && typeof window.songAudioEngine.getCountdownState === "function") ? window.songAudioEngine.getCountdownState() : null,
+        isRemoteDisplay: true,
         status: indicator,
         nav: remoteNav(),
         outputMode: effectiveOutputMode,
@@ -881,12 +987,185 @@ function vvWebServer() {
         attentionSpeakerShow: !!gv("p_attention_speaker_show", false),
         attentionBgImage: String(gv("p_attention_bgimage", "") || ""),
         attentionBgDim: num(gv("p_attention_bgdim", 60), 60),
-        customSlide: jsonSafe(gv("p_custom_slide", null))
+        customSlide: jsonSafe(gv("p_custom_slide", null)),
+        stageLayout: (function() {
+          // Speaker Remote role never shows video feeds and is unaffected by stage layout
+          if (role === "presenter") return null;
+          try {
+            const studio = (typeof window !== "undefined" && window.liveStudio) || (typeof liveStudio !== "undefined" ? liveStudio : null);
+            if (studio && studio.activeStageSource) {
+              return studio.stageLayout || "full";
+            }
+          } catch (e) {}
+          return null;
+        })(),
+        stageStreamId: (function() {
+          if (role === "presenter") return null;
+          try {
+            const studio = (typeof window !== "undefined" && window.liveStudio) || (typeof liveStudio !== "undefined" ? liveStudio : null);
+            if (studio && studio.activeStageSource && studio.activeStageSource.stream) {
+              return (studio.activeStageSource.type || "src") + "_" + (studio.activeStageSource.id || "live");
+            }
+          } catch (e) {}
+          return null;
+        })(),
+        stageSourceType: (function() {
+          if (role === "presenter") return null;
+          try {
+            const studio = (typeof window !== "undefined" && window.liveStudio) || (typeof liveStudio !== "undefined" ? liveStudio : null);
+            if (studio && studio.activeStageSource) {
+              return studio.activeStageSource.type || "camera";
+            }
+          } catch (e) {}
+          return null;
+        })(),
+        bibleDisplayMode: bibleDisplayMode,
+        speakerLowerThird: (typeof window !== "undefined" && window.p_speaker_lower_third) ? window.p_speaker_lower_third : null,
+        timerState: (typeof window !== "undefined" && window.timerManager && typeof window.timerManager.getState === "function") ? window.timerManager.getState() : null
       };
     } catch (e) {
       return { live: false };
     }
   }
+
+  // Active remote stream peer connections (e.g. Android TV, remote companion screens)
+  const activeStreamClients = new Set();
+
+  function waitForIceGatheringComplete(pc, maxWaitMs) {
+    const limit = maxWaitMs || 800;
+    if (pc.iceGatheringState === "complete") return Promise.resolve();
+    return new Promise((resolve) => {
+      let resolved = false;
+      const done = () => {
+        if (!resolved) {
+          resolved = true;
+          resolve();
+        }
+      };
+      const timer = setTimeout(done, limit);
+      pc.onicecandidate = (e) => {
+        if (!e.candidate) {
+          clearTimeout(timer);
+          done();
+        }
+      };
+      pc.onicegatheringstatechange = () => {
+        if (pc.iceGatheringState === "complete") {
+          clearTimeout(timer);
+          done();
+        }
+      };
+    });
+  }
+
+  // Handles incoming WebRTC stream offer from remote displays (like Android TV)
+  function handleStageStreamOffer(req, res) {
+    let bodyStr = "";
+    req.on("data", (chunk) => { bodyStr += chunk; });
+    req.on("end", async () => {
+      try {
+        const data = JSON.parse(bodyStr || "{}");
+        if (!data.sdp) {
+          res.writeHead(400, {
+            "Content-Type": "application/json; charset=utf-8",
+            "Access-Control-Allow-Origin": "*"
+          });
+          res.end(JSON.stringify({ error: "Missing sdp in offer" }));
+          return;
+        }
+
+        const studio = (typeof window !== "undefined" && window.liveStudio) || (typeof liveStudio !== "undefined" ? liveStudio : null);
+        if (!studio || !studio.activeStageSource || !studio.activeStageSource.stream) {
+          res.writeHead(404, {
+            "Content-Type": "application/json; charset=utf-8",
+            "Access-Control-Allow-Origin": "*"
+          });
+          res.end(JSON.stringify({ error: "No active stage video stream" }));
+          return;
+        }
+
+        const stream = studio.activeStageSource.stream;
+        const pc = new RTCPeerConnection({ iceServers: [] });
+        activeStreamClients.add(pc);
+
+        pc.onconnectionstatechange = () => {
+          if (pc.connectionState === "closed" || pc.connectionState === "failed" || pc.connectionState === "disconnected") {
+            activeStreamClients.delete(pc);
+            try { pc.close(); } catch (e) {}
+          }
+        };
+
+        // Forward active video and audio tracks directly to remote display client
+        stream.getTracks().forEach((track) => {
+          pc.addTrack(track, stream);
+        });
+
+        await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+
+        // Gather local network host candidates (usually 20-50ms)
+        await waitForIceGatheringComplete(pc, 800);
+
+        res.writeHead(200, {
+          "Content-Type": "application/json; charset=utf-8",
+          "Access-Control-Allow-Origin": "*",
+          "Cache-Control": "no-store"
+        });
+        res.end(JSON.stringify({
+          sdp: pc.localDescription,
+          sourceType: studio.activeStageSource.type || "camera",
+          sourceName: studio.activeStageSource.name || "Live Stage"
+        }));
+      } catch (err) {
+        console.error("[STAGE STREAM] Offer processing error:", err);
+        res.writeHead(500, {
+          "Content-Type": "application/json; charset=utf-8",
+          "Access-Control-Allow-Origin": "*"
+        });
+        res.end(JSON.stringify({ error: err.message || "Signaling error" }));
+      }
+    });
+  }
+
+  // Listen for stage source switches and seamlessly swap tracks or teardown connections
+  try {
+    if (typeof window !== "undefined") {
+      window.addEventListener("uecfi-stage-source-changed", (event) => {
+        const source = event && event.detail;
+        if (!source || !source.stream) {
+          activeStreamClients.forEach((pc) => {
+            try { pc.close(); } catch (e) {}
+          });
+          activeStreamClients.clear();
+        } else {
+          const newTracks = source.stream.getTracks();
+          activeStreamClients.forEach((pc) => {
+            try {
+              const senders = pc.getSenders();
+              // If the new source introduces a track kind (e.g. audio from a remote guest)
+              // that this peer connection never negotiated a sender for, close it so the
+              // client's next poll triggers a fresh SDP offer with all tracks.
+              const hasAllTrackKinds = newTracks.every((t) =>
+                senders.some((snd) => snd.track && snd.track.kind === t.kind)
+              );
+              if (!hasAllTrackKinds) {
+                activeStreamClients.delete(pc);
+                try { pc.close(); } catch (e) {}
+                return;
+              }
+              newTracks.forEach((newTrack) => {
+                const s = senders.find((snd) => snd.track && snd.track.kind === newTrack.kind);
+                if (s) {
+                  s.replaceTrack(newTrack);
+                }
+              });
+            } catch (e) {}
+          });
+        }
+      });
+    }
+  } catch (e) {}
 
   // Legacy command set (presenter role only). Throttled to one per 400ms.
   function handleCommand(reqUrl) {
@@ -944,6 +1223,18 @@ function vvWebServer() {
               responseText = "Verse navigation unavailable";
             }
             break;
+          case "30": { // Toggle Bible display mode ('dual' | 'v1' | 'v2')
+            if (typeof setBibleDisplayMode === "function") {
+              setBibleDisplayMode(value || "dual");
+              responseText = "OK: Bible mode set to " + (value || "dual");
+            } else if (typeof window !== "undefined" && typeof window.setBibleDisplayMode === "function") {
+              window.setBibleDisplayMode(value || "dual");
+              responseText = "OK: Bible mode set to " + (value || "dual");
+            } else {
+              responseText = "Bible mode toggle unavailable";
+            }
+            break;
+          }
           case "4": // Stop / Close Presentation (ends live, shows OFF AIR)
             if (typeof call_closePresentation === "function") call_closePresentation();
             responseText = "OK: Closed Presentation";
@@ -1041,6 +1332,25 @@ function vvWebServer() {
               }
             } catch (e) {
               responseText = "Program item not found: " + value;
+            }
+            break;
+          }
+          case "50":
+          case "timer": {
+            if (typeof window !== "undefined" && window.timerManager) {
+              const act = params.get("action") || value || "";
+              const delta = Number(params.get("delta") || 60);
+              const min = Number(params.get("minutes") || 35);
+              if (act === "start-sermon") window.timerManager.startSermonTimer(min);
+              else if (act === "pause-sermon") window.timerManager.pauseSermonTimer();
+              else if (act === "adjust-sermon") window.timerManager.adjustSermonTimer(delta);
+              else if (act === "stop-sermon") window.timerManager.stopSermonTimer();
+              else if (act === "start-service") window.timerManager.startServiceCountdown(min);
+              else if (act === "pause-service") window.timerManager.pauseServiceCountdown();
+              else if (act === "stop-service") window.timerManager.stopServiceCountdown();
+              responseText = "OK: Timer action " + act;
+            } else {
+              responseText = "Timer manager not available";
             }
             break;
           }

@@ -8,24 +8,98 @@
 		
 		<script type="text/javascript" src="presentation.js"></script>
 		<link rel="stylesheet" type="text/css" href="./uecfipresenter.css" />
+		<link rel="stylesheet" href="./fonts/fontawesome/css/all.min.css" />
+		<style>
+			@keyframes ltSlideInAnim {
+				0% {
+					transform: translateX(-120%) scale(0.96);
+					opacity: 0;
+				}
+				60% {
+					transform: translateX(1.5%) scale(1.005);
+					opacity: 1;
+				}
+				100% {
+					transform: translateX(0) scale(1);
+					opacity: 1;
+				}
+			}
+
+			@keyframes ltSlideOutAnim {
+				0% {
+					transform: translateX(0) scale(1);
+					opacity: 1;
+				}
+				100% {
+					transform: translateX(-120%) scale(0.96);
+					opacity: 0;
+				}
+			}
+
+			@keyframes ltTextMorphAnim {
+				0% {
+					opacity: 0;
+					transform: translateY(6px);
+				}
+				100% {
+					opacity: 1;
+					transform: translateY(0);
+				}
+			}
+
+			.lt-animate-in {
+				animation: ltSlideInAnim 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+			}
+
+			.lt-animate-out {
+				animation: ltSlideOutAnim 0.4s cubic-bezier(0.7, 0, 0.84, 0) forwards;
+			}
+
+			.lt-animate-stay {
+				transform: translateX(0) scale(1) !important;
+				opacity: 1 !important;
+			}
+
+			.lt-text-morph {
+				animation: ltTextMorphAnim 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+			}
+		</style>
 	</head>
 	
 <body id="p_body" onkeyup="findKey(event)" style="overflow:hidden; color:#FFFFFF; margin:0; padding:0;">
 
 <div id="backgroundLayer" style="position:absolute; left:0px; top:0px; z-index:1; border: 1px none #000000; overflow:hidden;">
 <img id="backgroundImage" style="width:100%; height:100%; object-fit:cover; object-position:center;">
+<video id="backgroundVideo" autoplay loop muted playsinline style="display:none; width:100%; height:100%; object-fit:cover; object-position:center;"></video>
 </div>
 
 <div id="overlayLayer" style="position:absolute; left:0px; top:0px; z-index:1; pointer-events:none;"></div>
 
-<div id="contentLayer" style="position:absolute; left:0px; top:0px; z-index:2; border: 1px none #000000;">
+<!-- Pre-Service Centro Countdown Overlay -->
+<div id="serviceCountdownOverlay" style="display:none; position:absolute; inset:0; z-index:90; background:rgba(2, 6, 23, 0.88); backdrop-filter:blur(12px); flex-direction:column; align-items:center; justify-content:center; text-align:center; color:#ffffff; font-family:Arial, Helvetica, sans-serif; pointer-events:none;">
+  <div id="scHeader" style="font-size:3.2vw; font-weight:700; letter-spacing:4px; text-transform:uppercase; color:#94a3b8; margin-bottom:1.5vh;">SERVICE BEGINS IN</div>
+  <div id="scClock" style="font-size:13vw; font-weight:900; letter-spacing:6px; font-family:monospace; line-height:1; color:#ffffff; text-shadow:0 10px 40px rgba(0,0,0,0.8); margin-bottom:2vh;">05:00</div>
+  <div id="scSub" style="font-size:2vw; font-weight:600; opacity:0.85; max-width:85%; letter-spacing:1px; color:#e2e8f0;">Union Espiritista Cristiana de Filipinas, Inc.</div>
+</div>
 
-<div id="presentationContainer">
+<div id="contentLayer" style="position:absolute; left:0px; top:0px; width:100%; height:100%; z-index:10; border: 1px none #000000; pointer-events:none;">
 
-<div id="presentationTitle" class="titleStyle"></div>
+<div id="presentationContainer" style="width:100%; height:100%; position:relative;">
 
-<div id="presentationContent" class="contentStyle" style="display:flex; flex-direction:column; justify-content:center; align-items:center; width:100%;">
-  <div id="p_contentID" style="width:100%; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+<!-- Lower-Third Translucent Gradient Backdrop Bar for L-Third Layout -->
+<div id="lowerThirdBar" style="display:none; position:absolute; left:0px; right:0px; bottom:0px; height:35%; background:linear-gradient(to bottom, transparent 0%, rgba(2, 6, 23, 0.75) 25%, rgba(2, 6, 23, 0.94) 70%, rgba(2, 6, 23, 0.98) 100%); -webkit-mask-image:linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.35) 10%, black 28%, black 100%); mask-image:linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.35) 10%, black 28%, black 100%); pointer-events:none; z-index:1;"></div>
+
+<div id="presentationTitle" class="titleStyle" style="z-index:3;"></div>
+
+<div id="presentationContent" class="contentStyle" style="display:flex; flex-direction:column; justify-content:center; align-items:center; width:100%; z-index:3;">
+  <div id="p_contentID" style="width:100%; position:relative; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+    <!-- Visual Countdown Dots at beginning of timed songs (floats right above first lyric line without displacing content) -->
+    <div id="songCountdownDots" class="song-countdown-dots" style="display:none; position:absolute; left:50%; transform:translateX(-50%); align-items:center; justify-content:center; gap:28px; pointer-events:none; z-index:10; transition:opacity 0.25s ease;">
+      <div class="countdown-dot" data-dot="0" style="width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.25); border:3px solid rgba(255,255,255,0.45); box-sizing:border-box; transition:all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);"></div>
+      <div class="countdown-dot" data-dot="1" style="width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.25); border:3px solid rgba(255,255,255,0.45); box-sizing:border-box; transition:all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);"></div>
+      <div class="countdown-dot" data-dot="2" style="width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.25); border:3px solid rgba(255,255,255,0.45); box-sizing:border-box; transition:all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);"></div>
+      <div class="countdown-dot" data-dot="3" style="width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.25); border:3px solid rgba(255,255,255,0.45); box-sizing:border-box; transition:all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);"></div>
+    </div>
     <div id="contentPersonTitle" style="display:none; overflow:hidden; width:100%;"></div>
     <div id="content1" style="overflow:hidden; width:100%;"></div>
     <div id="presentationDivider" style="display:none; margin: 16px auto; transition: all 0.2s;"></div>
@@ -33,11 +107,11 @@
   </div>
 </div>
 
-<div id="footnote" class="footerStyle"></div>
+<div id="footnote" class="footerStyle" style="z-index:3;"></div>
 </div>
 </div>
 
-<div id="customSlideLayer" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; z-index:3; background:#000000;">
+<div id="customSlideLayer" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; z-index:12; background:#000000;">
   <img id="customSlideBgImage" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; object-fit:cover; object-position:center;">
   <div id="customSlideDim" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; background:#000000;"></div>
   <div id="customSlideTitle" style="display:none;"></div>
@@ -49,7 +123,18 @@
   </div>
 </div>
 
-<div id="logoLayer" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; z-index:5; background:#020617;">
+<!-- LIVE STAGE VIDEO LAYER (Centro Camera / Remote Guest Speaker) -->
+<div id="videoLayer" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; z-index:4; background:#000000; overflow:hidden;">
+  <video id="stageVideo" autoplay playsinline muted style="width:100%; height:100%; object-fit:contain; background:#000000; display:block;"></video>
+  
+  <!-- Lower-Third Speaker Banner -->
+  <div id="stageLowerThird" style="display:none; position:absolute; bottom:6%; left:5%; background:rgba(15, 23, 42, 0.88); backdrop-filter:blur(8px); border-left:6px solid #2563eb; border-radius:0 12px 12px 0; padding:12px 24px; box-shadow:0 10px 25px rgba(0,0,0,0.5); font-family:sans-serif; transition:all 0.3s ease; z-index:10;">
+    <div id="stageLowerThirdName" style="font-size:26px; font-weight:800; color:#ffffff; line-height:1.2;">Speaker Name</div>
+    <div id="stageLowerThirdRole" style="font-size:14px; font-weight:600; color:#93c5fd; text-transform:uppercase; letter-spacing:0.05em; margin-top:2px;">Live Video Feed</div>
+  </div>
+</div>
+
+<div id="logoLayer" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; z-index:50; background:#020617;">
   <img id="logoBgImage" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; object-fit:cover; object-position:center;">
   <div id="logoDim" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; background:#000000;"></div>
   <div id="logoContent" style="position:relative; z-index:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; width:100%; height:100%; padding:5%; box-sizing:border-box;">
@@ -59,7 +144,7 @@
   </div>
 </div>
 
-<div id="attentionLayer" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; z-index:6; background:#000000;">
+<div id="attentionLayer" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; z-index:60; background:#000000;">
   <img id="attentionBgImage" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; object-fit:cover; object-position:center;">
   <div id="attentionDim" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; background:#000000;"></div>
   <div id="attentionContent" style="position:relative; z-index:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; width:100%; height:100%; box-sizing:border-box;">
@@ -71,7 +156,22 @@
   </div>
 </div>
 
-<div id="blackLayer" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; z-index:6; background:#000000;"></div>
+<div id="blackLayer" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; z-index:60; background:#000000;"></div>
+
+<!-- DEDICATED BROADCAST SPEAKER LOWER THIRD OVERLAY LAYER (z-index: 20) -->
+<div id="speakerLowerThirdLayer" style="display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; z-index:20; pointer-events:none; overflow:hidden;">
+  <div id="speakerLowerThirdBanner" style="position:absolute; bottom:6.5%; left:4.5%; pointer-events:none; transform:translateX(-120%); opacity:0;">
+    <div id="speakerLtInner" style="display:flex; align-items:center; background:rgba(15, 23, 42, 0.90); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-radius:0 14px 14px 0; border-left:6px solid #2563eb; box-shadow:0 14px 35px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.35); padding:10px 24px 10px 18px; font-family:'Segoe UI', system-ui, -apple-system, sans-serif;">
+      <div id="speakerLtBadge" style="margin-right:14px; width:40px; height:40px; border-radius:10px; background:rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; shrink-0;">
+        <i id="speakerLtIcon" class="fa-solid fa-microphone-lines" style="font-size:18px; color:#ffffff;"></i>
+      </div>
+      <div id="speakerLtTextWrap" style="display:flex; flex-direction:column; justify-content:center;">
+        <div id="speakerLtName" style="font-size:26px; font-weight:800; color:#ffffff; line-height:1.2; letter-spacing:-0.01em; text-shadow:0 1px 3px rgba(0,0,0,0.4);">Speaker Name</div>
+        <div id="speakerLtRole" style="font-size:13px; font-weight:700; color:#93c5fd; text-transform:uppercase; letter-spacing:0.06em; margin-top:2px; line-height:1.2;">Minister / Role</div>
+      </div>
+    </div>
+  </div>
+</div>
 		
 <script>
 	initPresentation();

@@ -259,7 +259,9 @@ function schedule() {
       const ab = p.data[R].songID;
       const X = songManagerObj.getSongObjWithID(ab);
       if (X != null) {
-        const S = X.font;
+        const songPrimaryFont = (typeof window !== "undefined" && window.themeManager && typeof window.themeManager.resolveProjectionStyle === "function")
+          ? window.themeManager.resolveProjectionStyle("songs").primaryFont
+          : "sans-serif";
         const Z = X.slides ? X.slides.length : 0;
         if (typeEl) typeEl.textContent = "Song";
         ac = `${ac}<div class="mb-3 flex items-center justify-between gap-2">`;
@@ -274,7 +276,7 @@ function schedule() {
         for (let W = 0; W < Z; W++) {
           const U = `schlyricsID${W}`;
           const el = document.getElementById(U);
-          if (el) el.style.fontFamily = S;
+          if (el) el.style.fontFamily = songPrimaryFont || "sans-serif";
           const lyr = new songLyricsClass();
           lyr.init(X, U, W);
         }

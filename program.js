@@ -38,11 +38,16 @@ class ProgramManager {
     // shipped program/program.json is first-run fallback only.
     this.storagePath = "storage/program/program.json";
     this.fallbackPath = "program/program.json";
+    this.playlistsStoragePath = "storage/program/playlists.json";
+    this.playlists = [];
+    this.activePlaylistId = null;
   }
 
   init() {
     console.log("[PROGRAM] Initializing ProgramManager...");
     this.loadProgramData();
+    this.loadPlaylists();
+    this.renderPlaylistSelector();
     this.renderLeftNav();
     this.renderRightWorkspace();
     this.bindEvents();
@@ -63,6 +68,17 @@ class ProgramManager {
       localStorage.setItem("uecfi_program_items", dataStr);
     } catch (e) {
       console.warn("[PROGRAM] localStorage mirror failed:", e);
+    }
+
+    // Keep the active playlist in sync with current program items
+    if (this.activePlaylistId && Array.isArray(this.playlists)) {
+      const active = this.playlists.find((p) => p && p.id === this.activePlaylistId);
+      if (active) {
+        active.items = JSON.parse(dataStr);
+        active.updatedAt = new Date().toISOString();
+        this.savePlaylists();
+        this.renderPlaylistSelector();
+      }
     }
   }
 
@@ -225,11 +241,11 @@ class ProgramManager {
 
       let rowClass = "p-2 rounded-lg border cursor-pointer flex flex-col gap-1 relative group transition ";
       if (isPresented) {
-        rowClass += "prog-item-presented";
+        rowClass += "prog-item-presented bg-emerald-50/90 border-2 border-emerald-500 ring-2 ring-emerald-400/40 shadow-md shadow-emerald-500/15 ";
       } else if (isSelected) {
-        rowClass += "prog-item-selected";
+        rowClass += "prog-item-selected bg-white border-brand-500 ring-1 ring-brand-400/30 text-slate-900 ";
       } else {
-        rowClass += "bg-slate-50 border-slate-200 hover:border-brand-500 hover:shadow-sm text-slate-800";
+        rowClass += "bg-slate-50 border-slate-200 hover:border-brand-500 hover:shadow-sm text-slate-800 ";
       }
 
       // Secondary summary line
@@ -261,7 +277,10 @@ class ProgramManager {
              ondblclick="programManager.presentItem(${idx})"
              class="${rowClass}">
           <div class="flex items-center justify-between gap-1">
-            <span class="prog-item-title text-xs font-bold leading-snug truncate max-w-[200px]">${item.title}</span>
+            <div class="flex items-center gap-1.5 min-w-0">
+              ${isPresented ? '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-600 text-white flex items-center gap-1 shadow-xs uppercase tracking-wider shrink-0 animate-pulse"><i class="fa-solid fa-tower-broadcast text-[8px]"></i> LIVE</span>' : ''}
+              <span class="prog-item-title text-xs font-bold leading-snug truncate max-w-[170px] ${isPresented ? 'text-emerald-800' : ''}">${item.title}</span>
+            </div>
             <div class="shrink-0">${typeBadge}</div>
           </div>
           <div class="flex items-center justify-between gap-1">
@@ -333,7 +352,7 @@ class ProgramManager {
         }
 
         // Render scripture card identically to verse tab card
-        const cardClass = `program-scripture-card ${isSlidePresented ? "scripture-presented" : ""}`;
+        const cardClass = `program-scripture-card relative ${isSlidePresented ? "scripture-presented bg-emerald-50/90 border-2 border-emerald-500 ring-2 ring-emerald-400/40 shadow-md shadow-emerald-500/20" : ""}`;
         const verseNum = slide.verseNum || (sIdx + 1);
         const col1Text = slide.rawText1 || slide.text1 || "";
         const col2Text = slide.rawText2 || slide.text2 || "";
@@ -341,6 +360,11 @@ class ProgramManager {
         if (isDual && col2Text) {
           slidesHtml += `
             <div onclick="event.preventDefault(); programManager.presentSlide(${this.selectedItemIndex}, ${sIdx})" class="${cardClass}">
+              ${isSlidePresented ? `
+                <div class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-600 text-white flex items-center gap-1 shadow-xs uppercase tracking-wider animate-pulse z-10">
+                  <i class="fa-solid fa-tower-broadcast text-[9px]"></i> LIVE
+                </div>
+              ` : ""}
               <div class="program-verse-bubble">${verseNum}</div>
               <div class="program-verse-col1" style="padding-right: 20px;">
                 ${col1Text}
@@ -353,6 +377,11 @@ class ProgramManager {
         } else {
           slidesHtml += `
             <div onclick="event.preventDefault(); programManager.presentSlide(${this.selectedItemIndex}, ${sIdx})" class="${cardClass}">
+              ${isSlidePresented ? `
+                <div class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-600 text-white flex items-center gap-1 shadow-xs uppercase tracking-wider animate-pulse z-10">
+                  <i class="fa-solid fa-tower-broadcast text-[9px]"></i> LIVE
+                </div>
+              ` : ""}
               <div class="program-verse-bubble">${verseNum}</div>
               <div class="program-verse-single">
                 ${col1Text}
@@ -362,17 +391,22 @@ class ProgramManager {
         }
       } else {
         const isCustom = (item.type === "person" || item.type === "general") && (item.customSlide && item.customSlide.active);
-        let slideClass = "program-slide-card bg-white border rounded-xl p-5 shadow-xs transition cursor-pointer relative hover:shadow-md ";
+        let slideClass = "program-slide-card rounded-xl p-5 shadow-xs transition cursor-pointer relative hover:shadow-md ";
         if (isSlidePresented) {
-          slideClass += "program-slide-presented ";
+          slideClass += "program-slide-presented bg-emerald-50/90 border-2 border-emerald-500 ring-2 ring-emerald-400/40 shadow-md shadow-emerald-500/20 ";
         } else {
-          slideClass += isCustom ? "border-brand-300 hover:border-brand-500" : "border-slate-200 hover:border-brand-400";
+          slideClass += "bg-white border " + (isCustom ? "border-brand-300 hover:border-brand-500 " : "border-slate-200 hover:border-brand-400 ");
         }
 
         slidesHtml += `
           <div onclick="event.preventDefault(); programManager.presentSlide(${this.selectedItemIndex}, ${sIdx})" 
                class="${slideClass}">
-            <div class="absolute top-3 right-3 flex items-center gap-1">
+            <div class="absolute top-3 right-3 flex items-center gap-1.5 z-10">
+              ${isSlidePresented ? `
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-600 text-white flex items-center gap-1 shadow-xs uppercase tracking-wider animate-pulse">
+                  <i class="fa-solid fa-tower-broadcast text-[9px]"></i> LIVE
+                </span>
+              ` : ""}
               ${isCustom ? `
                 <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-brand-50 text-brand-700 border border-brand-200 flex items-center gap-1">
                   <i class="fa-solid fa-palette text-[9px]"></i> Custom Slide
@@ -386,15 +420,15 @@ class ProgramManager {
             <div class="text-center py-4 px-2">
               ${item.type === "person" ? `
                 <span class="text-[11px] font-bold uppercase tracking-wider text-amber-600 block mb-1">
-                  ${(isCustom && item.customSlide && item.customSlide.title) ? item.customSlide.title : (item.data.personType || item.title || "Panauhing Tagapagsalita")}
+                  ${item.data.personType || item.title || "Panauhing Tagapagsalita"}
                 </span>
               ` : ""}
               ${isCustom && item.customSlide && item.customSlide.image ? `
                 <img src="${item.customSlide.image}" class="w-16 h-16 object-contain rounded-lg mx-auto mb-2.5 border border-slate-200 bg-slate-900 shadow-xs" alt="Slide Graphic" />
               ` : ""}
-              ${(item.type === "person" && (item.data.personTitle || (isCustom && item.customSlide && item.customSlide.personTitle))) ? `
+              ${(item.type === "person" && item.data.personTitle) ? `
                 <span class="text-xs font-semibold text-slate-500 block mb-0.5">
-                  ${(isCustom && item.customSlide && item.customSlide.personTitle) ? item.customSlide.personTitle : item.data.personTitle}
+                  ${item.data.personTitle}
                 </span>
               ` : ""}
               ${slide.text1 ? `<p class="text-base font-bold text-slate-900 leading-relaxed">${slide.text1}</p>` : ""}
@@ -715,19 +749,41 @@ class ProgramManager {
     // Content only -- design (fonts, colors, scales, background, margins)
     // comes exclusively from ThemeManager; item.type maps to its bundle
     // inside applyThemeToProjection (song->songs, scripture->verses, ...).
-    window.p_text1_arr = slides.map(s => s.text1 || "");
-    window.p_text2_arr = slides.map(s => s.text2 || "");
+    p_text1_arr = slides.map(s => s.text1 || "");
+    p_text2_arr = slides.map(s => s.text2 || "");
+    window.p_text1_arr = p_text1_arr;
+    window.p_text2_arr = p_text2_arr;
     const isPerson = item.type === "person";
-    window.p_person_title = isPerson ? ((item.data && item.data.personTitle) || curSlide.personTitle || "") : "";
-    window.p_person_title_arr = slides.map(s => (isPerson ? (s.personTitle || (item.data && item.data.personTitle) || "") : ""));
-    window.p_current_index = this.presentedSlideIndex;
-    window.p_last_index = slides.length - 1;
-    // Verse slide titles must not leak into program items
+    const personTitleVal = isPerson ? ((item.data && item.data.personTitle) || curSlide.personTitle || "") : "";
+    const personTitleArr = slides.map(s => (isPerson ? (s.personTitle || (item.data && item.data.personTitle) || "") : ""));
+    window.p_person_title = personTitleVal;
+    window.p_person_title_arr = personTitleArr;
+    if (typeof p_person_title !== "undefined") p_person_title = personTitleVal;
+    if (typeof p_person_title_arr !== "undefined") p_person_title_arr = personTitleArr;
+    p_current_index = this.presentedSlideIndex;
+    p_last_index = slides.length - 1;
+    window.p_current_index = p_current_index;
+    window.p_last_index = p_last_index;
+    // Verse slide titles and dual verse state must not leak into program items
     window.p_title_arr = [];
+    if (typeof p_title_arr !== "undefined") p_title_arr = [];
+    window.presentedVerseIndex = -1;
+    window.presentedSearchIdx = -1;
+    window.presentedSongIdx = -1;
+    window.presentedSlideIdx = -1;
+    window.p_dual_text1_arr = null;
+    window.p_dual_text2_arr = null;
+    window.p_dual_footnote = null;
     // A program present supersedes any schedule highlight
     window.presentedScheduleId = null;
     if (typeof window.updateScheduleHighlight === "function") window.updateScheduleHighlight();
     if (typeof window.updateScheduleSlideHighlight === "function") window.updateScheduleSlideHighlight();
+    if (typeof updateVerseHighlight === "function") updateVerseHighlight();
+    if (typeof updateSongSlideHighlight === "function") updateSongSlideHighlight();
+    if (window.presentedSongIdx !== window._lastRenderedSongIdx) {
+      window._lastRenderedSongIdx = window.presentedSongIdx;
+      if (typeof updateSongListHighlight === "function") updateSongListHighlight();
+    }
 
     if (item.type === "scripture") {
       // In Verses tab, title shows the specific reference (e.g., Genesis 1:1 or Genesis 1)
@@ -736,8 +792,10 @@ class ProgramManager {
       // Song, Tema, Person, General types: show item title in live projection
       window.p_title = item.title || "";
     }
+    p_title = window.p_title;
     // Program items project no footnote
     window.p_footnote = "";
+    p_footnote = "";
 
     // Apply specific theme styling for this item type if ThemeManager exists
     if (typeof window !== "undefined" && window.themeManager && typeof window.themeManager.applyThemeToProjection === "function") {
@@ -751,8 +809,26 @@ class ProgramManager {
     // Song backing track & synchronized lyrics
     if (typeof window !== "undefined" && window.songAudioEngine) {
       if (item.type === "song") {
-        const audioFile = (item.data && item.data.audio) || "";
-        const lyrics = (item.data && item.data.lyrics) || "";
+        let audioFile = (item.data && item.data.audio) || "";
+        let lyrics = (item.data && item.data.lyrics) || "";
+        if ((!audioFile || !lyrics) && typeof songManagerObj !== "undefined" && item.data) {
+          try {
+            let sObj = null;
+            if (item.data.id != null && typeof songManagerObj.getSongByID === "function") {
+              sObj = songManagerObj.getSongByID(item.data.id);
+            }
+            if (!sObj && item.title && typeof songManagerObj.getRawSongRows === "function") {
+              const rows = songManagerObj.getRawSongRows();
+              if (Array.isArray(rows)) {
+                sObj = rows.find(r => r && r.name && r.name.trim().toLowerCase() === String(item.title).trim().toLowerCase());
+              }
+            }
+            if (sObj) {
+              if (!audioFile) audioFile = sObj.audio || "";
+              if (!lyrics) lyrics = sObj.lyrics || "";
+            }
+          } catch (e) {}
+        }
         if (!window.songAudioEngine.currentSong || window.songAudioEngine.currentSong.name !== item.title) {
           window.songAudioEngine.startSong({
             name: item.title,
@@ -764,7 +840,7 @@ class ProgramManager {
           window.songAudioEngine.onSlideChanged(this.presentedSlideIndex);
         }
       } else {
-        window.songAudioEngine.stop();
+        try { window.songAudioEngine.stop(); } catch (e) {}
       }
     }
 
@@ -785,11 +861,11 @@ class ProgramManager {
       const cs = {
         active: true,
         type: item.type,
-        // Content
-        title: (typeof customProps.title === "string" && customProps.title.trim() !== "") ? customProps.title : baseTitle,
-        personTitle: (typeof customProps.personTitle === "string" && customProps.personTitle.trim() !== "") ? customProps.personTitle : basePersonTitle,
-        text1: (typeof customProps.text1 === "string" && customProps.text1.trim() !== "") ? customProps.text1 : baseText1,
-        text2: (typeof customProps.text2 === "string" && customProps.text2.trim() !== "") ? customProps.text2 : baseText2,
+        // Content (single source of truth from item.title & item.data / curSlide)
+        title: baseTitle,
+        personTitle: basePersonTitle,
+        text1: baseText1,
+        text2: baseText2,
         // Graphic
         image: customProps.image || "",
         imgSize: (isFinite(Number(customProps.imgSize)) && Number(customProps.imgSize) > 0) ? Number(customProps.imgSize) : 35,
@@ -853,8 +929,10 @@ class ProgramManager {
         textAlign: customProps.textAlign || themeDefaults.textAlign || "center"
       };
       window.p_custom_slide = cs;
+      if (typeof p_custom_slide !== "undefined") p_custom_slide = cs;
     } else {
       window.p_custom_slide = null;
+      if (typeof p_custom_slide !== "undefined") p_custom_slide = null;
     }
 
     // Call projection engine
@@ -865,9 +943,29 @@ class ProgramManager {
     // Update Live Monitor UI
     this.updateLiveMonitorDisplay(curSlide, item, this.presentedSlideIndex, slides.length);
 
-    // Refresh UI highlights
-    this.renderLeftNav();
-    this.renderRightWorkspace();
+    // Refresh UI highlights efficiently: avoid tearing down and rebuilding
+    // the entire workspace DOM when stepping within the same presented item.
+    if (this.presentedItemIndex !== this._lastPresentedItemIdx) {
+      this._lastPresentedItemIdx = this.presentedItemIndex;
+      this.renderLeftNav();
+      this.renderRightWorkspace();
+    } else {
+      const ws = document.getElementById("programWorkspace");
+      const cards = ws ? ws.querySelectorAll(".program-slide-card, .scripture-slide-card") : null;
+      if (cards && cards.length > 0) {
+        cards.forEach((card, sIdx) => {
+          if (sIdx === this.presentedSlideIndex) {
+            card.classList.add("program-slide-presented", "ring-2", "ring-emerald-500");
+            card.classList.remove("border-slate-200");
+          } else {
+            card.classList.remove("program-slide-presented", "ring-2", "ring-emerald-500");
+            card.classList.add("border-slate-200");
+          }
+        });
+      } else {
+        this.renderRightWorkspace();
+      }
+    }
     // The workspace re-render rebuilds the scrollable slides list, which
     // resets its scroll to top. Center the projected (LIVE) slide so the
     // operator can see the slides above and below it without scrolling.
@@ -1758,6 +1856,11 @@ class ProgramManager {
       || null;
 
     if (customSlideObj) {
+      // Single source of truth: customSlide stores styling/layout/media only
+      delete customSlideObj.title;
+      delete customSlideObj.personTitle;
+      delete customSlideObj.text1;
+      delete customSlideObj.text2;
       data.customSlide = customSlideObj;
     }
 
@@ -2378,6 +2481,7 @@ class ProgramManager {
     this.showCustomSlideDesignerModal({
       type: modalType,
       customSlide: targetObj,
+      preferDefaults: true,
       defaultTitle: defaultTitle,
       defaultPersonTitle: defaultPersonTitle,
       defaultText1: defaultText1,
@@ -2458,8 +2562,8 @@ class ProgramManager {
         type: type,
         image: strVal(existing.image, ""),
         imgSize: numVal(existing.imgSize, 35),
-        title: strVal(existing.title, opts.defaultTitle || (isPerson ? "Panauhing Tagapagsalita" : "ANNOUNCEMENTS")),
-        personTitle: strVal(existing.personTitle, opts.defaultPersonTitle || ""),
+        title: opts.defaultTitle !== undefined ? opts.defaultTitle : (isPerson ? "Panauhing Tagapagsalita" : "ANNOUNCEMENTS"),
+        personTitle: opts.defaultPersonTitle || "",
         personTitleSize: numVal(existing.personTitleSize, 6),
         personTitleBold: boolVal(existing.personTitleBold, true),
         personTitleItalic: boolVal(existing.personTitleItalic, false),
@@ -2480,7 +2584,7 @@ class ProgramManager {
         titleBorderThickness: numVal(existing.titleBorderThickness, 0),
         titlePaddingV: numVal(existing.titlePaddingV, 0),
         titlePaddingH: numVal(existing.titlePaddingH, 0),
-        text1: strVal(existing.text1, opts.defaultText1 || ""),
+        text1: opts.defaultText1 || "",
         text1Size: numVal(existing.text1Size, isPerson ? 12 : 7),
         text1Bold: boolVal(existing.text1Bold, themeStyle.primaryWeight !== "normal"),
         text1Italic: boolVal(existing.text1Italic, false),
@@ -2491,7 +2595,7 @@ class ProgramManager {
         text1BorderThickness: numVal(existing.text1BorderThickness, 0),
         text1PaddingV: numVal(existing.text1PaddingV, 0),
         text1PaddingH: numVal(existing.text1PaddingH, 0),
-        text2: strVal(existing.text2, opts.defaultText2 || ""),
+        text2: opts.defaultText2 || "",
         text2Size: numVal(existing.text2Size, 5),
         text2Bold: boolVal(existing.text2Bold, themeStyle.secondaryWeight === "bold"),
         text2Italic: boolVal(existing.text2Italic, !!themeStyle.secondaryItalic),
@@ -3021,11 +3125,51 @@ class ProgramManager {
       cs.bgDim = Math.min(90, Math.max(0, getNum("csDim", 60)));
 
       const finalCs = JSON.parse(JSON.stringify(cs));
+      const editedTitle = finalCs.title || "";
+      const editedPersonTitle = finalCs.personTitle || "";
+      const editedText1 = finalCs.text1 || "";
+      const editedCentro = (finalCs.text2 || "").replace(/^\((.*)\)$/, "$1").trim();
+
+      // Single source of truth: customSlide stores styling/layout/media only
+      delete finalCs.title;
+      delete finalCs.personTitle;
+      delete finalCs.text1;
+      delete finalCs.text2;
+
+      const replaceFirstBlock = (rawContent, firstBlock) => {
+        const parts = String(rawContent || "").split(/\n\s*\n/);
+        parts[0] = firstBlock || "";
+        return parts.filter((p, idx) => idx === 0 || p.trim().length > 0).join("\n\n").trim();
+      };
 
       if (this.editingCustomSlideFromModal) {
         // Saving back to open Add/Edit Item modal
         if (!this.currentModalData) this.currentModalData = {};
         this.currentModalData.customSlide = finalCs;
+
+        if (finalCs.type === "person") {
+          const pTypeEl = document.getElementById("inputPersonType");
+          const pTitleEl = document.getElementById("inputPersonTitle");
+          const pNameEl = document.getElementById("inputPersonName");
+          const pCentroEl = document.getElementById("inputPersonCentro");
+          if (pTypeEl) pTypeEl.value = editedTitle;
+          if (pTitleEl) pTitleEl.value = editedPersonTitle;
+          if (pNameEl) pNameEl.value = editedText1;
+          if (pCentroEl) pCentroEl.value = editedCentro;
+          this.currentModalData.personType = editedTitle;
+          this.currentModalData.personTitle = editedPersonTitle;
+          this.currentModalData.name = editedText1;
+          this.currentModalData.centro = editedCentro;
+        } else if (finalCs.type === "general") {
+          const titleEl = document.getElementById("inputItemTitle");
+          const contentEl = document.getElementById("inputGeneralContent");
+          if (titleEl && editedTitle) titleEl.value = editedTitle;
+          if (contentEl) {
+            contentEl.value = replaceFirstBlock(contentEl.value, editedText1);
+            this.currentModalData.content = contentEl.value;
+          }
+        }
+
         const statusEl = document.getElementById("modalCustomSlideStatus");
         if (statusEl) {
           statusEl.innerHTML = finalCs.active
@@ -3040,6 +3184,18 @@ class ProgramManager {
           item.customSlide = finalCs;
           if (!item.data) item.data = {};
           item.data.customSlide = finalCs;
+
+          if (item.type === "person") {
+            item.data.personType = editedTitle || item.data.personType || "Panauhing Tagapagsalita";
+            item.title = item.data.personType;
+            item.data.personTitle = editedPersonTitle;
+            item.data.name = editedText1;
+            item.data.centro = editedCentro;
+          } else if (item.type === "general") {
+            if (editedTitle) item.title = editedTitle;
+            item.data.content = replaceFirstBlock(item.data.content, editedText1);
+          }
+
           this.saveProgramData();
           this.renderLeftNav();
           this.renderRightWorkspace();
@@ -3098,6 +3254,290 @@ class ProgramManager {
     } catch (e) {
       console.error("[PROGRAM] Error resetting custom slide designer:", e);
     }
+  }
+
+  // =========================================================================
+  // SERVICE PLAYLISTS MANAGEMENT
+  // =========================================================================
+
+  _cloneItems(items) {
+    try {
+      return JSON.parse(JSON.stringify(Array.isArray(items) ? items : []));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  loadPlaylists() {
+    let loaded = null;
+    try {
+      let fullPath = this.playlistsStoragePath;
+      if (typeof AppStorage !== "undefined" && AppStorage.resolveStoragePath) {
+        fullPath = AppStorage.resolveStoragePath("program", "playlists.json");
+      }
+      if (typeof require === "function") {
+        const fs = require("fs");
+        if (fs.existsSync(fullPath)) {
+          const parsed = JSON.parse(fs.readFileSync(fullPath, "utf8"));
+          if (parsed && Array.isArray(parsed.playlists)) {
+            loaded = parsed;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("[PROGRAM] Could not read playlists file:", e);
+    }
+
+    if (!loaded) {
+      try {
+        const localStr = localStorage.getItem("uecfi_program_playlists");
+        if (localStr) {
+          const parsed = JSON.parse(localStr);
+          if (parsed && Array.isArray(parsed.playlists)) {
+            loaded = parsed;
+          }
+        }
+      } catch (e) {}
+    }
+
+    if (loaded && loaded.playlists.length > 0) {
+      this.playlists = loaded.playlists;
+      this.activePlaylistId = loaded.activePlaylistId || localStorage.getItem("uecfi_active_playlist_id") || this.playlists[0].id;
+      if (!this.playlists.some((p) => p.id === this.activePlaylistId)) {
+        this.activePlaylistId = this.playlists[0].id;
+      }
+    } else {
+      // First run: seed a default playlist containing whatever items are currently loaded
+      const defaultId = "pl_default";
+      this.playlists = [
+        {
+          id: defaultId,
+          name: "Sunday Worship Session",
+          updatedAt: new Date().toISOString(),
+          items: this._cloneItems(this.items)
+        }
+      ];
+      this.activePlaylistId = defaultId;
+      this.savePlaylists();
+    }
+  }
+
+  savePlaylists() {
+    const payload = {
+      activePlaylistId: this.activePlaylistId,
+      playlists: this.playlists
+    };
+    const jsonStr = JSON.stringify(payload, null, 2);
+    try {
+      if (typeof AppStorage !== "undefined" && AppStorage.writeFile) {
+        AppStorage.writeFile(this.playlistsStoragePath, jsonStr);
+      }
+    } catch (e) {
+      console.warn("[PROGRAM] Error saving playlists file:", e);
+    }
+    try {
+      localStorage.setItem("uecfi_program_playlists", jsonStr);
+      if (this.activePlaylistId) {
+        localStorage.setItem("uecfi_active_playlist_id", this.activePlaylistId);
+      }
+    } catch (e) {}
+  }
+
+  renderPlaylistSelector() {
+    const select = document.getElementById("programPlaylistSelect");
+    if (!select) return;
+    select.innerHTML = "";
+    this.playlists.forEach((pl) => {
+      const opt = document.createElement("option");
+      opt.value = pl.id;
+      const count = Array.isArray(pl.items) ? pl.items.length : 0;
+      opt.textContent = `${pl.name} (${count})`;
+      if (pl.id === this.activePlaylistId) opt.selected = true;
+      select.appendChild(opt);
+    });
+  }
+
+  selectPlaylist(playlistId) {
+    const target = this.playlists.find((p) => p && p.id === playlistId);
+    if (!target || target.id === this.activePlaylistId) return;
+
+    // Persist current items into the previous active playlist before switching
+    const current = this.playlists.find((p) => p && p.id === this.activePlaylistId);
+    if (current) {
+      current.items = this._cloneItems(this.items);
+      current.updatedAt = new Date().toISOString();
+    }
+
+    this.activePlaylistId = target.id;
+    this.items = this._cloneItems(target.items);
+    this.selectedItemIndex = -1;
+    this.presentedItemIndex = -1;
+    this.presentedSlideIndex = -1;
+
+    this.saveProgramData();
+    this.savePlaylists();
+    this.renderPlaylistSelector();
+    this.renderLeftNav();
+    this.renderRightWorkspace();
+    this.renderPlaylistModalList();
+    this._notify(`Loaded playlist: ${target.name}`);
+  }
+
+  openPlaylistModal() {
+    let modal = document.getElementById("programPlaylistModal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "programPlaylistModal";
+      modal.style.cssText = "position: fixed; inset: 0; z-index: 99999; display: none; align-items: center; justify-content: center; background: rgba(2, 6, 23, 0.72); backdrop-filter: blur(4px); padding: 16px;";
+      modal.innerHTML = `
+        <div style="background: #ffffff; border-radius: 16px; border: 1px solid #cbd5e1; width: 95vw; max-width: 760px; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);">
+          <div class="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-lg bg-brand-600 text-white flex items-center justify-center">
+                <i class="fa-solid fa-layer-group text-sm"></i>
+              </div>
+              <div>
+                <h2 class="text-sm font-bold text-slate-900">Session Program Playlists</h2>
+                <p class="text-[11px] text-slate-500">Save and switch program lineups for different sessions</p>
+              </div>
+            </div>
+            <button type="button" onclick="window.programManager.closePlaylistModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-200/60 flex items-center justify-center transition cursor-pointer">
+              <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+          </div>
+
+          <div class="p-4 border-b border-slate-200 bg-slate-50/60 shrink-0 space-y-2.5">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-600">Create New Playlist</div>
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+              <input type="text" id="plNewNameInput" placeholder="e.g. Wednesday Prayer Meeting"
+                     class="sm:col-span-9 px-2.5 py-1.5 text-xs font-semibold bg-white border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:border-brand-500">
+              <button type="button" onclick="window.programManager.createPlaylist(false)"
+                      class="sm:col-span-3 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-lg transition cursor-pointer">
+                + New Empty
+              </button>
+            </div>
+            <div class="flex justify-end">
+              <button type="button" onclick="window.programManager.createPlaylist(true)"
+                      class="text-[11px] font-bold text-brand-700 hover:text-brand-800 cursor-pointer">
+                <i class="fa-regular fa-copy mr-1"></i> Or save current program items as this new playlist
+              </button>
+            </div>
+          </div>
+
+          <div id="plModalList" class="flex-1 overflow-y-auto p-4 space-y-2 bg-white"></div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    modal.style.display = "flex";
+    this.renderPlaylistModalList();
+  }
+
+  closePlaylistModal() {
+    const modal = document.getElementById("programPlaylistModal");
+    if (modal) modal.style.display = "none";
+  }
+
+  renderPlaylistModalList() {
+    const listEl = document.getElementById("plModalList");
+    if (!listEl) return;
+
+    const escapeHtml = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+    listEl.innerHTML = this.playlists.map((pl) => {
+      const isActive = pl.id === this.activePlaylistId;
+      const count = Array.isArray(pl.items) ? pl.items.length : 0;
+      const updated = pl.updatedAt ? new Date(pl.updatedAt).toLocaleDateString() : "";
+      return `
+        <div class="flex items-center justify-between gap-3 p-3 rounded-xl border ${isActive ? "border-brand-400 bg-brand-50/50" : "border-slate-200 bg-white hover:bg-slate-50"} transition">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold text-slate-900 truncate">${escapeHtml(pl.name)}</span>
+              ${isActive ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 shrink-0">ACTIVE</span>' : ""}
+            </div>
+            <div class="text-[11px] text-slate-500 mt-0.5">${count} item${count === 1 ? "" : "s"}${updated ? ` · Updated ${updated}` : ""}</div>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            ${!isActive ? `<button type="button" onclick="window.programManager.selectPlaylist('${pl.id}')" class="px-2.5 py-1 bg-brand-600 hover:bg-brand-700 text-white text-[11px] font-bold rounded-lg cursor-pointer">Load</button>` : ""}
+            <button type="button" onclick="window.programManager.renamePlaylist('${pl.id}')" title="Rename Playlist" class="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-200/60 rounded-lg text-xs cursor-pointer"><i class="fa-solid fa-pen"></i></button>
+            <button type="button" onclick="window.programManager.duplicatePlaylist('${pl.id}')" title="Duplicate Playlist" class="p-1.5 text-slate-500 hover:text-brand-700 hover:bg-brand-50 rounded-lg text-xs cursor-pointer"><i class="fa-regular fa-copy"></i></button>
+            ${this.playlists.length > 1 ? `<button type="button" onclick="window.programManager.deletePlaylist('${pl.id}')" title="Delete Playlist" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg text-xs cursor-pointer"><i class="fa-regular fa-trash-can"></i></button>` : ""}
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  createPlaylist(cloneCurrent = false) {
+    const nameInput = document.getElementById("plNewNameInput");
+    const rawName = nameInput ? nameInput.value.trim() : "";
+    const name = rawName || `Playlist (${new Date().toLocaleDateString()})`;
+
+    const newPl = {
+      id: `pl_${Date.now()}`,
+      name,
+      updatedAt: new Date().toISOString(),
+      items: cloneCurrent ? this._cloneItems(this.items) : []
+    };
+
+    this.playlists.push(newPl);
+    if (nameInput) nameInput.value = "";
+    this.savePlaylists();
+    this.selectPlaylist(newPl.id);
+    this.renderPlaylistModalList();
+  }
+
+  duplicatePlaylist(playlistId) {
+    const src = this.playlists.find((p) => p && p.id === playlistId);
+    if (!src) return;
+    const copy = {
+      id: `pl_${Date.now()}`,
+      name: `${src.name} (Copy)`,
+      updatedAt: new Date().toISOString(),
+      items: this._cloneItems(src.id === this.activePlaylistId ? this.items : src.items)
+    };
+    this.playlists.push(copy);
+    this.savePlaylists();
+    this.renderPlaylistSelector();
+    this.renderPlaylistModalList();
+    this._notify(`Duplicated "${src.name}"`);
+  }
+
+  renamePlaylist(playlistId) {
+    const pl = this.playlists.find((p) => p && p.id === playlistId);
+    if (!pl) return;
+    const nextName = prompt("Rename playlist:", pl.name);
+    if (!nextName || !nextName.trim()) return;
+    pl.name = nextName.trim();
+    pl.updatedAt = new Date().toISOString();
+    this.savePlaylists();
+    this.renderPlaylistSelector();
+    this.renderPlaylistModalList();
+  }
+
+  deletePlaylist(playlistId) {
+    if (this.playlists.length <= 1) return;
+    const idx = this.playlists.findIndex((p) => p && p.id === playlistId);
+    if (idx === -1) return;
+    const target = this.playlists[idx];
+    if (!confirm(`Delete playlist "${target.name}"?`)) return;
+
+    this.playlists.splice(idx, 1);
+    if (this.activePlaylistId === playlistId) {
+      const nextPl = this.playlists[0];
+      this.activePlaylistId = nextPl.id;
+      this.items = this._cloneItems(nextPl.items);
+      this.selectedItemIndex = -1;
+      this.presentedItemIndex = -1;
+      this.presentedSlideIndex = -1;
+      this.saveProgramData();
+      this.renderLeftNav();
+      this.renderRightWorkspace();
+    }
+    this.savePlaylists();
+    this.renderPlaylistSelector();
+    this.renderPlaylistModalList();
   }
 }
 

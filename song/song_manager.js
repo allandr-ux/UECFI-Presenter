@@ -500,6 +500,7 @@ function songManagerClass() {
         obj.copyright = allSongsResult.data[i].copy;
         obj.notes = allSongsResult.data[i].notes;
         obj.audio = allSongsResult.data[i].audio || "";
+        obj.lyrics = allSongsResult.data[i].lyrics || "";
         obj.slides = splitSlides(allSongsResult.data[i].lyrics);
         found = true;
         break;
@@ -570,6 +571,7 @@ function songManagerClass() {
     obj.copyright = row.copy;
     obj.notes = row.notes;
     obj.audio = row.audio || "";
+    obj.lyrics = row.lyrics || "";
     obj.slides = splitSlides(row.lyrics);
     return obj;
   }

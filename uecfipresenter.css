@@ -355,6 +355,50 @@ span:has(> #songnav_add2schedule_button) {
     display: none !important;
 }
 
+/* --- MODERN READINGS SLIDES TAB STYLES --- */
+#rd_slide {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+#rd_slide .reading-slide-card {
+    background: white;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    padding: 16px;
+    transition: all 0.2s;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+#rd_slide .reading-slide-card:hover {
+    border-color: #6366f1;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+}
+
+#rd_slide .reading-slide-card a {
+    color: #334155;
+    text-decoration: none !important;
+    font-size: 16px;
+    line-height: 1.6;
+    display: block;
+    white-space: pre-wrap;
+}
+
+#rd_slide .reading-slide-card.slide-presented {
+    border-color: #10b981 !important;
+    background-color: #ecfdf5 !important;
+    box-shadow: 0 4px 12px -2px rgba(16, 185, 129, 0.3) !important;
+    transform: translateY(-1px);
+}
+
+#rd_slide .reading-slide-card.slide-presented a {
+    color: #065f46 !important;
+    font-weight: 600 !important;
+}
+
 
 #verseTab div.vcClass a {
     text-decoration: none !important;
@@ -1265,6 +1309,7 @@ dialog#uecfi_tap_sync_modal[open] {
 }
 #scheduleTab,
 #lyricsTab,
+#readingSlidesTab,
 #programTab,
 #notesTab,
 #searchTab {

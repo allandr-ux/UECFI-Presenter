@@ -16,9 +16,11 @@
     <script type="text/javascript" src="common.js"></script>
     <script type="text/javascript" src="config.js"></script>
     <script type="text/javascript" src="search.js"></script>
+    <script type="text/javascript" src="bible/bible_ai_search.js"></script>
     <script type="text/javascript" src="update.js"></script>
     <script type="text/javascript" src="about.js"></script>
     <script type="text/javascript" src="remote_toast.js"></script>
+    <script type="text/javascript" src="timer_service.js"></script>
     <script type="text/javascript" src="schedule.js"></script>
     <script type="text/javascript" src="help.js"></script>
     <script type="text/javascript" src="setup.js"></script>
@@ -33,9 +35,16 @@
     <script type="text/javascript" src="song/song_lyrics.js"></script>
     <script type="text/javascript" src="song/song_port_xml.js"></script>
     <script type="text/javascript" src="song/song_import.js"></script>
+    <script type="text/javascript" src="reading/readingobj.js"></script>
+    <script type="text/javascript" src="reading/reading_manager.js"></script>
+    <script type="text/javascript" src="reading/reading_slides.js"></script>
+    <script type="text/javascript" src="reading/reading_nav.js"></script>
+    <script type="text/javascript" src="reading/reading_present.js"></script>
+    <script type="text/javascript" src="reading/reading_edit.js"></script>
     <script type="text/javascript" src="program.js"></script>
     <script type="text/javascript" src="theme_manager.js"></script>
     <script type="text/javascript" src="live_studio.js"></script>
+    <script type="text/javascript" src="lower_third_manager.js"></script>
     <script type="text/javascript" src="menu/menu.js"></script>
     <!-- Local precompiled Tailwind CSS (offline, high performance) -->
     <link rel="stylesheet" type="text/css" href="./tailwind.css">
@@ -75,6 +84,12 @@
                     <div class="tooltip-content tooltip-bottom">End Projection</div>
                 </div>
                 <div class="h-5 w-[1px] bg-slate-200 mx-1"></div>
+                <!-- Bible Version Quick Toggles (Dual / Version 1 / Version 2) -->
+                <div id="bibleModeToggleGroup" class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+                    <button type="button" id="btnBibleModeDual" onclick="setBibleDisplayMode('dual')" class="px-2.5 py-1 rounded-md text-xs font-bold transition cursor-pointer bg-white text-brand-700 shadow-xs" title="Display Both Bible Versions (Dual)">Dual</button>
+                    <button type="button" id="btnBibleModeV1" onclick="setBibleDisplayMode('v1')" class="px-2.5 py-1 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer" title="Display Version 1 Only">Version 1</button>
+                    <button type="button" id="btnBibleModeV2" onclick="setBibleDisplayMode('v2')" class="px-2.5 py-1 rounded-md text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer" title="Display Version 2 Only">Version 2</button>
+                </div>
                 <button id="btnBibleSelect" onclick="if(typeof setup_bible_version==='function') setup_bible_version();" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-700 bg-slate-50 hover:bg-brand-50 border border-slate-200 hover:border-brand-300 rounded-lg transition flex items-center gap-1.5" title="Select Bible Versions">
                     <i class="fa-solid fa-book-bible text-brand-600"></i> Select Version
                 </button>
@@ -117,6 +132,35 @@
                     <i class="fa-solid fa-file-export text-slate-500"></i> Export XML
                 </button>
             </div>
+            <!-- Readings Action Buttons (3rd Tab) -->
+            <div id="modernReadingActionButtons" class="ml-6 hidden items-center gap-1.5">
+                <div class="has-tooltip shrink-0">
+                    <button id="readingnav_presentbutton" onclick="if(window.readingNavObj) window.readingNavObj.presentCurrentReading();" class="ctl-btn ctl-cast" aria-label="Present Reading"><i class="fa-brands fa-chromecast"></i></button>
+                    <div class="tooltip-content tooltip-bottom">Present Reading</div>
+                </div>
+                <div class="has-tooltip shrink-0">
+                    <button id="readingnav_prevbutton" onclick="if(typeof call_prevSlide==='function'){call_prevSlide();}else if(window.readingNavObj){window.readingNavObj.prevSlide();}" class="ctl-btn" aria-label="Previous Slide"><i class="fa-solid fa-play fa-flip-horizontal"></i></button>
+                    <div class="tooltip-content tooltip-bottom">Previous Slide</div>
+                </div>
+                <div class="has-tooltip shrink-0">
+                    <button id="readingnav_nextbutton" onclick="if(typeof call_nextSlide==='function'){call_nextSlide();}else if(window.readingNavObj){window.readingNavObj.nextSlide();}" class="ctl-btn" aria-label="Next Slide"><i class="fa-solid fa-play"></i></button>
+                    <div class="tooltip-content tooltip-bottom">Next Slide</div>
+                </div>
+                <div class="has-tooltip shrink-0">
+                    <button id="readingnav_closebutton" onclick="if(typeof closePresentWindow==='function') closePresentWindow();" class="ctl-btn ctl-stop" aria-label="End Projection"><i class="fa-solid fa-stop"></i></button>
+                    <div class="tooltip-content tooltip-bottom">End Projection</div>
+                </div>
+                <div class="h-5 w-[1px] bg-slate-200 mx-1"></div>
+                <button id="btnNewReading" onclick="if(window.readingEditObj) window.readingEditObj.openModal();" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-700 bg-slate-50 hover:bg-brand-50 border border-slate-200 hover:border-brand-300 rounded-lg transition flex items-center gap-1.5 cursor-pointer" title="Create New Reading">
+                    <i class="fa-solid fa-plus text-brand-600"></i> New Reading
+                </button>
+                <button id="btnEditReading" onclick="if(window.readingEditObj && window.readingNavObj) window.readingEditObj.openModal(window.readingNavObj.getSelectedReading());" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-700 bg-slate-50 hover:bg-brand-50 border border-slate-200 hover:border-brand-300 rounded-lg transition flex items-center gap-1.5 cursor-pointer" title="Edit Selected Reading">
+                    <i class="fa-solid fa-pen-to-square text-brand-600"></i> Edit
+                </button>
+                <button id="btnDeleteReading" onclick="if(window.readingNavObj) { var r = window.readingNavObj.getSelectedReading(); if(r && confirm('Delete reading \'' + r.name + '\'?')) { readingManagerObj.deleteReading(r.id); } }" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-red-600 bg-slate-50 hover:bg-red-50 border border-slate-200 hover:border-red-200 rounded-lg transition flex items-center gap-1.5 cursor-pointer" title="Delete Selected Reading">
+                    <i class="fa-regular fa-trash-can text-red-500"></i> Delete
+                </button>
+            </div>
             <div id="modernProgramActionButtons" class="ml-6 hidden items-center gap-1.5">
                 <div class="has-tooltip shrink-0">
                     <button id="prog_present_btn" onclick="if(window.programManager) window.programManager.presentItem(window.programManager.selectedItemIndex);" class="ctl-btn ctl-cast" aria-label="Present Program Item"><i class="fa-brands fa-chromecast"></i></button>
@@ -148,6 +192,10 @@
                 <button id="prog_export_btn" onclick="if(window.programManager) window.programManager.exportProgram();" class="px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:text-brand-700 bg-slate-50 hover:bg-brand-50 border border-slate-200 hover:border-brand-300 rounded-lg transition flex items-center gap-1.5" title="Export Program Items to JSON">
                     <i class="fa-solid fa-file-export text-slate-500"></i> Export JSON
                 </button>
+                <div class="h-5 w-[1px] bg-slate-200 mx-1"></div>
+                <button id="prog_playlists_btn" onclick="if(window.programManager) window.programManager.openPlaylistModal();" class="px-2.5 py-1.5 text-xs font-bold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 rounded-lg transition flex items-center gap-1.5 cursor-pointer" title="Manage & Load Session Playlists">
+                    <i class="fa-solid fa-layer-group text-brand-600"></i> Playlists
+                </button>
             </div>
 
         </div>
@@ -159,7 +207,7 @@
                     <button id="btnLogo" onclick="toggleOutputState('logo')" class="px-3 py-1.5 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition flex items-center gap-1.5" style="background:none;border:0;border-radius:8px 0 0 8px;cursor:pointer;">
                         <i class="fa-solid fa-church text-slate-400"></i> Logo
                     </button>
-                    <div class="tooltip-content tooltip-bottom">Show church logo</div>
+                    <div class="tooltip-content tooltip-bottom">Show centro logo</div>
                 </div>
                 <div style="width:1px;align-self:stretch;background:#cbd5e1;"></div>
                 <button id="btnLogoCustomize" onclick="if(typeof openLogoDesigner==='function') openLogoDesigner();" title="Customize logo screen" class="px-2 py-1.5 text-[11px] leading-none text-slate-400 hover:text-brand-600 hover:bg-brand-50 transition" style="background:none;border:0;border-radius:0 8px 8px 0;cursor:pointer;"><i class="fa-solid fa-pen"></i></button>
@@ -177,13 +225,28 @@
                 <button id="btnAttentionCustomize" onclick="if(typeof openAttentionDesigner==='function') openAttentionDesigner();" title="Customize attention screen" class="px-2 py-1.5 text-[11px] leading-none text-slate-400 hover:text-brand-600 hover:bg-brand-50 transition" style="background:none;border:0;border-radius:0 8px 8px 0;cursor:pointer;"><i class="fa-solid fa-pen"></i></button>
             </div>
             
-            <button id="btnToolbarSongSync" onclick="if(window.songAudioEngine) window.songAudioEngine.toggleSync();" class="px-2.5 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg transition flex items-center gap-1.5 cursor-pointer" title="Quick toggle for backing track audio and synchronized lyrics (ON / OFF)">
-                <i class="fa-solid fa-music"></i> <span id="toolbarSongSyncText">Sync ON</span>
-            </button>
-
             <button id="btnToolbarLiveStudio" onclick="if(window.liveStudio) window.liveStudio.toggleModal();" class="px-2.5 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition flex items-center gap-1.5 cursor-pointer" title="Live Camera & Remote Guests Studio">
                 <i class="fa-solid fa-video"></i> <span>Live Studio</span>
                 <span id="remoteGuestBadge" class="hidden px-1.5 py-0.2 bg-blue-600 text-white rounded-full text-[10px] font-black leading-tight">0</span>
+            </button>
+
+            <!-- Broadcast Speaker Lower Third Split Button -->
+            <div id="lowerThirdSplitWrap" class="flex items-center shrink-0 rounded-lg border border-slate-300 bg-white shadow-xs">
+                <button id="btnToggleLowerThird" onclick="if(window.lowerThirdManager) window.lowerThirdManager.toggleActive();" class="px-2.5 py-1.5 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition flex items-center gap-1.5 cursor-pointer rounded-l-lg" title="Show or dismiss speaker lower third on broadcast/projection">
+                    <i class="fa-solid fa-id-card text-brand-600"></i>
+                    <span id="txtLowerThirdBtn">Nameplate</span>
+                </button>
+                <div style="width:1px;align-self:stretch;background:#cbd5e1;"></div>
+                <button id="btnOpenLowerThirdModal" onclick="if(window.lowerThirdManager) window.lowerThirdManager.openModal();" title="Speaker Roster & Timing Settings" class="px-2 py-1.5 text-[11px] leading-none text-slate-400 hover:text-brand-600 hover:bg-brand-50 transition rounded-r-lg cursor-pointer">
+                    <i class="fa-solid fa-chevron-down"></i>
+                </button>
+            </div>
+
+            <!-- Service Countdown & Preacher Timers Button -->
+            <button id="btnToolbarTimers" onclick="if(window.timerManager) window.timerManager.openModal();" class="px-2.5 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-xs" title="Service Countdowns & Sermon Preaching Timers">
+                <i class="fa-solid fa-stopwatch text-indigo-600"></i>
+                <span id="txtToolbarTimer">Timers</span>
+                <span id="timerActiveBadge" class="hidden px-1.5 py-0.2 bg-indigo-600 text-white rounded-full text-[10px] font-black leading-tight">LIVE</span>
             </button>
 
             <div class="h-6 w-[1px] bg-slate-200 mx-1"></div>
@@ -208,16 +271,37 @@
               </button>
               <div class="flex flex-col min-w-[100px] shrink-0">
                   <span id="songAudioTitle" class="text-[11px] font-bold text-slate-200 truncate max-w-[140px]">Song Audio</span>
-                  <div class="flex items-center gap-1 text-[10px] font-mono text-purple-300">
+                  <div class="flex items-center gap-1.5 text-[10px] font-mono text-purple-300">
                       <span id="songAudioCurrentTime">00:00</span>
                       <span class="text-slate-500">/</span>
                       <span id="songAudioDuration">00:00</span>
+                      <!-- Song intro countdown dots indicator -->
+                      <div id="songAudioCountdownDots" style="display:none;" class="flex items-center gap-1 ml-1 px-1.5 py-0.5 rounded-full bg-slate-800 border border-slate-700 shrink-0" title="Song count-in">
+                          <div class="w-1.5 h-1.5 rounded-full bg-slate-600 transition-all duration-150" data-bar-dot="0"></div>
+                          <div class="w-1.5 h-1.5 rounded-full bg-slate-600 transition-all duration-150" data-bar-dot="1"></div>
+                          <div class="w-1.5 h-1.5 rounded-full bg-slate-600 transition-all duration-150" data-bar-dot="2"></div>
+                          <div class="w-1.5 h-1.5 rounded-full bg-slate-600 transition-all duration-150" data-bar-dot="3"></div>
+                      </div>
                   </div>
               </div>
               <input id="songAudioScrubber" type="range" min="0" max="100" value="0" step="0.1" oninput="if(window.songAudioEngine) window.songAudioEngine.onScrub(this.value);" class="flex-1 accent-purple-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer">
               <div class="flex items-center gap-1.5 shrink-0">
                   <i class="fa-solid fa-volume-high text-xs text-slate-400"></i>
                   <input id="songAudioVolume" type="range" min="0" max="1" step="0.05" value="1" oninput="if(window.songAudioEngine) window.songAudioEngine.setVolume(this.value);" class="w-16 accent-purple-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+              </div>
+              <div style="width:1px;height:20px;background:#334155;" class="shrink-0"></div>
+              <!-- Per-song font size stepper (controls main projection screen; auto-scales on remote displays) -->
+              <div id="songAudioFontSizeControl" class="flex items-center gap-1.5 bg-slate-800/80 px-2.5 py-1 rounded-xl border border-slate-700/60 shrink-0" title="Adjust projection font size for this song (auto-scales on remotes)">
+                  <span class="text-[11px] font-bold text-slate-400 select-none flex items-center gap-1">
+                      <i class="fa-solid fa-font text-[10px]"></i> Size
+                  </span>
+                  <button type="button" onclick="if(window.songAudioEngine) window.songAudioEngine.adjustFontSize(-1);" title="Decrease font size" class="w-6 h-6 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 hover:text-white flex items-center justify-center transition cursor-pointer text-xs font-bold select-none shrink-0">
+                      <i class="fa-solid fa-minus text-[10px]"></i>
+                  </button>
+                  <span id="songAudioFontSizeDisplay" class="text-xs font-bold font-mono text-purple-300 w-10 text-center select-none">56px</span>
+                  <button type="button" onclick="if(window.songAudioEngine) window.songAudioEngine.adjustFontSize(1);" title="Increase font size" class="w-6 h-6 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 hover:text-white flex items-center justify-center transition cursor-pointer text-xs font-bold select-none shrink-0">
+                      <i class="fa-solid fa-plus text-[10px]"></i>
+                  </button>
               </div>
               <div style="width:1px;height:20px;background:#334155;" class="shrink-0"></div>
               <button id="songAudioQuickToggle" type="button" onclick="if(window.songAudioEngine) window.songAudioEngine.toggleSync();" class="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-emerald-600 text-white hover:bg-emerald-500 shrink-0 cursor-pointer" title="Quick toggle for audio playback and synchronized lyrics">
@@ -291,6 +375,33 @@
                 </div>
             </div>
 
+            <!-- Quick Live Stage Video Layout Selector Bar -->
+            <div id="quickStageLayoutBar" class="px-3 py-1.5 bg-slate-900 border-t border-b border-slate-800 flex items-center justify-between text-xs shrink-0">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <span id="quickLayoutIndicatorDot" class="w-2 h-2 rounded-full bg-slate-600"></span>
+                    Stage Layout:
+                </span>
+                <div class="flex items-center gap-1">
+                    <button type="button" id="quickBtnLayoutFull" onclick="window.liveStudio.setLayout('full')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-600 text-white shadow-xs cursor-pointer" title="Full Video">Full</button>
+                    <button type="button" id="quickBtnLayoutPip" onclick="window.liveStudio.setLayout('pip')" class="px-2 py-0.5 rounded text-[10px] font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer" title="Picture-in-Picture">PiP</button>
+                    <button type="button" id="quickBtnLayoutSplit" onclick="window.liveStudio.setLayout('split')" class="px-2 py-0.5 rounded text-[10px] font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer" title="Split Screen 50/50">Split</button>
+                    <button type="button" id="quickBtnLayoutLowerThird" onclick="window.liveStudio.setLayout('lower-third')" class="px-2 py-0.5 rounded text-[10px] font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer" title="Lower-Third Lyrics/Scripture">L-Third</button>
+                </div>
+            </div>
+
+            <!-- Quick Bible Version Display Mode Bar -->
+            <div id="quickBibleModeBar" class="px-3 py-1.5 bg-slate-950 border-b border-slate-800 flex items-center justify-between text-xs shrink-0">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <i class="fa-solid fa-book-bible text-brand-500 text-[10px]"></i>
+                    Scripture:
+                </span>
+                <div class="flex items-center gap-1">
+                    <button type="button" id="quickBtnBibleDual" onclick="setBibleDisplayMode('dual')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-brand-600 text-white shadow-xs cursor-pointer" title="Dual Version Display">Dual</button>
+                    <button type="button" id="quickBtnBibleV1" onclick="setBibleDisplayMode('v1')" class="px-2 py-0.5 rounded text-[10px] font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer" title="Version 1 Only">Version 1</button>
+                    <button type="button" id="quickBtnBibleV2" onclick="setBibleDisplayMode('v2')" class="px-2 py-0.5 rounded text-[10px] font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer" title="Version 2 Only">Version 2</button>
+                </div>
+            </div>
+
             <!-- Quick Stage Navigation & Slide Control -->
             <div class="p-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
                 <div class="has-tooltip shrink-0">
@@ -355,7 +466,7 @@
                 Slide-Only (No Video Live)
               </span>
             </div>
-            <p class="text-xs text-slate-500">Manage church camera, remote speakers, private intercom, and stage video feeds</p>
+            <p class="text-xs text-slate-500">Manage centro camera, remote speakers, private intercom, and stage video feeds</p>
           </div>
         </div>
 
@@ -380,7 +491,7 @@
         <div class="flex items-center gap-2 flex-wrap">
           <div class="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
             <span class="text-slate-400 font-semibold">Room:</span>
-            <input type="text" id="studioRoomId" value="uecfi-sanctuary" class="w-28 font-mono font-bold text-slate-800 uppercase focus:outline-none bg-transparent">
+            <input type="text" id="studioRoomId" value="uecfi-centro" class="w-28 font-mono font-bold text-slate-800 uppercase focus:outline-none bg-transparent">
           </div>
 
           <div class="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
@@ -483,13 +594,13 @@
           </div>
         </div>
 
-        <!-- RIGHT COLUMN: Sanctuary Camera & Operator Chat (Fixed 320px column) -->
+        <!-- RIGHT COLUMN: Centro Camera & Operator Chat (Fixed 320px column) -->
         <div style="width: 320px; min-width: 320px; max-width: 340px; display: flex; flex-direction: column; background: #ffffff; padding: 16px; overflow: hidden; flex-shrink: 0;">
           
-          <!-- Church Camera Section -->
+          <!-- Centro Camera Section -->
           <div class="pb-4 border-b border-slate-200 shrink-0">
             <div class="flex items-center justify-between mb-2">
-              <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Sanctuary Camera</span>
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Centro Camera</span>
               <div class="flex items-center gap-1.5 text-[10px]">
                 <span id="studioCameraDot" class="w-2.5 h-2.5 rounded-full" style="background-color: #94a3b8;"></span>
                 <span id="studioCameraStatusText" class="text-slate-500">Inactive</span>
@@ -546,6 +657,355 @@
 
         </div>
 
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- STAGE LAYOUT SELECTION PROMPT MODAL (When Video is in Full Screen)        -->
+  <!-- ========================================================================= -->
+  <div id="stageLayoutPromptModal" class="hidden" style="position: fixed; inset: 0; z-index: 100000; display: none; align-items: center; justify-content: center; background: rgba(2, 6, 23, 0.75); backdrop-filter: blur(6px); padding: 16px;">
+    <div style="background: #ffffff; border-radius: 20px; border: 1px solid #cbd5e1; width: 100%; max-width: 520px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.45); animation: promptFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);">
+      
+      <!-- Header -->
+      <div class="px-6 pt-5 pb-4 border-b border-slate-100 flex items-start justify-between bg-gradient-to-r from-blue-50/70 via-slate-50 to-white">
+        <div class="flex items-center gap-3.5">
+          <div class="w-11 h-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/25 shrink-0">
+            <i class="fa-solid fa-table-columns text-lg"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-base font-bold text-slate-900 leading-tight">Stage Layout Selection</h2>
+              <span id="promptStageSourceBadge" class="text-[10px] font-bold text-blue-700 bg-blue-100/80 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                Camera Full Screen
+              </span>
+            </div>
+            <p class="text-xs text-slate-500 mt-0.5">A camera feed is currently in full screen. How would you like to project this slide?</p>
+          </div>
+        </div>
+
+        <button type="button" onclick="window.liveStudio.cancelLayoutPrompt()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 flex items-center justify-center transition cursor-pointer" title="Dismiss (Keep Full Video)">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <!-- Layout Options Grid -->
+      <div class="p-5 space-y-2.5 bg-slate-50/50">
+        <!-- 1. Split Screen (50/50) -->
+        <button type="button" onclick="window.liveStudio.chooseLayoutFromPrompt('split')" class="w-full group p-3.5 rounded-xl border border-slate-200 bg-white hover:border-blue-500 hover:bg-blue-50/40 hover:shadow-md transition cursor-pointer flex items-center justify-between text-left">
+          <div class="flex items-center gap-3.5">
+            <div class="w-10 h-10 rounded-xl bg-blue-100/80 text-blue-700 group-hover:bg-blue-600 group-hover:text-white transition flex items-center justify-center shrink-0">
+              <i class="fa-solid fa-table-columns text-base"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-bold text-slate-900 group-hover:text-blue-900">Split Screen 50/50</span>
+                <span class="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">Recommended</span>
+              </div>
+              <p class="text-xs text-slate-500 mt-0.5">Live video on left half, slide text & lyrics on right half</p>
+            </div>
+          </div>
+          <span class="text-xs font-mono font-bold text-slate-400 group-hover:text-blue-600 bg-slate-100 group-hover:bg-blue-100 px-2 py-1 rounded-md">Key: 1</span>
+        </button>
+
+        <!-- 2. Picture-in-Picture (PiP) -->
+        <button type="button" onclick="window.liveStudio.chooseLayoutFromPrompt('pip')" class="w-full group p-3.5 rounded-xl border border-slate-200 bg-white hover:border-blue-500 hover:bg-blue-50/40 hover:shadow-md transition cursor-pointer flex items-center justify-between text-left">
+          <div class="flex items-center gap-3.5">
+            <div class="w-10 h-10 rounded-xl bg-purple-100/80 text-purple-700 group-hover:bg-purple-600 group-hover:text-white transition flex items-center justify-center shrink-0">
+              <i class="fa-solid fa-window-restore text-base"></i>
+            </div>
+            <div>
+              <span class="text-sm font-bold text-slate-900 group-hover:text-blue-900">Picture-in-Picture (PiP)</span>
+              <p class="text-xs text-slate-500 mt-0.5">Full screen slide presentation with video in bottom-right corner</p>
+            </div>
+          </div>
+          <span class="text-xs font-mono font-bold text-slate-400 group-hover:text-blue-600 bg-slate-100 group-hover:bg-blue-100 px-2 py-1 rounded-md">Key: 2</span>
+        </button>
+
+        <!-- 3. Lower-Third -->
+        <button type="button" onclick="window.liveStudio.chooseLayoutFromPrompt('lower-third')" class="w-full group p-3.5 rounded-xl border border-slate-200 bg-white hover:border-blue-500 hover:bg-blue-50/40 hover:shadow-md transition cursor-pointer flex items-center justify-between text-left">
+          <div class="flex items-center gap-3.5">
+            <div class="w-10 h-10 rounded-xl bg-amber-100/80 text-amber-700 group-hover:bg-amber-600 group-hover:text-white transition flex items-center justify-center shrink-0">
+              <i class="fa-solid fa-bars text-base"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-bold text-slate-900 group-hover:text-blue-900">Lower-Third Overlay</span>
+                <span class="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">Single Version</span>
+              </div>
+              <p class="text-xs text-slate-500 mt-0.5">Video remains full screen with single-version scripture/lyrics on bottom third</p>
+            </div>
+          </div>
+          <span class="text-xs font-mono font-bold text-slate-400 group-hover:text-blue-600 bg-slate-100 group-hover:bg-blue-100 px-2 py-1 rounded-md">Key: 3</span>
+        </button>
+
+        <!-- 4. Slide-Only (Clear Video from Stage) -->
+        <button type="button" onclick="window.liveStudio.chooseLayoutFromPrompt('slide-only')" class="w-full group p-3.5 rounded-xl border border-slate-200 bg-white hover:border-rose-400 hover:bg-rose-50/30 hover:shadow-md transition cursor-pointer flex items-center justify-between text-left">
+          <div class="flex items-center gap-3.5">
+            <div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 group-hover:bg-rose-600 group-hover:text-white transition flex items-center justify-center shrink-0">
+              <i class="fa-solid fa-desktop text-base"></i>
+            </div>
+            <div>
+              <span class="text-sm font-bold text-slate-900 group-hover:text-rose-900">Slide Only (Hide Video)</span>
+              <p class="text-xs text-slate-500 mt-0.5">Remove live video from stage and project full slide presentation</p>
+            </div>
+          </div>
+          <span class="text-xs font-mono font-bold text-slate-400 group-hover:text-rose-600 bg-slate-100 group-hover:bg-rose-100 px-2 py-1 rounded-md">Key: 4</span>
+        </button>
+      </div>
+
+      <!-- Footer / Keep Full Video -->
+      <div class="px-6 py-3.5 bg-slate-100/90 border-t border-slate-200 flex items-center justify-between">
+        <span class="text-[11px] text-slate-500">Press <kbd class="px-1.5 py-0.5 font-mono text-[10px] bg-white border border-slate-300 rounded shadow-2xs font-semibold">1</kbd> - <kbd class="px-1.5 py-0.5 font-mono text-[10px] bg-white border border-slate-300 rounded shadow-2xs font-semibold">4</kbd> or click option</span>
+        <button type="button" onclick="window.liveStudio.cancelLayoutPrompt()" class="px-3.5 py-1.5 text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-200/80 border border-slate-300 rounded-lg shadow-2xs transition cursor-pointer">
+          Keep Full Screen Video <span class="text-[10px] text-slate-400 font-mono ml-1">(Esc)</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- LOWER THIRD VERSION SELECTION PROMPT MODAL (Single Version Only)         -->
+  <!-- ========================================================================= -->
+  <div id="lowerThirdVersionPromptModal" class="hidden" style="position: fixed; inset: 0; z-index: 100001; display: none; align-items: center; justify-content: center; background: rgba(2, 6, 23, 0.75); backdrop-filter: blur(6px); padding: 16px;">
+    <div style="background: #ffffff; border-radius: 20px; border: 1px solid #cbd5e1; width: 100%; max-width: 480px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.45); animation: promptFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);">
+      
+      <!-- Header -->
+      <div class="px-6 pt-5 pb-4 border-b border-slate-100 flex items-start justify-between bg-gradient-to-r from-amber-50/70 via-slate-50 to-white">
+        <div class="flex items-center gap-3.5">
+          <div class="w-11 h-11 rounded-2xl bg-amber-600 text-white flex items-center justify-center shadow-lg shadow-amber-500/25 shrink-0">
+            <i class="fa-solid fa-book-bible text-lg"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-base font-bold text-slate-900 leading-tight">Lower Third Bible Version</h2>
+              <span class="text-[10px] font-bold text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                Single Version Only
+              </span>
+            </div>
+            <p class="text-xs text-slate-500 mt-0.5">Lower third is single version only. Choose which version to display:</p>
+          </div>
+        </div>
+
+        <button type="button" onclick="window.closeLowerThirdVersionPrompt()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 flex items-center justify-center transition cursor-pointer" title="Close">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <!-- Version 1 & Version 2 Buttons -->
+      <div class="p-6 space-y-3 bg-slate-50/50">
+        <!-- Version 1 Button -->
+        <button type="button" id="btnChooseLowerThirdV1" onclick="window.chooseLowerThirdVersion('v1')" class="w-full group p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-blue-500 hover:bg-blue-50/40 hover:shadow-md transition cursor-pointer flex items-center justify-between text-left">
+          <div class="flex items-center gap-3.5">
+            <div class="w-11 h-11 rounded-xl bg-blue-100 text-blue-700 group-hover:bg-blue-600 group-hover:text-white transition flex items-center justify-center font-bold text-sm shrink-0">
+              1
+            </div>
+            <div>
+              <span class="text-base font-bold text-slate-900 group-hover:text-blue-900 block">Version 1</span>
+              <span id="lowerThirdV1Label" class="text-xs text-slate-500 font-medium">Primary Translation</span>
+            </div>
+          </div>
+          <span class="text-xs font-mono font-bold text-slate-400 group-hover:text-blue-600 bg-slate-100 group-hover:bg-blue-100 px-2.5 py-1 rounded-md">Key: 1</span>
+        </button>
+
+        <!-- Version 2 Button -->
+        <button type="button" id="btnChooseLowerThirdV2" onclick="window.chooseLowerThirdVersion('v2')" class="w-full group p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-blue-500 hover:bg-blue-50/40 hover:shadow-md transition cursor-pointer flex items-center justify-between text-left">
+          <div class="flex items-center gap-3.5">
+            <div class="w-11 h-11 rounded-xl bg-purple-100 text-purple-700 group-hover:bg-purple-600 group-hover:text-white transition flex items-center justify-center font-bold text-sm shrink-0">
+              2
+            </div>
+            <div>
+              <span class="text-base font-bold text-slate-900 group-hover:text-blue-900 block">Version 2</span>
+              <span id="lowerThirdV2Label" class="text-xs text-slate-500 font-medium">Secondary Translation</span>
+            </div>
+          </div>
+          <span class="text-xs font-mono font-bold text-slate-400 group-hover:text-blue-600 bg-slate-100 group-hover:bg-blue-100 px-2.5 py-1 rounded-md">Key: 2</span>
+        </button>
+      </div>
+
+      <!-- Footer -->
+      <div class="px-6 py-3 bg-slate-100/90 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+        <span>Press <kbd class="px-1.5 py-0.5 font-mono text-[10px] bg-white border border-slate-300 rounded shadow-2xs font-semibold">1</kbd> for Version 1 or <kbd class="px-1.5 py-0.5 font-mono text-[10px] bg-white border border-slate-300 rounded shadow-2xs font-semibold">2</kbd> for Version 2</span>
+        <button type="button" onclick="window.closeLowerThirdVersionPrompt()" class="text-slate-500 hover:text-slate-800 font-semibold cursor-pointer">Cancel</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SPEAKER / MINISTER LOWER THIRD STUDIO MODAL -->
+  <div id="modalLowerThirdManager" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs hidden p-4" style="display: none;">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-2xl w-full overflow-hidden flex flex-col max-h-[92vh]">
+      
+      <!-- Modal Header -->
+      <div class="px-5 py-3.5 bg-gradient-to-r from-slate-900 via-slate-800 to-blue-950 text-white flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-blue-600/30 border border-blue-500/30 flex items-center justify-center text-blue-400">
+            <i class="fa-solid fa-id-card"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold leading-tight flex items-center gap-2">
+              Speaker Lower Third Studio
+              <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-600 text-white">Broadcast</span>
+            </h3>
+            <p class="text-[11px] text-slate-300 leading-tight">Live nameplate overlays for centro, camera & livestream</p>
+          </div>
+        </div>
+        <button type="button" onclick="if(window.lowerThirdManager) window.lowerThirdManager.closeModal();" class="text-white/70 hover:text-white text-base cursor-pointer">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <div class="p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar text-xs">
+
+        <!-- Live Preview Canvas & Fast Action Bar -->
+        <div class="bg-slate-950 rounded-xl p-4 border border-slate-800 shadow-inner relative overflow-hidden flex flex-col justify-between min-h-[120px]">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <i class="fa-solid fa-desktop text-blue-400"></i> Broadcast Preview
+            </span>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="if(window.lowerThirdManager) window.lowerThirdManager.show();"
+                      class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs transition cursor-pointer flex items-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-play text-[10px]"></i> Show Live
+              </button>
+              <button type="button" onclick="if(window.lowerThirdManager) window.lowerThirdManager.dismiss();"
+                      class="px-3 py-1 bg-rose-600/80 hover:bg-rose-600 text-white font-bold rounded-lg text-xs transition cursor-pointer flex items-center gap-1.5">
+                <i class="fa-solid fa-stop text-[10px]"></i> Dismiss
+              </button>
+            </div>
+          </div>
+
+          <!-- Mock Broadcast Lower Third Plate in Preview -->
+          <div class="pt-2">
+            <div id="ltPreviewBar" class="inline-flex items-center bg-slate-900/90 border-l-4 border-blue-600 rounded-r-lg px-4 py-2 shadow-lg backdrop-blur-md">
+              <div class="flex flex-col">
+                <span id="ltPreviewName" class="text-sm font-extrabold text-white leading-tight">Ptr. Allan Rodriguez</span>
+                <span id="ltPreviewRole" class="text-[11px] font-bold text-blue-300 uppercase tracking-wide leading-tight mt-0.5">Senior Pastor</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Speaker Selection Grid -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+              <i class="fa-solid fa-users text-brand-600"></i> Quick Select Speaker
+            </label>
+            <button type="button" onclick="if(window.lowerThirdManager) window.lowerThirdManager.openNewSpeakerForm();"
+                    class="text-brand-600 hover:text-brand-700 font-bold text-[11px] flex items-center gap-1 cursor-pointer">
+              <i class="fa-solid fa-plus text-[10px]"></i> Add Speaker
+            </button>
+          </div>
+          <div id="ltModalQuickList" class="grid grid-cols-2 gap-2">
+            <!-- Populated dynamically by LowerThirdManager -->
+          </div>
+        </div>
+
+        <!-- Timing & Animation Display Mode Options -->
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="font-bold text-slate-800 text-xs block">Display Timing & Behavior</span>
+              <span class="text-[11px] text-slate-500">Choose how the nameplate appears and dismisses</span>
+            </div>
+            <select id="ltModeSelect" onchange="if(window.lowerThirdManager) window.lowerThirdManager.setMode(this.value);"
+                    class="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none focus:border-brand-500 transition">
+              <option value="auto">Auto-Dismiss (Timed)</option>
+              <option value="stay">Stay on Screen (Persistent)</option>
+              <option value="loop">Loop / Periodic Reminder</option>
+            </select>
+          </div>
+
+          <div id="ltRowAutoDismiss" class="flex items-center justify-between pt-1 border-t border-slate-200/60">
+            <span class="text-[11px] text-slate-600">On-screen duration (seconds):</span>
+            <input type="number" id="ltAutoDismissInput" min="3" max="30" value="8"
+                   onchange="if(window.lowerThirdManager) window.lowerThirdManager.setAutoDismissSec(this.value);"
+                   class="w-20 px-2 py-1 bg-white border border-slate-300 rounded-md text-xs font-semibold text-center text-slate-800">
+          </div>
+
+          <div id="ltRowLoopInterval" class="hidden flex items-center justify-between pt-1 border-t border-slate-200/60">
+            <span class="text-[11px] text-slate-600">Repeat interval (minutes):</span>
+            <input type="number" id="ltLoopIntervalInput" min="1" max="60" value="5"
+                   onchange="if(window.lowerThirdManager) window.lowerThirdManager.setLoopIntervalMin(this.value);"
+                   class="w-20 px-2 py-1 bg-white border border-slate-300 rounded-md text-xs font-semibold text-center text-slate-800">
+          </div>
+        </div>
+
+        <!-- Slide-in Add / Edit Speaker Form Drawer -->
+        <div id="ltSpeakerFormDrawer" class="hidden bg-brand-50/50 border border-brand-200 rounded-xl p-3.5 space-y-2.5">
+          <div class="flex items-center justify-between border-b border-brand-200/60 pb-2">
+            <span id="ltSpeakerFormTitle" class="font-bold text-xs text-brand-950">Add New Speaker</span>
+            <button type="button" onclick="if(window.lowerThirdManager) window.lowerThirdManager.closeSpeakerForm();" class="text-slate-400 hover:text-slate-700">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-600 mb-0.5">Full Name *</label>
+              <input type="text" id="ltInputName" placeholder="e.g. Ptr. Allan Rodriguez"
+                     class="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-brand-500">
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-600 mb-0.5">Title / Role</label>
+              <input type="text" id="ltInputRole" placeholder="e.g. Senior Pastor"
+                     class="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-brand-500">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-600 mb-0.5">Ministry / Tag</label>
+              <input type="text" id="ltInputMinistry" placeholder="e.g. UECFI"
+                     class="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-brand-500">
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-600 mb-0.5">Accent Color</label>
+              <div class="flex items-center gap-2">
+                <input type="color" id="ltInputColor" value="#2563eb" class="w-8 h-7 rounded border border-slate-300 p-0.5 bg-white cursor-pointer">
+                <span class="text-[11px] text-slate-500">Brand left border bar</span>
+              </div>
+            </div>
+          </div>
+          <div class="flex justify-end gap-2 pt-1">
+            <button type="button" onclick="if(window.lowerThirdManager) window.lowerThirdManager.closeSpeakerForm();"
+                    class="px-3 py-1 text-slate-600 hover:bg-slate-200/50 rounded-lg text-xs font-semibold">Cancel</button>
+            <button type="button" onclick="if(window.lowerThirdManager) window.lowerThirdManager.saveCurrentSpeakerForm();"
+                    class="px-3.5 py-1 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold shadow-xs">Save Speaker</button>
+          </div>
+        </div>
+
+        <!-- Roster Table List -->
+        <div>
+          <label class="font-bold text-slate-800 text-xs block mb-1.5">Saved Centro Roster</label>
+          <div class="border border-slate-200 rounded-xl overflow-hidden bg-white">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                  <th class="py-2 px-3">Speaker Name</th>
+                  <th class="py-2 px-3">Role / Title</th>
+                  <th class="py-2 px-3">Ministry</th>
+                  <th class="py-2 px-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="ltRosterListTable">
+                <!-- Rows populated by LowerThirdManager -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-5 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs">
+        <span class="text-slate-500 text-[11px]">Syncs automatically with Projector, Live Studio & OBS</span>
+        <button type="button" onclick="if(window.lowerThirdManager) window.lowerThirdManager.closeModal();"
+                class="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-lg transition cursor-pointer">
+          Done
+        </button>
       </div>
 
     </div>

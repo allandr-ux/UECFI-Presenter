@@ -34,7 +34,14 @@ data class ProjectionUiState(
     val isLoadingButtons: Boolean = false,
     val manualErrorHost: String? = null,
     val manualErrorPort: Int? = null,
-    val webViewSyncVersion: Int = 0
+    val webViewSyncVersion: Int = 0,
+    val appMode: AppMode = AppMode.SPEAKER_REMOTE,
+    val hasSelectedMode: Boolean = false,
+    val showModeSelector: Boolean = false,
+    val showPinDialog: Boolean = false,
+    val pinDialogError: String? = null,
+    val showChangePinDialog: Boolean = false,
+    val changePinError: String? = null
 )
 
 /**
@@ -54,11 +61,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         isTvMode || hasLeanback
     }
 
+    private val prefs = application.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+
     private val _uiState = MutableStateFlow(
-        ProjectionUiState(
-            manualHostInput = discoveryManager.getDefaultIpOrSubnetPrefix(),
-            manualPortInput = discoveryManager.getSavedPort().toString()
-        )
+        run {
+            val hasSavedMode = prefs.contains(KEY_APP_MODE)
+            val savedMode = if (hasSavedMode) {
+                runCatching {
+                    AppMode.valueOf(prefs.getString(KEY_APP_MODE, AppMode.SPEAKER_REMOTE.name) ?: AppMode.SPEAKER_REMOTE.name)
+                }.getOrDefault(AppMode.SPEAKER_REMOTE)
+            } else if (isTvDevice) {
+                AppMode.VIEWER_ONLY
+            } else {
+                AppMode.SPEAKER_REMOTE
+            }
+
+            ProjectionUiState(
+                manualHostInput = discoveryManager.getDefaultIpOrSubnetPrefix(),
+                manualPortInput = discoveryManager.getSavedPort().toString(),
+                appMode = savedMode,
+                hasSelectedMode = hasSavedMode || isTvDevice,
+                showModeSelector = !hasSavedMode && !isTvDevice
+            )
+        }
     )
     val uiState: StateFlow<ProjectionUiState> = _uiState.asStateFlow()
 
@@ -69,6 +94,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val immediatePollChannel = Channel<Unit>(Channel.CONFLATED)
 
     companion object {
+        const val PREFS_NAME = "uecfi_presenter_prefs"
+        const val KEY_APP_MODE = "key_app_mode"
+        const val KEY_SPEAKER_PIN = "key_speaker_pin"
+        const val DEFAULT_SPEAKER_PIN = "1905" // Centro foundation year default security PIN
         const val LIVE_POLL_INTERVAL_MS = 400L
         const val MAX_CONSECUTIVE_POLL_FAILURES = 3
         const val MANUAL_FALLBACK_DELAY_MS = 4000L
@@ -209,6 +238,132 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
+     * Changes the application mode (Speaker Remote vs Viewer Only), saves the selection
+     * in persistent SharedPreferences, increments `webViewSyncVersion` so the WebView re-syncs
+     * presentation.htm (showing or hiding stage layout and video feeds), and triggers an
+     * immediate presenter state poll.
+     */
+    fun selectAppMode(mode: AppMode) {
+        prefs.edit().putString(KEY_APP_MODE, mode.name).apply()
+        _uiState.update { prev ->
+            prev.copy(
+                appMode = mode,
+                hasSelectedMode = true,
+                showModeSelector = false,
+                webViewSyncVersion = prev.webViewSyncVersion + 1
+            )
+        }
+
+        val current = _uiState.value
+        val host = current.activeHost
+        val port = current.activePort
+        if (current.status == ConnectionStatus.CONNECTED && host != null) {
+            viewModelScope.launch {
+                val refreshed = apiClient.fetchState(host, port, isTvDevice = isTvDevice, appMode = mode)
+                if (refreshed != null) {
+                    _uiState.update { it.copy(presenterState = refreshed) }
+                }
+                immediatePollChannel.trySend(Unit)
+            }
+        }
+    }
+
+    /**
+     * Retrieves the saved 4-digit speaker security PIN, defaulting to "1905".
+     */
+    fun getSavedSpeakerPin(): String {
+        return prefs.getString(KEY_SPEAKER_PIN, DEFAULT_SPEAKER_PIN) ?: DEFAULT_SPEAKER_PIN
+    }
+
+    /**
+     * Called when a user requests to switch to Speaker Remote mode.
+     * If the app is already in Speaker Remote mode, applies directly.
+     * Otherwise, shows the security PIN prompt to prevent unauthorized access.
+     */
+    fun requestSpeakerRemoteMode() {
+        if (_uiState.value.appMode == AppMode.SPEAKER_REMOTE && _uiState.value.hasSelectedMode) {
+            selectAppMode(AppMode.SPEAKER_REMOTE)
+        } else {
+            _uiState.update { it.copy(showPinDialog = true, pinDialogError = null) }
+        }
+    }
+
+    /**
+     * Dismisses the security PIN prompt.
+     */
+    fun dismissPinDialog() {
+        _uiState.update { it.copy(showPinDialog = false, pinDialogError = null) }
+    }
+
+    /**
+     * Verifies the entered PIN against the centro passcode.
+     * If correct, unlocks and activates Speaker Remote mode.
+     */
+    fun verifyAndUnlockSpeakerMode(enteredPin: String): Boolean {
+        val expected = getSavedSpeakerPin()
+        if (enteredPin.trim() == expected) {
+            _uiState.update { it.copy(showPinDialog = false, pinDialogError = null) }
+            selectAppMode(AppMode.SPEAKER_REMOTE)
+            return true
+        } else {
+            _uiState.update { it.copy(pinDialogError = "Incorrect PIN. Please enter the centro passcode.") }
+            return false
+        }
+    }
+
+    /**
+     * Opens the Change PIN dialog.
+     */
+    fun openChangePinDialog() {
+        _uiState.update { it.copy(showChangePinDialog = true, changePinError = null) }
+    }
+
+    /**
+     * Dismisses the Change PIN dialog.
+     */
+    fun dismissChangePinDialog() {
+        _uiState.update { it.copy(showChangePinDialog = false, changePinError = null) }
+    }
+
+    /**
+     * Updates the speaker remote security PIN code.
+     */
+    fun updateSpeakerPin(currentPin: String, newPin: String, confirmPin: String): Boolean {
+        val expected = getSavedSpeakerPin()
+        if (currentPin.trim() != expected) {
+            _uiState.update { it.copy(changePinError = "Current PIN is incorrect") }
+            return false
+        }
+        if (newPin.trim().length != 4 || !newPin.trim().all { it.isDigit() }) {
+            _uiState.update { it.copy(changePinError = "PIN must be exactly 4 digits") }
+            return false
+        }
+        if (newPin.trim() != confirmPin.trim()) {
+            _uiState.update { it.copy(changePinError = "New PINs do not match") }
+            return false
+        }
+        prefs.edit().putString(KEY_SPEAKER_PIN, newPin.trim()).apply()
+        _uiState.update { it.copy(showChangePinDialog = false, changePinError = null) }
+        return true
+    }
+
+    /**
+     * Opens the app mode selector dialog (e.g. from the settings fallback dialog or side panel).
+     */
+    fun openModeSelector() {
+        _uiState.update { it.copy(showModeSelector = true) }
+    }
+
+    /**
+     * Dismisses the app mode selector dialog if a mode has already been selected previously.
+     */
+    fun dismissModeSelector() {
+        if (_uiState.value.hasSelectedMode) {
+            _uiState.update { it.copy(showModeSelector = false) }
+        }
+    }
+
+    /**
      * Sends a Next or Previous slide command (`command=2` or `command=3`) and immediately
      * triggers an out-of-band `/api/state` refresh.
      */
@@ -227,7 +382,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val sent = apiClient.sendSlideCommand(host, port, command)
                 if (sent) {
-                    val refreshed = apiClient.fetchState(host, port, isTvDevice = isTvDevice)
+                    val refreshed = apiClient.fetchState(host, port, isTvDevice = isTvDevice, appMode = current.appMode)
                     if (refreshed != null) {
                         _uiState.update { it.copy(presenterState = refreshed) }
                     }
@@ -260,7 +415,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val sent = apiClient.sendVerseCommand(host, port, command)
                 if (sent) {
-                    val refreshed = apiClient.fetchState(host, port, isTvDevice = isTvDevice)
+                    val refreshed = apiClient.fetchState(host, port, isTvDevice = isTvDevice, appMode = current.appMode)
                     if (refreshed != null) {
                         _uiState.update { it.copy(presenterState = refreshed) }
                     }
@@ -307,7 +462,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val sent = apiClient.sendCustomCommand(host, port, button.command, button.value)
                 if (sent) {
-                    val refreshed = apiClient.fetchState(host, port, isTvDevice = isTvDevice)
+                    val refreshed = apiClient.fetchState(host, port, isTvDevice = isTvDevice, appMode = current.appMode)
                     if (refreshed != null) {
                         _uiState.update { it.copy(presenterState = refreshed) }
                     }
@@ -366,14 +521,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             var consecutiveFailures = 0
 
             while (isActive) {
-                val state = apiClient.fetchState(host, port, isTvDevice = isTvDevice)
+                val state = apiClient.fetchState(host, port, isTvDevice = isTvDevice, appMode = _uiState.value.appMode)
                 if (state != null) {
                     consecutiveFailures = 0
                     _uiState.update { prev ->
                         prev.copy(
                             status = ConnectionStatus.CONNECTED,
-                            presenterState = state,
-                            showManualFallback = false
+                            presenterState = state
                         )
                     }
                 } else {

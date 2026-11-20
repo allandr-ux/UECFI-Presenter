@@ -13,13 +13,28 @@ var screenList = [];
 var selectedScreenIndex = 1;
 var newWindow = null;
 
-function getScreensArray() {
-  if (window.electronBridge && typeof window.electronBridge.getScreens === "function") {
-    return window.electronBridge.getScreens() || [];
+let _cachedScreensArray = null;
+let _cachedScreensTimestamp = 0;
+
+function getScreensArray(forceRefresh) {
+  const now = Date.now();
+  if (!forceRefresh && _cachedScreensArray && (now - _cachedScreensTimestamp < 5000)) {
+    return _cachedScreensArray;
   }
-  return [
-    { bounds: { x: 0, y: 0, width: window.screen.width || 1920, height: window.screen.height || 1080 } }
+  if (window.electronBridge && typeof window.electronBridge.getScreens === "function") {
+    try {
+      _cachedScreensArray = window.electronBridge.getScreens() || [];
+      _cachedScreensTimestamp = now;
+      return _cachedScreensArray;
+    } catch (e) {
+      console.error("[BRIDGE] getScreens error:", e);
+    }
+  }
+  _cachedScreensArray = [
+    { bounds: { x: 0, y: 0, width: (typeof window !== "undefined" && window.screen && window.screen.width) || 1920, height: (typeof window !== "undefined" && window.screen && window.screen.height) || 1080 } }
   ];
+  _cachedScreensTimestamp = now;
+  return _cachedScreensArray;
 }
 
 function getCurrentScreen() {
@@ -73,24 +88,31 @@ function presentation() {
   // Fresh projection always owns the screen: drop any logo/attention overlay first.
   window.p_logo_mode = false;
   window.p_attention_mode = false;
-  const screens = getScreensArray();
-  let targetBounds;
-  if (dualScreen && screens[1]) {
-    const s = screens[selectedScreenIndex] || screens[1];
-    targetBounds = s.bounds;
-    pWindowX = targetBounds.width;
-    pWindowY = targetBounds.height;
-  } else {
-    targetBounds = screens[0].bounds;
-    pWindowX = targetBounds.width;
-    pWindowY = targetBounds.height;
-  }
 
-  if (!presentWindowOpen) {
+  // When any camera feed is in full screen and the operator projects a slide,
+  // ask them which stage layout they want to use.
+  if (typeof window !== "undefined" && window.liveStudio && typeof window.liveStudio.promptLayoutForSlideProjection === "function") {
+    window.liveStudio.promptLayoutForSlideProjection();
+  }
+  const isProjectorOpen = Boolean(presentWindowOpen && newWindow && newWindow.window && !newWindow.window.closed);
+  if (!isProjectorOpen) {
+    const screens = getScreensArray(true);
+    let targetBounds;
+    if (dualScreen && screens[1]) {
+      const s = screens[selectedScreenIndex] || screens[1];
+      targetBounds = s.bounds;
+      pWindowX = targetBounds.width;
+      pWindowY = targetBounds.height;
+    } else {
+      targetBounds = screens[0].bounds;
+      pWindowX = targetBounds.width;
+      pWindowY = targetBounds.height;
+    }
     const features = `width=${targetBounds.width},height=${targetBounds.height},left=${targetBounds.x},top=${targetBounds.y},frame=false`;
     const popup = window.open("presentation.htm", "UECFI_Presentation", features);
 
     if (popup) {
+      popup.isSanctuaryProjector = true;
       newWindow = {
         window: popup,
         close: () => {
@@ -108,6 +130,7 @@ function presentation() {
       });
 
       popup.addEventListener("load", () => {
+        popup.isSanctuaryProjector = true;
         popup.passVariable = passVariable;
         try {
           if (typeof popup.passVariable === "function") popup.passVariable();
@@ -117,6 +140,9 @@ function presentation() {
           console.warn("[PRESENTATION] Popup load synchronization error:", e);
         }
         pushSidebarPreview();
+        if (window.liveStudio && typeof window.liveStudio.syncStageVideoToWindow === "function") {
+          window.liveStudio.syncStageVideoToWindow(popup, false);
+        }
       });
 
       presentWindowOpen = true;
@@ -125,11 +151,12 @@ function presentation() {
     passVariable();
   } else {
     passVariable();
-    if (newWindow && newWindow.window) {
+    if (newWindow && newWindow.window && !newWindow.window.closed) {
       const win = newWindow.window;
       if (typeof win.passVariable === "function") win.passVariable();
       if (typeof win.updatePresentation === "function") win.updatePresentation();
-      if (typeof win.updateContent === "function") win.updateContent();
+      if (typeof win.updateContent2 === "function") win.updateContent2();
+      else if (typeof win.updateContent === "function") win.updateContent();
     }
     pushSidebarPreview();
   }
@@ -167,6 +194,9 @@ function presentWindowClosed() {
   window.presentedVerseIndex = -1;
   window.presentedSearchIdx = -1;
   window.presentedScheduleId = null;
+  window.p_dual_text1_arr = null;
+  window.p_dual_text2_arr = null;
+  window.p_dual_footnote = null;
   if (typeof window.updateScheduleHighlight === "function") window.updateScheduleHighlight();
   if (typeof window.updateScheduleSlideHighlight === "function") window.updateScheduleSlideHighlight();
   if (typeof updateVerseHighlight === "function") {
@@ -178,8 +208,16 @@ function presentWindowClosed() {
   if (typeof updateSongSlideHighlight === "function") {
     updateSongSlideHighlight();
   }
+  window.liveReadingState = null;
+  window.presentedReadingSlideIdx = -1;
+  if (typeof window.updateReadingSlideHighlight === "function") {
+    window.updateReadingSlideHighlight();
+  }
   if (typeof updateSongListHighlight === "function") {
     updateSongListHighlight();
+  }
+  if (typeof window.programManager !== "undefined" && typeof window.programManager.clearPresentationHighlight === "function") {
+    window.programManager.clearPresentationHighlight();
   }
 
   const liveIndicator = document.getElementById("liveSlideIndicator");
@@ -202,17 +240,58 @@ function DOMIntializeCallback(a) {
 }
 
 function passVariable() {
-  this.p_text1_arr = p_text1_arr;
-  this.p_text2_arr = p_text2_arr;
-  this.p_person_title_arr = (typeof p_person_title_arr !== "undefined") ? p_person_title_arr : [];
-  this.p_person_title = (typeof p_person_title !== "undefined") ? p_person_title : "";
-  this.p_title_arr = p_title_arr;
-  this.p_text1_font = p_text1_font;
-  this.p_text2_font = p_text2_font;
-  this.p_title = p_title;
-  this.p_footnote = p_footnote;
-  this.p_current_index = p_current_index;
-  this.p_last_index = p_last_index;
+  // Determine if this projection window is the main centro projection screen
+  const isSanctuaryProjector = Boolean(
+    this.isSanctuaryProjector ||
+    (typeof newWindow !== "undefined" && newWindow && newWindow.window === this) ||
+    this.name === "UECFI_Presentation"
+  );
+  const activeSource = (typeof window !== "undefined" && window.liveStudio) ? window.liveStudio.activeStageSource : null;
+  const isExcludedCamera = isSanctuaryProjector && activeSource && activeSource.type === "camera";
+  const hasVideoOnThisScreen = Boolean(!isExcludedCamera && activeSource && activeSource.stream);
+
+  // Only apply dual verse mode when verses are actually the active presentation type
+  const isVersesLive = Boolean(
+    (typeof window !== "undefined") && (
+      window.liveProjectionType === "verses" ||
+      (window.liveProjectionType == null && !window.liveProgramActive && (window.presentedSongIdx == null || window.presentedSongIdx < 0) && typeof window.presentedVerseIndex === "number" && window.presentedVerseIndex >= 0)
+    )
+  );
+
+  // Main display should always be dual verse mode when no video feed is present on it AND verses are being projected.
+  // Note: Centro camera is never projected to the main centro projection screen
+  // (only remote guest video feeds are displayed to the congregation), so when centro camera
+  // is on stage or when no video is on stage, there is no video feed on the main display.
+  // When projecting songs, custom slides, schedule items, etc., those slides must never be replaced with verses!
+  if (isVersesLive && isSanctuaryProjector && !hasVideoOnThisScreen && (typeof window !== "undefined" && window.p_dual_text1_arr && window.p_dual_text1_arr.length > 0)) {
+    this.p_text1_arr = window.p_dual_text1_arr.slice();
+    this.p_text2_arr = (window.p_dual_text2_arr && window.p_dual_text2_arr.length > 0) ? window.p_dual_text2_arr.slice() : [];
+    this.p_footnote = window.p_dual_footnote || p_footnote;
+  } else {
+    this.p_text1_arr = (typeof window !== "undefined" && window.p_text1_arr) ? window.p_text1_arr : ((typeof p_text1_arr !== "undefined") ? p_text1_arr : []);
+    this.p_text2_arr = (typeof window !== "undefined" && window.p_text2_arr) ? window.p_text2_arr : ((typeof p_text2_arr !== "undefined") ? p_text2_arr : []);
+    this.p_footnote = (typeof window !== "undefined" && typeof window.p_footnote !== "undefined") ? window.p_footnote : ((typeof p_footnote !== "undefined") ? p_footnote : "");
+  }
+
+  // Preserve dual verse data on target window for direct access by presentation renderer
+  if (typeof window !== "undefined" && isVersesLive) {
+    this.p_dual_text1_arr = window.p_dual_text1_arr ? window.p_dual_text1_arr.slice() : null;
+    this.p_dual_text2_arr = window.p_dual_text2_arr ? window.p_dual_text2_arr.slice() : null;
+    this.p_dual_footnote = window.p_dual_footnote || null;
+  } else {
+    this.p_dual_text1_arr = null;
+    this.p_dual_text2_arr = null;
+    this.p_dual_footnote = null;
+  }
+
+  this.p_person_title_arr = (typeof window !== "undefined" && window.p_person_title_arr) ? window.p_person_title_arr : ((typeof p_person_title_arr !== "undefined") ? p_person_title_arr : []);
+  this.p_person_title = (typeof window !== "undefined" && typeof window.p_person_title !== "undefined") ? window.p_person_title : ((typeof p_person_title !== "undefined") ? p_person_title : "");
+  this.p_title_arr = (typeof window !== "undefined" && window.p_title_arr) ? window.p_title_arr : ((typeof p_title_arr !== "undefined") ? p_title_arr : []);
+  this.p_text1_font = (typeof window !== "undefined" && window.p_text1_font) ? window.p_text1_font : ((typeof p_text1_font !== "undefined") ? p_text1_font : "Arial");
+  this.p_text2_font = (typeof window !== "undefined" && window.p_text2_font) ? window.p_text2_font : ((typeof p_text2_font !== "undefined") ? p_text2_font : "Arial");
+  this.p_title = (typeof window !== "undefined" && typeof window.p_title !== "undefined") ? window.p_title : ((typeof p_title !== "undefined") ? p_title : "");
+  this.p_current_index = (typeof window !== "undefined" && typeof window.p_current_index !== "undefined") ? window.p_current_index : ((typeof p_current_index !== "undefined") ? p_current_index : 0);
+  this.p_last_index = (typeof window !== "undefined" && typeof window.p_last_index !== "undefined") ? window.p_last_index : ((typeof p_last_index !== "undefined") ? p_last_index : 0);
   this.p_bkgnd_filename = p_bkgnd_filename;
   this.p_bkgnd_color = p_bkgnd_color;
   this.p_font_color = p_font_color;
@@ -275,17 +354,58 @@ function passVariable() {
   this.p_attention_speaker_show = (typeof p_attention_speaker_show !== "undefined") ? p_attention_speaker_show : false;
   this.p_attention_bgimage = (typeof p_attention_bgimage !== "undefined") ? p_attention_bgimage : "";
   this.p_attention_bgdim = (typeof p_attention_bgdim !== "undefined") ? p_attention_bgdim : 60;
-  this.p_custom_slide = (typeof p_custom_slide !== "undefined") ? p_custom_slide : null;
+  this.p_custom_slide = (typeof window !== "undefined" && typeof window.p_custom_slide !== "undefined") ? window.p_custom_slide : ((typeof p_custom_slide !== "undefined") ? p_custom_slide : null);
+  this.p_timer_state = (typeof window !== "undefined" && window.timerManager) ? window.timerManager.getState() : null;
   this.p_output_mode = (typeof liveOutputMode !== "undefined") ? liveOutputMode : "live";
+  const isAudioSongSync = Boolean(
+    window.songAudioEngine &&
+    window.songAudioEngine.syncEnabled &&
+    window.songAudioEngine.currentSong &&
+    window.songAudioEngine.currentSong.audio &&
+    window.songAudioEngine.allTimedLines &&
+    window.songAudioEngine.allTimedLines.length > 0
+  );
+  this.p_teleprompter_mode = isAudioSongSync;
+  this.p_teleprompter_lines = isAudioSongSync ? window.songAudioEngine.allTimedLines : null;
+  this.p_teleprompter_font_size = (isAudioSongSync && window.songAudioEngine) ? window.songAudioEngine.teleprompterFontSize : null;
   this.p_sync_enabled = (typeof window.songAudioEngine !== "undefined") ? window.songAudioEngine.syncEnabled : true;
-  this.p_sync_active_line_index = (typeof window.songAudioEngine !== "undefined") ? window.songAudioEngine.activeLineIndex : -1;
-  this.p_sync_active_color = (window.themeManager && typeof window.themeManager.getStyleBundle === "function" && window.themeManager.getStyleBundle("songs") && window.themeManager.getStyleBundle("songs").syncActiveColor) || "#F59E0B";
-  this.p_sync_inactive_color = (window.themeManager && typeof window.themeManager.getStyleBundle === "function" && window.themeManager.getStyleBundle("songs") && window.themeManager.getStyleBundle("songs").syncInactiveColor) || "#94A3B8";
+  this.p_sync_active_line_index = (typeof window.songAudioEngine !== "undefined")
+    ? (window.songAudioEngine.activeGlobalLineIndex >= 0 ? window.songAudioEngine.activeGlobalLineIndex : window.songAudioEngine.activeLineIndex)
+    : -1;
+  const curSongStyle = (window.themeManager && typeof window.themeManager.getStyleBundle === "function" && window.themeManager.getStyleBundle("songs")) || null;
+  this.p_sync_active_color = (curSongStyle && curSongStyle.syncActiveColor) || "#F59E0B";
+  this.p_sync_inactive_color = (curSongStyle && curSongStyle.syncInactiveColor) || "#94A3B8";
+  const curSong = (window.songAudioEngine && window.songAudioEngine.currentSong) || null;
+  const songNameKey = (curSong && curSong.name) ? curSong.name.trim().toLowerCase() : "";
+  const curSongOutlineEnabled = Boolean(
+    (curSong && curSong.activeOutlineEnabled) ||
+    (curSongStyle && curSongStyle.syncActiveOutlineEnabled) ||
+    (typeof localStorage !== "undefined" && songNameKey && localStorage.getItem("uecfi_song_outline_enabled_" + songNameKey) === "true")
+  );
+  this.p_sync_active_outline_enabled = curSongOutlineEnabled;
+  this.p_sync_active_outline_color = (curSong && curSong.activeOutlineEnabled && curSong.activeOutlineColor)
+    || (curSongStyle && curSongStyle.syncActiveOutlineColor)
+    || (typeof localStorage !== "undefined" && songNameKey ? localStorage.getItem("uecfi_song_outline_color_" + songNameKey) : null)
+    || (curSong && curSong.activeOutlineColor)
+    || "#000000";
+  this.p_sync_active_outline_thickness = (curSong && curSong.activeOutlineEnabled && typeof curSong.activeOutlineThickness === "number")
+    ? curSong.activeOutlineThickness
+    : ((curSongStyle && typeof curSongStyle.syncActiveOutlineThickness === "number")
+      ? curSongStyle.syncActiveOutlineThickness
+      : (typeof localStorage !== "undefined" && songNameKey && localStorage.getItem("uecfi_song_outline_thick_" + songNameKey) ? Number(localStorage.getItem("uecfi_song_outline_thick_" + songNameKey)) : 2));
   this.activeThemeObj = (typeof window !== "undefined" && window.activeThemeObj) ? window.activeThemeObj : null;
+  // For the main centro projection screen, the centro camera is never projected
+  // or laid out (only remote guest video feeds are displayed on the centro screen).
+  // Operator preview monitor and remote audience streams continue to receive the centro camera.
+  this.p_stage_layout = (!isExcludedCamera && activeSource) ? window.liveStudio.stageLayout : null;
+  this.p_stage_stream_id = (!isExcludedCamera && activeSource && activeSource.stream) ? ((activeSource.type || "src") + "_" + (activeSource.id || "live")) : null;
+  this.p_stage_source_type = (!isExcludedCamera && activeSource) ? activeSource.type : null;
   // Shadow globals must follow the theme too: the projection renderer reads
   // module-level blur/shadowColor (not activeThemeObj directly), so without
   // these lines they freeze at whatever the projection window opened with --
   // theme edits would never reach the live slide until a full reload.
+  // Broadcast Speaker Lower Third state
+  this.p_speaker_lower_third = (typeof window !== "undefined" && window.p_speaker_lower_third) ? window.p_speaker_lower_third : null;
   const shadowTheme = this.activeThemeObj;
   if (shadowTheme) {
     this.blur = (typeof shadowTheme.shadowBlur !== "undefined") ? shadowTheme.shadowBlur : 4;
@@ -308,6 +428,7 @@ function processClose() {
 const PROJECTION_TRANSPORT_GROUPS = [
   { cast: "present", prev: "prevBut", next: "nextBut", stop: "closeBut" },
   { cast: "songnav_presentbutton", prev: "songnav_prevbutton", next: "songnav_nextbutton", stop: "songnav_closebutton" },
+  { cast: "readingnav_presentbutton", prev: "readingnav_prevbutton", next: "readingnav_nextbutton", stop: "readingnav_closebutton" },
   { cast: "prog_present_btn", prev: "prog_prev_btn", next: "prog_next_btn", stop: "prog_close_btn" }
 ];
 
@@ -1685,6 +1806,12 @@ function computeRemoteNav() {
       return { canPrev: pos > 0, canNext: pos < total - 1 };
     }
     const t = (typeof window !== "undefined" && window.liveProjectionType) || null;
+    if (t === "readings") {
+      const st = (typeof window !== "undefined" && window.liveReadingState) ? window.liveReadingState : null;
+      if (!st || !st.slides || !st.slides.length) return off;
+      const idx = st.index || 0;
+      return { canPrev: idx > 0, canNext: idx < st.slides.length - 1 };
+    }
     const canon = (t && typeof window !== "undefined" && window.themeManager && typeof window.themeManager.resolveProjectionContext === "function")
       ? window.themeManager.resolveProjectionContext(t)
       : t;
@@ -1710,6 +1837,7 @@ function navNextVerse() {
 }
 // Returns true when a step actually happened (drives truthful remote replies).
 function stepLiveMonitor(dir) {
+  window.isAdvancingSlide = true;
   try {
     const nav = (typeof computeRemoteNav === "function") ? computeRemoteNav() : { canPrev: true, canNext: true };
     if (dir < 0 && !nav.canPrev) return false;
@@ -1733,6 +1861,12 @@ function stepLiveMonitor(dir) {
     }
     const t = (typeof window !== "undefined" && window.liveProjectionType) || null;
     if (!t) return false;
+    if (t === "readings") {
+      if (typeof window !== "undefined" && window.readingNavObj) {
+        return dir < 0 ? Boolean(window.readingNavObj.prevSlide()) : Boolean(window.readingNavObj.nextSlide());
+      }
+      return false;
+    }
     const canon = (typeof window !== "undefined" && window.themeManager && typeof window.themeManager.resolveProjectionContext === "function")
       ? window.themeManager.resolveProjectionContext(t)
       : t;
@@ -1744,7 +1878,7 @@ function stepLiveMonitor(dir) {
       }
       return false;
     } else if (canon === "songs") {
-      return stepLiveSong(dir);
+      return stepLiveSong(dir, true);
     } else if (canon === "program_tema" || canon === "program_person" || canon === "program_general") {
       if (typeof window !== "undefined" && window.programManager) {
         if (dir < 0) {
@@ -1758,6 +1892,8 @@ function stepLiveMonitor(dir) {
     return false;
   } catch (e) {
     return false;
+  } finally {
+    setTimeout(() => { window.isAdvancingSlide = false; }, 120);
   }
 }
 
@@ -1772,6 +1908,10 @@ function call_nextSlide() {
 function call_prevSlide() {
   if (typeof stepLiveMonitor === "function") return stepLiveMonitor(-1);
   return false;
+}
+if (typeof window !== "undefined") {
+  window.nextSlide = call_nextSlide;
+  window.prevSlide = call_prevSlide;
 }
 
 // Determines if Bible verses / scripture are actively presented.
@@ -2373,7 +2513,9 @@ function initNotepad() {
 
 // Advance the live song by re-presenting the neighboring slide.
 // Clamped to the song ends (no wrap-around); returns whether a step happened.
-function stepLiveSong(dir) {
+function stepLiveSong(dir, fromMonitor = false) {
+  if (!fromMonitor && window.isAdvancingSlide) return false;
+  window.isAdvancingSlide = true;
   try {
     const st = window.liveSongState;
     if (!st || !st.slides || !st.slides.length) return false;
@@ -2383,7 +2525,14 @@ function stepLiveSong(dir) {
     if (idx < 0) idx = 0;
     if (idx > len - 1) idx = len - 1;
     if (idx === cur) return false;
-    const songObj = { slides: st.slides, name: st.title, font: st.font, copyright: st.copyright };
+    const songObj = {
+      slides: st.slides,
+      name: st.title,
+      font: st.font,
+      copyright: st.copyright,
+      audio: st.audio || "",
+      lyrics: st.lyrics || ""
+    };
     const pres = new songPresentObj();
     pres.init(songObj);
     pres.present(idx);
@@ -2399,6 +2548,8 @@ function stepLiveSong(dir) {
     return true;
   } catch (e) {
     return false;
+  } finally {
+    setTimeout(() => { window.isAdvancingSlide = false; }, 120);
   }
 }
 
@@ -2423,6 +2574,9 @@ function pushSidebarPreview() {
     win.updatePresentation();
     if (typeof win.updateContent2 === "function") win.updateContent2();
     else if (typeof win.updateContent === "function") win.updateContent();
+    if (window.liveStudio && typeof window.liveStudio.syncStageVideoToWindow === "function") {
+      window.liveStudio.syncStageVideoToWindow(win, true);
+    }
     return true;
   } catch (e) {
     return false;

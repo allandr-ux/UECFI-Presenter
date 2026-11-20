@@ -289,7 +289,10 @@ function songNavClass() {
         lyAudioWrap.style.display = "none";
       }
     }
-    document.getElementById("ly_slide").style.fontFamily = L.font || "sans-serif";
+    const songPrimaryFont = (typeof window !== "undefined" && window.themeManager && typeof window.themeManager.resolveProjectionStyle === "function")
+      ? window.themeManager.resolveProjectionStyle("songs").primaryFont
+      : "sans-serif";
+    document.getElementById("ly_slide").style.fontFamily = songPrimaryFont || "sans-serif";
 
     const Q = L.slides ? L.slides.length : 0;
     let N = "";
@@ -305,6 +308,10 @@ function songNavClass() {
     // Preserve active lyric slide highlight if #ly_slide was rebuilt (e.g. by setFormats -> C())
     if (typeof window !== "undefined" && typeof window.updateSongSlideHighlight === "function") {
       try { window.updateSongSlideHighlight(); } catch (e) {}
+    }
+    // Update Song Preview Panel Sync toggle UI
+    if (typeof window !== "undefined" && window.songAudioEngine && typeof window.songAudioEngine._updateUIState === "function") {
+      try { window.songAudioEngine._updateUIState(); } catch (e) {}
     }
   }
 

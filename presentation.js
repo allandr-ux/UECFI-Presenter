@@ -125,6 +125,16 @@ var p_attention_bgimage = "";
 var p_attention_bgdim = 60;
 var p_custom_slide = null;
 var showingtheme = false;
+var p_sync_enabled = true;
+var p_sync_active_line_index = -1;
+var p_sync_active_color = "#F59E0B";
+var p_sync_inactive_color = "#94A3B8";
+var p_sync_active_outline_enabled = false;
+var p_sync_active_outline_color = "#000000";
+var p_sync_active_outline_thickness = 2;
+var p_teleprompter_mode = false;
+var p_teleprompter_lines = null;
+var p_teleprompter_font_size = null;
 function initPresentation() {
   window.passVariable = function() {
     // Theme-designer preview mode: the hosting page injects an isolated
@@ -215,24 +225,76 @@ function initPresentation() {
       p_sync_active_line_index = (typeof s.syncActiveLineIndex === "number") ? s.syncActiveLineIndex : -1;
       p_sync_active_color = s.syncActiveColor || "#F59E0B";
       p_sync_inactive_color = s.syncInactiveColor || "#94A3B8";
+      p_sync_active_outline_enabled = (s.syncActiveOutlineEnabled !== undefined) ? !!s.syncActiveOutlineEnabled : (s.p_sync_active_outline_enabled !== undefined ? !!s.p_sync_active_outline_enabled : false);
+      p_sync_active_outline_color = s.syncActiveOutlineColor || s.p_sync_active_outline_color || "#000000";
+      p_sync_active_outline_thickness = (typeof s.syncActiveOutlineThickness === "number") ? s.syncActiveOutlineThickness : ((typeof s.p_sync_active_outline_thickness === "number") ? s.p_sync_active_outline_thickness : 2);
+      window.p_sync_active_outline_enabled = p_sync_active_outline_enabled;
+      window.p_sync_active_outline_color = p_sync_active_outline_color;
+      window.p_sync_active_outline_thickness = p_sync_active_outline_thickness;
+      p_teleprompter_mode = (s.teleprompterMode !== undefined) ? !!s.teleprompterMode : (s.p_teleprompter_mode !== undefined ? !!s.p_teleprompter_mode : false);
+      p_teleprompter_lines = s.teleprompterLines || s.p_teleprompter_lines || null;
+      window.isRemoteDisplay = !!(s.isRemoteDisplay || window.isRemoteDisplay);
+      if (window.isRemoteDisplay) {
+        p_teleprompter_font_size = null;
+      } else {
+        p_teleprompter_font_size = (typeof s.teleprompterFontSize === "number") ? s.teleprompterFontSize : ((typeof s.p_teleprompter_font_size === "number") ? s.p_teleprompter_font_size : null);
+      }
+      window.p_teleprompter_mode = p_teleprompter_mode;
+      window.p_teleprompter_lines = p_teleprompter_lines;
+      window.p_teleprompter_font_size = p_teleprompter_font_size;
       window.activeThemeObj = s.theme || null;
       if (window.activeThemeObj) {
         blur = (typeof window.activeThemeObj.shadowBlur !== "undefined") ? window.activeThemeObj.shadowBlur : 4;
         shadowColor = window.activeThemeObj.shadowColor || PROJECTION_FALLBACK_STYLE.shadowColor;
       }
+      p_stage_layout = (s.stageLayout !== undefined) ? s.stageLayout : null;
+      window.p_stage_layout = p_stage_layout;
+      p_stage_stream_id = (s.stageStreamId !== undefined) ? s.stageStreamId : null;
+      window.p_stage_stream_id = p_stage_stream_id;
+      p_stage_source_type = (s.stageSourceType !== undefined) ? s.stageSourceType : null;
+      window.p_stage_source_type = p_stage_source_type;
       return;
     }
     const src = window.opener || (window.parent !== window ? window.parent : null);
     if (src) {
-        p_text1_arr = src.p_text1_arr;
-        p_text2_arr = src.p_text2_arr;
+        const isSanctuaryProjector = Boolean(
+          window.isSanctuaryProjector ||
+          window.name === "UECFI_Presentation" ||
+          (src.newWindow && src.newWindow.window === window)
+        );
+        const stageLayout = getActiveStageLayout();
+        const hasVideo = Boolean(stageLayout);
+        const isVersesLive = Boolean(
+          (src.liveProjectionType === "verses") ||
+          (src.liveProjectionType == null && !src.liveProgramActive && (src.presentedSongIdx == null || src.presentedSongIdx < 0) && typeof src.presentedVerseIndex === "number" && src.presentedVerseIndex >= 0)
+        );
+
+        // Main display should always be dual verse mode when no video feed present on it AND verses are being projected.
+        // Centro camera is never projected to the centro screen, so when camera
+        // or no video is on stage, hasVideo is false and dual verses are displayed.
+        const dual1 = src.p_dual_text1_arr;
+        const dual2 = src.p_dual_text2_arr;
+        if (isVersesLive && isSanctuaryProjector && !hasVideo && dual1 && dual1.length > 0) {
+          p_text1_arr = dual1.slice();
+          p_text2_arr = (dual2 && dual2.length > 0) ? dual2.slice() : [];
+          p_footnote = (src && src.p_dual_footnote) || src.p_footnote || p_footnote;
+        } else {
+          p_text1_arr = src.p_text1_arr;
+          p_text2_arr = src.p_text2_arr;
+          p_footnote = src.p_footnote;
+        }
         p_person_title_arr = src.p_person_title_arr || [];
         p_person_title = (typeof src.p_person_title === "string") ? src.p_person_title : "";
         p_title_arr = src.p_title_arr || [];
         p_text1_font = src.p_text1_font;
         p_text2_font = src.p_text2_font;
         p_title = src.p_title;
-        p_footnote = src.p_footnote;
+        p_stage_layout = src.p_stage_layout || null;
+        window.p_stage_layout = p_stage_layout;
+        p_stage_stream_id = src.p_stage_stream_id || null;
+        window.p_stage_stream_id = p_stage_stream_id;
+        p_stage_source_type = src.p_stage_source_type || null;
+        window.p_stage_source_type = p_stage_source_type;
         p_current_index = src.p_current_index;
         p_last_index = src.p_last_index;
         p_bkgnd_filename = src.p_bkgnd_filename;
@@ -304,6 +366,18 @@ function initPresentation() {
         p_sync_active_line_index = (typeof src.p_sync_active_line_index === "number") ? src.p_sync_active_line_index : -1;
         p_sync_active_color = src.p_sync_active_color || "#F59E0B";
         p_sync_inactive_color = src.p_sync_inactive_color || "#94A3B8";
+        p_sync_active_outline_enabled = (src.p_sync_active_outline_enabled !== undefined) ? !!src.p_sync_active_outline_enabled : (src.activeThemeObj ? !!src.activeThemeObj.syncActiveOutlineEnabled : false);
+        p_sync_active_outline_color = src.p_sync_active_outline_color || (src.activeThemeObj && src.activeThemeObj.syncActiveOutlineColor) || "#000000";
+        p_sync_active_outline_thickness = (typeof src.p_sync_active_outline_thickness === "number") ? src.p_sync_active_outline_thickness : ((src.activeThemeObj && typeof src.activeThemeObj.syncActiveOutlineThickness === "number") ? src.activeThemeObj.syncActiveOutlineThickness : 2);
+        window.p_sync_active_outline_enabled = p_sync_active_outline_enabled;
+        window.p_sync_active_outline_color = p_sync_active_outline_color;
+        window.p_sync_active_outline_thickness = p_sync_active_outline_thickness;
+        p_teleprompter_mode = (typeof src.p_teleprompter_mode !== "undefined") ? !!src.p_teleprompter_mode : false;
+        p_teleprompter_lines = (typeof src.p_teleprompter_lines !== "undefined") ? src.p_teleprompter_lines : null;
+        p_teleprompter_font_size = (typeof src.p_teleprompter_font_size !== "undefined") ? src.p_teleprompter_font_size : null;
+        window.p_teleprompter_mode = p_teleprompter_mode;
+        window.p_teleprompter_lines = p_teleprompter_lines;
+        window.p_teleprompter_font_size = p_teleprompter_font_size;
         window.activeThemeObj = src.activeThemeObj || null;
     }
     // If activeThemeObj is not yet attached, fallback to theme saved in localStorage / themeManager
@@ -339,18 +413,74 @@ function initPresentation() {
       channel.onmessage = (event) => {
         if (!event || !event.data) return;
         const { type, payload } = event.data;
+        if (type === "SPEAKER_LOWER_THIRD_UPDATE" && payload) {
+          if (typeof updateSpeakerLowerThird === "function") {
+            updateSpeakerLowerThird(payload);
+          }
+          return;
+        }
+        if (type === "COUNTDOWN_UPDATE" && payload) {
+          if (typeof updateSongCountdown === "function") {
+            updateSongCountdown(payload);
+          }
+          return;
+        }
         if (type === "HIGHLIGHT_LINE" && payload) {
           p_sync_active_line_index = (typeof payload.lineIndex === "number") ? payload.lineIndex : -1;
           p_sync_enabled = payload.syncEnabled !== false;
           if (payload.activeColor) p_sync_active_color = payload.activeColor;
           if (payload.inactiveColor) p_sync_inactive_color = payload.inactiveColor;
-          applySongLineHighlight(p_sync_active_line_index, p_sync_enabled);
+          if (payload.activeOutlineEnabled !== undefined) {
+            p_sync_active_outline_enabled = !!payload.activeOutlineEnabled;
+            if (typeof window !== "undefined") window.p_sync_active_outline_enabled = !!payload.activeOutlineEnabled;
+          }
+          if (payload.activeOutlineColor) {
+            p_sync_active_outline_color = payload.activeOutlineColor;
+            if (typeof window !== "undefined") window.p_sync_active_outline_color = payload.activeOutlineColor;
+          }
+          if (payload.activeOutlineThickness !== undefined) {
+            p_sync_active_outline_thickness = payload.activeOutlineThickness;
+            if (typeof window !== "undefined") window.p_sync_active_outline_thickness = payload.activeOutlineThickness;
+          }
+          if (payload.lineIndex >= 0 && typeof updateSongCountdown === "function") {
+            updateSongCountdown({ active: false });
+          }
+          if (window.p_teleprompter_mode && typeof updateTeleprompterActiveLine === "function") {
+            updateTeleprompterActiveLine(p_sync_active_line_index);
+          } else if (typeof applySongLineHighlight === "function") {
+            applySongLineHighlight(p_sync_active_line_index, p_sync_enabled);
+          }
+          return;
+        }
+        if (type === "SET_TELEPROMPTER_FONT_SIZE" && payload) {
+          if (window.isRemoteDisplay || (window.previewState && window.previewState.isRemoteDisplay)) {
+            return;
+          }
+          p_teleprompter_font_size = (typeof payload.fontSize === "number") ? payload.fontSize : null;
+          window.p_teleprompter_font_size = p_teleprompter_font_size;
+          if (window.p_teleprompter_mode && Array.isArray(window.p_teleprompter_lines) && window.p_teleprompter_lines.length > 0) {
+            renderTeleprompter(window.p_teleprompter_lines, p_sync_active_line_index, p_teleprompter_font_size);
+          }
           return;
         }
         if (window.previewState && typeof window.previewState === "object") return;
         if (type === "UPDATE_STATE" && payload) {
-          p_text1_arr = payload.p_text1_arr;
-          p_text2_arr = payload.p_text2_arr;
+          const isSanctuaryProjector = Boolean(
+            window.isSanctuaryProjector ||
+            window.name === "UECFI_Presentation"
+          );
+          const stageLayout = getActiveStageLayout();
+          const hasVideo = Boolean(stageLayout);
+          const isVersesLive = (payload.liveProjectionType === "verses" || payload.isVersesLive);
+          if (isVersesLive && isSanctuaryProjector && !hasVideo && payload.p_dual_text1_arr && payload.p_dual_text1_arr.length > 0) {
+            p_text1_arr = payload.p_dual_text1_arr.slice();
+            p_text2_arr = (payload.p_dual_text2_arr && payload.p_dual_text2_arr.length > 0) ? payload.p_dual_text2_arr.slice() : [];
+            p_footnote = payload.p_dual_footnote || payload.p_footnote;
+          } else {
+            p_text1_arr = payload.p_text1_arr;
+            p_text2_arr = payload.p_text2_arr;
+            p_footnote = payload.p_footnote;
+          }
           p_person_title_arr = payload.p_person_title_arr || [];
           p_person_title = (typeof payload.p_person_title === "string") ? payload.p_person_title : "";
           p_title_arr = payload.p_title_arr || [];
@@ -429,6 +559,12 @@ function initPresentation() {
           p_sync_active_line_index = (typeof payload.p_sync_active_line_index === "number") ? payload.p_sync_active_line_index : -1;
           p_sync_active_color = payload.p_sync_active_color || "#F59E0B";
           p_sync_inactive_color = payload.p_sync_inactive_color || "#94A3B8";
+          p_teleprompter_mode = (payload.p_teleprompter_mode !== undefined) ? !!payload.p_teleprompter_mode : false;
+          p_teleprompter_lines = payload.p_teleprompter_lines || null;
+          p_teleprompter_font_size = (typeof payload.p_teleprompter_font_size === "number") ? payload.p_teleprompter_font_size : ((typeof payload.teleprompterFontSize === "number") ? payload.teleprompterFontSize : null);
+          window.p_teleprompter_mode = p_teleprompter_mode;
+          window.p_teleprompter_lines = p_teleprompter_lines;
+          window.p_teleprompter_font_size = p_teleprompter_font_size;
           window.activeThemeObj = payload.activeThemeObj || null;
           if (window.activeThemeObj) {
             blur = (typeof window.activeThemeObj.shadowBlur !== "undefined") ? window.activeThemeObj.shadowBlur : 4;
@@ -436,12 +572,44 @@ function initPresentation() {
           }
           updatePresentation();
           updateContent();
+        } else if (type === "SET_TELEPROMPTER_FONT_SIZE" && payload) {
+          if (window.isRemoteDisplay || (window.previewState && window.previewState.isRemoteDisplay)) {
+            return;
+          }
+          p_teleprompter_font_size = (typeof payload.fontSize === "number") ? payload.fontSize : null;
+          window.p_teleprompter_font_size = p_teleprompter_font_size;
+          if (window.p_teleprompter_mode && Array.isArray(window.p_teleprompter_lines) && window.p_teleprompter_lines.length > 0) {
+            renderTeleprompter(window.p_teleprompter_lines, p_sync_active_line_index, p_teleprompter_font_size);
+          }
+        } else if (type === "COUNTDOWN_UPDATE" && payload) {
+          if (typeof updateSongCountdown === "function") {
+            updateSongCountdown(payload);
+          }
         } else if (type === "HIGHLIGHT_LINE" && payload) {
           p_sync_active_line_index = (typeof payload.lineIndex === "number") ? payload.lineIndex : -1;
           p_sync_enabled = payload.syncEnabled !== false;
           if (payload.activeColor) p_sync_active_color = payload.activeColor;
           if (payload.inactiveColor) p_sync_inactive_color = payload.inactiveColor;
-          applySongLineHighlight(p_sync_active_line_index, p_sync_enabled);
+          if (payload.activeOutlineEnabled !== undefined) {
+            p_sync_active_outline_enabled = !!payload.activeOutlineEnabled;
+            if (typeof window !== "undefined") window.p_sync_active_outline_enabled = !!payload.activeOutlineEnabled;
+          }
+          if (payload.activeOutlineColor) {
+            p_sync_active_outline_color = payload.activeOutlineColor;
+            if (typeof window !== "undefined") window.p_sync_active_outline_color = payload.activeOutlineColor;
+          }
+          if (payload.activeOutlineThickness !== undefined) {
+            p_sync_active_outline_thickness = payload.activeOutlineThickness;
+            if (typeof window !== "undefined") window.p_sync_active_outline_thickness = payload.activeOutlineThickness;
+          }
+          if (payload.lineIndex >= 0 && typeof updateSongCountdown === "function") {
+            updateSongCountdown({ active: false });
+          }
+          if (window.p_teleprompter_mode && typeof updateTeleprompterActiveLine === "function") {
+            updateTeleprompterActiveLine(p_sync_active_line_index);
+          } else if (typeof applySongLineHighlight === "function") {
+            applySongLineHighlight(p_sync_active_line_index, p_sync_enabled);
+          }
         } else if (type === "NEXT_SLIDE") {
           nextSlide();
         } else if (type === "PREV_SLIDE") {
@@ -507,6 +675,11 @@ function nextSlide() {
   p_current_index = get_next_index();
   document.getElementById("content1").style.textShadow = null;
   document.getElementById("content2").style.textShadow = null;
+  const stageLayout = getActiveStageLayout();
+  if (stageLayout === "lower-third" || window.p_teleprompter_mode) {
+    updateContent2();
+    return;
+  }
   fadeout.onComplete.subscribe(updateContent2);
   fadeout.animate();
 }
@@ -514,12 +687,23 @@ function prevSlide() {
   p_current_index = get_prev_index();
   document.getElementById("content1").style.textShadow = null;
   document.getElementById("content2").style.textShadow = null;
+  const stageLayout = getActiveStageLayout();
+  if (stageLayout === "lower-third" || window.p_teleprompter_mode) {
+    updateContent2();
+    return;
+  }
   fadeout.onComplete.subscribe(updateContent2);
   fadeout.animate();
 }
-function updateContent() { console.log('updateContent called'); 
+function updateContent() { 
+  console.log('updateContent called'); 
   document.getElementById("content1").style.textShadow = null;
   document.getElementById("content2").style.textShadow = null;
+  const stageLayout = getActiveStageLayout();
+  if (stageLayout === "lower-third" || window.p_teleprompter_mode) {
+    updateContent2();
+    return;
+  }
   fadeout.onComplete.subscribe(updateContent2);
   fadeout.animate();
 }
@@ -555,7 +739,8 @@ function formatProjectedVerseNumbers(rawHtml, titleStr, theme, hasText2) {
         const isCurrentActive = (activeIdx >= 0 && lineIdx === activeIdx);
         const color = isCurrentActive ? activeColor : (activeIdx >= 0 ? inactiveColor : defaultColor);
         const weight = isCurrentActive ? "700" : "400";
-        const shadow = isCurrentActive ? `text-shadow: 0 0 16px ${activeColor}, 2px 2px 4px #000000;` : "";
+        // Clean drop shadow without color glow
+        const shadow = isCurrentActive ? "text-shadow: 2px 2px 4px #000000;" : "";
         const transform = isCurrentActive ? "transform: scale(1.02);" : "";
         const opacity = (activeIdx >= 0 && !isCurrentActive) ? "opacity: 0.75;" : "opacity: 1;";
         const html = `<div class="song-line" data-line-idx="${lineIdx}" style="color:${color};font-weight:${weight};${shadow}${transform}${opacity}transition: all 0.25s ease-out;display:block;">${cleanText}</div>`;
@@ -589,7 +774,40 @@ function formatProjectedVerseNumbers(rawHtml, titleStr, theme, hasText2) {
     .join("<BR>");
 }
 
+/**
+ * Generates a smooth, uniform contour outline using multi-directional text-shadow.
+ * Eliminates the "text placed on top of bigger text" artifact caused by paint-order stroke fill,
+ * preserving natural glyph letterforms, inner counters, and kerning.
+ */
+function getActiveLineOutlineShadow(thickness, outlineColor, baseDropShadow) {
+  if (!thickness || thickness <= 0) {
+    return baseDropShadow || "none";
+  }
+  const t = Math.max(1, Math.min(8, thickness));
+  const col = outlineColor || "#000000";
+  const shadows = [];
+  const steps = (t <= 2) ? 8 : (t <= 4 ? 12 : 16);
+  for (let r = 1; r <= t; r += (t > 4 ? 1.5 : 1)) {
+    for (let i = 0; i < steps; i++) {
+      const angle = (i * 2 * Math.PI) / steps;
+      const x = (Math.cos(angle) * r).toFixed(1);
+      const y = (Math.sin(angle) * r).toFixed(1);
+      shadows.push(`${x}px ${y}px 0 ${col}`);
+    }
+  }
+  if (baseDropShadow && baseDropShadow !== "none") {
+    shadows.push(baseDropShadow);
+  }
+  return shadows.join(", ");
+}
+if (typeof window !== "undefined") {
+  window.getActiveLineOutlineShadow = getActiveLineOutlineShadow;
+}
+
 function applySongLineHighlight(activeIdx, isSyncEnabled) {
+  if (activeIdx >= 0 && typeof updateSongCountdown === "function") {
+    updateSongCountdown({ active: false });
+  }
   const container = document.getElementById("content1");
   if (!container) return;
   const lineEls = container.querySelectorAll(".song-line");
@@ -600,33 +818,712 @@ function applySongLineHighlight(activeIdx, isSyncEnabled) {
   const inactiveColor = (theme && theme.syncInactiveColor) || (typeof p_sync_inactive_color !== "undefined" ? p_sync_inactive_color : "#94A3B8");
   const defaultColor = (theme && theme.primaryColor) ? theme.primaryColor : (typeof p_font_color !== "undefined" ? p_font_color : "#FFFFFF");
   const syncOn = (isSyncEnabled !== false) && (typeof p_sync_enabled !== "undefined" ? p_sync_enabled : true);
+  const outlineEnabled = Boolean(
+    (typeof window !== "undefined" && window.p_sync_active_outline_enabled) ||
+    (typeof p_sync_active_outline_enabled !== "undefined" && p_sync_active_outline_enabled) ||
+    (theme && theme.syncActiveOutlineEnabled)
+  );
+  const outlineColor = (typeof window !== "undefined" && window.p_sync_active_outline_color)
+    || (typeof p_sync_active_outline_color !== "undefined" && p_sync_active_outline_color)
+    || ((theme && theme.syncActiveOutlineColor) || "#000000");
+  const outlineThickness = (typeof window !== "undefined" && typeof window.p_sync_active_outline_thickness === "number")
+    ? window.p_sync_active_outline_thickness
+    : ((typeof p_sync_active_outline_thickness === "number")
+      ? p_sync_active_outline_thickness
+      : ((theme && typeof theme.syncActiveOutlineThickness === "number") ? theme.syncActiveOutlineThickness : 2));
+
+  const baseDropShadow = (theme && theme.primaryShadowEnabled === false) ? "none" : "2px 2px 4px #000000";
 
   lineEls.forEach((el, idx) => {
     if (syncOn && activeIdx >= 0 && idx === activeIdx) {
       el.style.color = activeColor;
       el.style.opacity = "1";
       el.style.fontWeight = "700";
-      el.style.textShadow = `0 0 16px ${activeColor}, 2px 2px 4px #000000`;
-      el.style.transform = "scale(1.02)";
+      el.style.transform = "none";
+      el.style.webkitTextStroke = "0px transparent";
+      el.style.paintOrder = "normal";
+      if (outlineEnabled) {
+        el.style.textShadow = getActiveLineOutlineShadow(outlineThickness, outlineColor, baseDropShadow);
+      } else {
+        el.style.textShadow = baseDropShadow;
+      }
     } else if (syncOn && activeIdx >= 0) {
       el.style.color = inactiveColor;
       el.style.opacity = "0.75";
       el.style.fontWeight = "400";
       el.style.textShadow = "none";
       el.style.transform = "scale(1)";
+      el.style.webkitTextStroke = "0px transparent";
+      el.style.paintOrder = "normal";
     } else {
       el.style.color = defaultColor;
       el.style.opacity = "1";
       el.style.fontWeight = "400";
       el.style.textShadow = "none";
       el.style.transform = "scale(1)";
+      el.style.webkitTextStroke = "0px transparent";
+      el.style.paintOrder = "normal";
     }
   });
 }
 if (typeof window !== "undefined") {
   window.applySongLineHighlight = applySongLineHighlight;
 }
+
+/**
+ * Automatically calculates optimal font size so the longest line in the song fits comfortably
+ * horizontally across the remote display width without clipping or wrapping.
+ */
+function calculateOptimalFontSizeForLongestLine(longestText, fontFam, availWidth, maxAllowedFS) {
+  if (!longestText || longestText.length === 0) return maxAllowedFS;
+  const targetW = availWidth * 0.88; // comfortable breathing room on left/right
+
+  if (typeof document !== "undefined") {
+    try {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.font = `bold 100px ${fontFam || "Arial, sans-serif"}`;
+        const w100 = ctx.measureText(longestText).width;
+        if (w100 > 0) {
+          const fitFS = Math.floor((targetW / w100) * 100);
+          return Math.max(14, Math.min(maxAllowedFS, fitFS));
+        }
+      }
+    } catch (e) {}
+  }
+
+  const charCount = Math.max(1, longestText.length);
+  const fitFS = Math.floor(targetW / (charCount * 0.58));
+  return Math.max(14, Math.min(maxAllowedFS, fitFS));
+}
+
+/**
+ * Continuous 5-line scrolling teleprompter presentation mode for audio-synced songs.
+ * Renders all song lines into a continuous vertical track with GPU translation (translate3d),
+ * smooth top/bottom gradient fading, and prominent dead-center active line highlighting.
+ */
+function renderTeleprompter(lines, activeIdx, customFontSize) {
+  if (!lines || !Array.isArray(lines) || lines.length === 0) return;
+  const c1El = document.getElementById("content1");
+  const c2El = document.getElementById("content2");
+  const divEl = document.getElementById("presentationDivider");
+  const ptEl = document.getElementById("contentPersonTitle");
+  if (!c1El) return;
+
+  // Clean up dual verse/person elements when in teleprompter mode
+  if (c2El) {
+    c2El.innerHTML = "";
+    c2El.style.display = "none";
+    c2El.style.visibility = "hidden";
+  }
+  if (divEl) divEl.style.display = "none";
+  if (ptEl) {
+    ptEl.textContent = "";
+    ptEl.style.display = "none";
+  }
+
+  const stageLayout = getActiveStageLayout();
+  const isLowerThird = (stageLayout === "lower-third");
+  const totalWinY = Math.max(400, Number(p_window_Y) || window.innerHeight || 600);
+  const totalWinX = Math.max(600, Number(p_window_X) || window.innerWidth || 800);
+  const theme = window.activeThemeObj;
+
+  const fontFam = (theme && theme.primaryFont) || p_text1_font || "Arial, sans-serif";
+  const align = (theme && theme.textAlign) || p_align || "center";
+
+  // Check if this instance is a remote display (e.g. tablet, phone, speaker remote, viewer)
+  const isRemote = Boolean(
+    window.isRemoteDisplay ||
+    (window.previewState && window.previewState.isRemoteDisplay)
+  );
+
+  // Available horizontal width inside presentation margins
+  const availW = totalWinX - (Number(p_leftMargin) || 40) - (Number(p_rightMargin) || 40) - 30;
+
+  // Find longest line text across song for optimal width fitting
+  let longestLineText = "";
+  lines.forEach((l) => {
+    const text = (l.cleanText || l.rawText || (typeof l === "string" ? l : "")).trim();
+    if (text.length > longestLineText.length) {
+      longestLineText = text;
+    }
+  });
+
+  let viewportHeight;
+  let lineHeight;
+  let fontSize;
+
+  if (isLowerThird) {
+    // LOWER THIRD: Exactly 2 lines only, scaled proportionally to the container height
+    const ltHeight = Math.max(160, Math.round(totalWinY * 0.32));
+    const pTitleEl = document.getElementById("presentationTitle");
+    const headerVisible = theme ? (theme.headerVisible !== false) : (p_showTitle !== false);
+    const headerHeight = (headerVisible && pTitleEl && pTitleEl.style.display !== "none") ? Math.max(22, Math.round(ltHeight * 0.12)) : 0;
+    const availContentH = Math.max(80, ltHeight - headerHeight - 28);
+
+    // Font size ceiling calculated so 2 lines fit comfortably with compact spacing
+    // For 2 lines with ~1.25 line-height: total height is 2 * (1.25 * FS) = 2.5 * FS
+    const maxFSForHeight = Math.max(18, Math.min(68, Math.floor(availContentH / 2.7)));
+
+    if (isRemote) {
+      // Remote displays: auto-scale strictly to container height & longest line width
+      fontSize = calculateOptimalFontSizeForLongestLine(longestLineText, fontFam, availW, maxFSForHeight);
+    } else {
+      // Main projection screen: allow operator font size adjustment if customized, capped to fit container
+      let baseFontSize = (typeof customFontSize === "number" && customFontSize > 0)
+        ? customFontSize
+        : ((typeof p_teleprompter_font_size === "number" && p_teleprompter_font_size > 0) ? p_teleprompter_font_size : 0);
+      let targetFS = maxFSForHeight;
+      if (baseFontSize > 0) {
+        targetFS = Math.max(16, Math.min(maxFSForHeight, Math.round(baseFontSize * 0.75)));
+      }
+      fontSize = calculateOptimalFontSizeForLongestLine(longestLineText, fontFam, availW, targetFS);
+    }
+
+    // REDUCED SPACE BETWEEN LINES: Proportional, compact broadcast line-height (1.25x font size)
+    lineHeight = Math.max(24, Math.round(fontSize * 1.25));
+
+    // Viewport height: 2 lines plus generous clearance for font descenders ('g', 'p', 'y', 'q', 'j') and drop-shadows
+    // to prevent the lower part of the second line from ever getting clipped or hidden by overflow
+    const descenderClearance = Math.max(8, Math.round(fontSize * 0.28));
+    viewportHeight = (lineHeight * 2) + descenderClearance;
+  } else {
+    // FULL SCREEN / STANDARD: 5-line continuous scrolling teleprompter
+    if (isRemote) {
+      const pTitleEl = document.getElementById("presentationTitle");
+      const headerVisible = theme ? (theme.headerVisible !== false) : (p_showTitle !== false);
+      const headerHeight = (headerVisible && pTitleEl && pTitleEl.style.display !== "none") ? 60 : 0;
+      const availH = Math.max(220, totalWinY - headerHeight - (Number(p_topMargin) || 40) - (Number(p_bottomMargin) || 40) - 30);
+      const maxLineH = Math.max(30, Math.floor(availH / 5.2));
+      const maxFS = Math.max(20, Math.round(maxLineH * 0.65));
+      fontSize = calculateOptimalFontSizeForLongestLine(longestLineText, fontFam, availW, maxFS);
+      lineHeight = Math.round(fontSize * 1.5);
+      viewportHeight = lineHeight * 5;
+    } else {
+      let baseFontSize = (typeof customFontSize === "number" && customFontSize > 0)
+        ? customFontSize
+        : ((typeof p_teleprompter_font_size === "number" && p_teleprompter_font_size > 0) ? p_teleprompter_font_size : 0);
+      if (baseFontSize > 0) {
+        fontSize = Math.max(24, Math.min(140, Math.round(baseFontSize)));
+        lineHeight = Math.round(fontSize * 1.5);
+        viewportHeight = lineHeight * 5;
+      } else {
+        const defaultFS = Math.max(40, Math.min(76, Math.round(totalWinY * 0.052)));
+        fontSize = defaultFS;
+        lineHeight = Math.round(fontSize * 1.5);
+        viewportHeight = lineHeight * 5;
+      }
+    }
+  }
+
+  // Viewport container styling
+  c1El.style.height = `${viewportHeight}px`;
+  c1El.style.maxHeight = `${viewportHeight}px`;
+  c1El.style.position = "relative";
+  c1El.style.overflow = "hidden";
+  c1El.style.visibility = "visible";
+  c1El.style.display = "block";
+  if (isLowerThird) {
+    c1El.style.boxSizing = "content-box";
+    c1El.style.paddingBottom = "4px";
+  } else {
+    c1El.style.boxSizing = "border-box";
+    c1El.style.paddingBottom = "0px";
+  }
+
+  if (isLowerThird) {
+    // In 2-line lower third: NO gradient mask to avoid composite invalidation flicker over video
+    c1El.style.maskImage = "none";
+    c1El.style.webkitMaskImage = "none";
+  } else {
+    const gradMask = "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.85) 15%, black 28%, black 72%, rgba(0,0,0,0.85) 85%, transparent 100%)";
+    c1El.style.maskImage = gradMask;
+    c1El.style.webkitMaskImage = gradMask;
+  }
+
+  let track = document.getElementById("teleprompterTrack");
+  const existingLineCount = track ? track.querySelectorAll(".teleprompter-line").length : 0;
+
+  if (!track || existingLineCount !== lines.length) {
+    let trackHtml = `<div id="teleprompterTrack" style="width:100%; position:relative; will-change:transform; transition:transform 0.38s cubic-bezier(0.25, 1, 0.5, 1);">`;
+    lines.forEach((line, idx) => {
+      const text = line.cleanText || line.rawText || (typeof line === "string" ? line : "");
+      trackHtml += `<div class="teleprompter-line" data-line-index="${idx}" style="height:${lineHeight}px; line-height:${lineHeight}px; font-size:${fontSize}px; font-family:${fontFam}; text-align:${align}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:1px 0; box-sizing:border-box; transition: color 0.3s ease, opacity 0.3s ease, text-shadow 0.3s ease;">${text}</div>`;
+    });
+    trackHtml += `</div>`;
+    c1El.innerHTML = trackHtml;
+    track = document.getElementById("teleprompterTrack");
+  } else {
+    const lineEls = track.querySelectorAll(".teleprompter-line");
+    lineEls.forEach((el) => {
+      el.style.height = `${lineHeight}px`;
+      el.style.lineHeight = `${lineHeight}px`;
+      el.style.fontSize = `${fontSize}px`;
+      el.style.fontFamily = fontFam;
+      el.style.textAlign = align;
+      el.style.padding = "1px 0";
+      el.style.boxSizing = "border-box";
+    });
+  }
+
+  if (track) {
+    track.dataset.lineHeight = String(lineHeight);
+  }
+
+  updateTeleprompterActiveLine(activeIdx, lineHeight);
+
+  const countdownEl = document.getElementById("songCountdownDots");
+  if (countdownEl && countdownEl.style.display !== "none" && typeof positionSongCountdown === "function") {
+    const dotSize = isLowerThird ? 24 : 36;
+    positionSongCountdown(countdownEl, dotSize, isLowerThird);
+  }
+}
+
+function updateTeleprompterActiveLine(activeIdx, explicitLineHeight) {
+  const isStarted = (typeof activeIdx === "number" && activeIdx >= 0);
+  if (isStarted && typeof updateSongCountdown === "function") {
+    updateSongCountdown({ active: false });
+  }
+  const track = document.getElementById("teleprompterTrack");
+  if (!track) return;
+  const lineEls = track.querySelectorAll(".teleprompter-line");
+  if (!lineEls || lineEls.length === 0) return;
+
+  const lineHeight = explicitLineHeight || Number(track.dataset.lineHeight) || 60;
+  const targetIdx = isStarted ? activeIdx : 0;
+  const stageLayout = getActiveStageLayout();
+  const isLowerThird = (stageLayout === "lower-third");
+
+  // In 2-line lower third: targetIdx sits at slot 0 (top line), upcoming line sits at slot 1 (bottom line)
+  // In 5-line full screen: active line stays vertically centered at slot 2 (line 3 out of 5)
+  const targetY = isLowerThird ? (-targetIdx * lineHeight) : ((2 - targetIdx) * lineHeight);
+  track.style.transform = `translate3d(0, ${Math.round(targetY)}px, 0)`;
+
+  const theme = window.activeThemeObj;
+  const activeColor = (theme && theme.syncActiveColor) || (typeof p_sync_active_color !== "undefined" ? p_sync_active_color : "#F59E0B");
+  const inactiveColor = (theme && theme.syncInactiveColor) || (typeof p_sync_inactive_color !== "undefined" ? p_sync_inactive_color : "#CBD5E1");
+  const outlineEnabled = Boolean(
+    (typeof window !== "undefined" && window.p_sync_active_outline_enabled) ||
+    (typeof p_sync_active_outline_enabled !== "undefined" && p_sync_active_outline_enabled) ||
+    (theme && theme.syncActiveOutlineEnabled)
+  );
+  const outlineColor = (typeof window !== "undefined" && window.p_sync_active_outline_color)
+    || (typeof p_sync_active_outline_color !== "undefined" && p_sync_active_outline_color)
+    || ((theme && theme.syncActiveOutlineColor) || "#000000");
+  const outlineThickness = (typeof window !== "undefined" && typeof window.p_sync_active_outline_thickness === "number")
+    ? window.p_sync_active_outline_thickness
+    : ((typeof p_sync_active_outline_thickness === "number")
+      ? p_sync_active_outline_thickness
+      : ((theme && typeof theme.syncActiveOutlineThickness === "number") ? theme.syncActiveOutlineThickness : 2));
+
+  lineEls.forEach((el, idx) => {
+    if (isLowerThird) {
+      // 2-line lower third display:
+      if (isStarted && idx === targetIdx) {
+        // Line 1 (Top): Active singing line
+        el.style.color = activeColor;
+        el.style.opacity = "1";
+        el.style.fontWeight = "700";
+        el.style.transform = "none";
+        el.style.webkitTextStroke = "0px transparent";
+        el.style.paintOrder = "normal";
+        const ltDropShadow = (theme && theme.primaryShadowEnabled === false) ? "none" : "2px 2px 5px rgba(0, 0, 0, 0.95)";
+        if (outlineEnabled) {
+          el.style.textShadow = getActiveLineOutlineShadow(outlineThickness, outlineColor, ltDropShadow);
+        } else {
+          el.style.textShadow = ltDropShadow;
+        }
+      } else if (isStarted && idx === targetIdx + 1) {
+        // Line 2 (Bottom): Upcoming preview line
+        el.style.color = inactiveColor;
+        el.style.opacity = "0.72";
+        el.style.fontWeight = "500";
+        el.style.transform = "none";
+        el.style.textShadow = "1px 1px 3px rgba(0, 0, 0, 0.75)";
+        el.style.webkitTextStroke = "0px transparent";
+        el.style.paintOrder = "normal";
+      } else if (!isStarted && idx === 0) {
+        // Audio waiting to start: Line 0
+        el.style.color = inactiveColor;
+        el.style.opacity = "0.85";
+        el.style.fontWeight = "600";
+        el.style.transform = "none";
+        el.style.textShadow = "1px 1px 3px rgba(0, 0, 0, 0.75)";
+        el.style.webkitTextStroke = "0px transparent";
+        el.style.paintOrder = "normal";
+      } else if (!isStarted && idx === 1) {
+        // Audio waiting to start: Line 1
+        el.style.color = inactiveColor;
+        el.style.opacity = "0.55";
+        el.style.fontWeight = "400";
+        el.style.transform = "none";
+        el.style.textShadow = "none";
+        el.style.webkitTextStroke = "0px transparent";
+        el.style.paintOrder = "normal";
+      } else {
+        // Scrolled outside the 2 visible lines
+        el.style.color = inactiveColor;
+        el.style.opacity = "0";
+        el.style.fontWeight = "400";
+        el.style.transform = "none";
+        el.style.textShadow = "none";
+        el.style.webkitTextStroke = "0px transparent";
+        el.style.paintOrder = "normal";
+      }
+    } else {
+      // 5-line standard teleprompter display:
+      const diff = Math.abs(idx - targetIdx);
+      if (isStarted && idx === targetIdx) {
+        el.style.color = activeColor;
+        el.style.opacity = "1";
+        el.style.fontWeight = "700";
+        el.style.transform = "none";
+        el.style.webkitTextStroke = "0px transparent";
+        el.style.paintOrder = "normal";
+        const fsDropShadow = (theme && theme.primaryShadowEnabled === false) ? "none" : "2px 2px 5px rgba(0, 0, 0, 0.9)";
+        if (outlineEnabled) {
+          el.style.textShadow = getActiveLineOutlineShadow(outlineThickness, outlineColor, fsDropShadow);
+        } else {
+          el.style.textShadow = fsDropShadow;
+        }
+      } else if (isStarted && diff === 1) {
+        el.style.color = inactiveColor;
+        el.style.opacity = "0.65";
+        el.style.fontWeight = "500";
+        el.style.transform = "scale(1.0)";
+        el.style.textShadow = "1px 1px 3px rgba(0, 0, 0, 0.75)";
+        el.style.webkitTextStroke = "0px transparent";
+        el.style.paintOrder = "normal";
+      } else if (isStarted && diff === 2) {
+        el.style.color = inactiveColor;
+        el.style.opacity = "0.35";
+        el.style.fontWeight = "400";
+        el.style.transform = "scale(0.96)";
+        el.style.textShadow = "none";
+        el.style.webkitTextStroke = "0px transparent";
+        el.style.paintOrder = "normal";
+      } else if (isStarted) {
+        el.style.color = inactiveColor;
+        el.style.opacity = "0.08";
+        el.style.fontWeight = "400";
+        el.style.transform = "scale(0.92)";
+        el.style.textShadow = "none";
+        el.style.webkitTextStroke = "0px transparent";
+        el.style.paintOrder = "normal";
+      } else {
+        if (idx === 0) {
+          el.style.color = inactiveColor;
+          el.style.opacity = "0.85";
+          el.style.fontWeight = "600";
+          el.style.transform = "scale(1.0)";
+          el.style.textShadow = "1px 1px 3px rgba(0, 0, 0, 0.75)";
+          el.style.webkitTextStroke = "0px transparent";
+          el.style.paintOrder = "normal";
+        } else if (diff === 1) {
+          el.style.color = inactiveColor;
+          el.style.opacity = "0.5";
+          el.style.fontWeight = "400";
+          el.style.transform = "scale(0.98)";
+          el.style.textShadow = "none";
+          el.style.webkitTextStroke = "0px transparent";
+          el.style.paintOrder = "normal";
+        } else {
+          el.style.color = inactiveColor;
+          el.style.opacity = "0.2";
+          el.style.fontWeight = "400";
+          el.style.transform = "scale(0.95)";
+          el.style.textShadow = "none";
+          el.style.webkitTextStroke = "0px transparent";
+          el.style.paintOrder = "normal";
+        }
+      }
+    }
+  });
+}
+
+/**
+ * Accurately positions the countdown dots container directly above the first lyric line
+ * so it never overlaps with the song title or floats in distant empty space.
+ */
+function positionSongCountdown(container, dotSize, isLowerThird) {
+  if (!container) return;
+  const pContentID = document.getElementById("p_contentID");
+  if (!pContentID) return;
+
+  const gap = isLowerThird ? 8 : 16;
+  let targetTop = null;
+
+  // 1. Precise real-browser measurement via getBoundingClientRect()
+  const track = document.getElementById("teleprompterTrack");
+  const firstLineEl = (track && track.querySelector(".teleprompter-line[data-line-index='0']")) ||
+                      (track && track.querySelector(".teleprompter-line")) ||
+                      document.querySelector("#content1 .song-line") ||
+                      document.getElementById("content1");
+
+  if (firstLineEl && typeof firstLineEl.getBoundingClientRect === "function" && typeof pContentID.getBoundingClientRect === "function") {
+    const lineRect = firstLineEl.getBoundingClientRect();
+    const parentRect = pContentID.getBoundingClientRect();
+    if (lineRect && parentRect && lineRect.height > 0 && parentRect.height > 0) {
+      // lineRect.top includes the translate3d transform on teleprompterTrack
+      targetTop = Math.round(lineRect.top - parentRect.top - dotSize - gap);
+    }
+  }
+
+  // 2. Analytical calculation fallback (for initial render frame, mock VMs, or zero rects)
+  if (targetTop === null || isNaN(targetTop)) {
+    const c1 = document.getElementById("content1");
+    if (track && c1) {
+      const lineHeight = Number(track.dataset.lineHeight) || 60;
+      if (isLowerThird) {
+        // Lower third: Line 0 sits at slot 0 (top of content1)
+        const c1Top = (typeof c1.offsetTop === "number") ? c1.offsetTop : 0;
+        targetTop = Math.max(0, Math.round(c1Top - dotSize - gap));
+      } else {
+        // Full screen 5-line scrolling teleprompter: Line 0 sits at slot 2 (vertical center)
+        const vh = parseInt(c1.style.height) || (lineHeight * 5);
+        const pH = pContentID.clientHeight || parseInt(pContentID.style.height) || 600;
+        const c1Top = Math.max(0, Math.round((pH - vh) / 2));
+        const line0Top = c1Top + (2 * lineHeight);
+        targetTop = Math.max(0, Math.round(line0Top - dotSize - gap));
+      }
+    } else if (c1) {
+      const c1Top = (typeof c1.offsetTop === "number") ? c1.offsetTop : 0;
+      targetTop = Math.max(0, Math.round(c1Top - dotSize - gap));
+    } else {
+      targetTop = 20;
+    }
+  }
+
+  container.style.top = `${targetTop}px`;
+  container.style.bottom = "auto";
+  container.style.marginBottom = "0px";
+}
+
+/**
+ * Visual Countdown Dots at the beginning of timed songs.
+ * Displays 4 animated dots that count in 4 beats leading up to singing entry.
+ * Floats right above the first lyric line without displacing content or overlapping the title.
+ */
+function updateSongCountdown(countdownInfo) {
+  let container = document.getElementById("songCountdownDots");
+  const pContentID = document.getElementById("p_contentID");
+
+  // Dynamically create container if missing from DOM (e.g. cached markup)
+  if (!container && pContentID) {
+    container = document.createElement("div");
+    container.id = "songCountdownDots";
+    container.className = "song-countdown-dots";
+    container.style.cssText = "display:none; position:absolute; left:50%; transform:translateX(-50%); align-items:center; justify-content:center; gap:28px; pointer-events:none; z-index:10; transition:opacity 0.25s ease;";
+    for (let i = 0; i < 4; i++) {
+      const dot = document.createElement("div");
+      dot.className = "countdown-dot";
+      dot.dataset.dot = String(i);
+      dot.style.cssText = "width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.25); border:3px solid rgba(255,255,255,0.45); box-sizing:border-box; transition:all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);";
+      container.appendChild(dot);
+    }
+    pContentID.insertBefore(container, pContentID.firstChild);
+  }
+
+  if (!container) return;
+
+  if (!countdownInfo || !countdownInfo.active) {
+    if (container.style.display !== "none") {
+      container.style.opacity = "0";
+      if (container._fadeTimeout) clearTimeout(container._fadeTimeout);
+      container._fadeTimeout = setTimeout(() => {
+        if (!container.dataset.active || container.dataset.active === "0") {
+          container.style.display = "none";
+        }
+      }, 250);
+      container.dataset.active = "0";
+    }
+    return;
+  }
+
+  if (container._fadeTimeout) clearTimeout(container._fadeTimeout);
+  container.dataset.active = "1";
+  container.style.display = "flex";
+
+  const stageLayout = getActiveStageLayout();
+  const isLowerThird = (stageLayout === "lower-third");
+  const theme = window.activeThemeObj;
+  const activeColor = countdownInfo.activeColor || (theme && theme.syncActiveColor) || (typeof p_sync_active_color !== "undefined" ? p_sync_active_color : "#F59E0B");
+
+  // 100% bigger dots (36px full screen, 24px lower third)
+  const dotSize = isLowerThird ? 24 : 36;
+  const dotGap = isLowerThird ? 18 : 28;
+
+  container.style.gap = `${dotGap}px`;
+  container.style.opacity = "1";
+
+  // Position countdown dots directly above the first lyric line
+  positionSongCountdown(container, dotSize, isLowerThird);
+
+  const dots = container.querySelectorAll(".countdown-dot");
+  const step = typeof countdownInfo.step === "number" ? countdownInfo.step : 0;
+  // Visual countdown where dots disappear one at a time from right to left:
+  // step 0 (early intro): 4 dots visible in waiting state
+  // step 1 (4 beats remaining): 4 dots active
+  // step 2 (3 beats remaining): 3 dots active (Dot 3, rightmost, has disappeared)
+  // step 3 (2 beats remaining): 2 dots active (Dots 2 & 3 have disappeared)
+  // step 4 (1 beat remaining): 1 dot active (Dots 1, 2, 3 have disappeared; only Dot 0 remains)
+  const remainingDots = (typeof countdownInfo.remainingDots === "number")
+    ? countdownInfo.remainingDots
+    : (step === 0 ? 4 : Math.max(1, 5 - step));
+
+  dots.forEach((dot, idx) => {
+    dot.style.width = `${dotSize}px`;
+    dot.style.height = `${dotSize}px`;
+    dot.style.borderRadius = "50%";
+    dot.style.boxSizing = "border-box";
+    dot.style.transition = "all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1)";
+
+    if (idx < remainingDots) {
+      // Remaining active dot
+      dot.style.backgroundColor = activeColor;
+      dot.style.borderColor = "#FFFFFF";
+      dot.style.borderWidth = isLowerThird ? "2.5px" : "3.5px";
+      dot.style.borderStyle = "solid";
+      // Highlight the current leading countdown dot slightly
+      dot.style.transform = (step > 0 && idx === remainingDots - 1) ? "scale(1.22)" : "scale(1.0)";
+      dot.style.boxShadow = (step === 0)
+        ? `0 0 10px ${activeColor}`
+        : `0 0 18px ${activeColor}, 0 3px 8px rgba(0, 0, 0, 0.75)`;
+      dot.style.opacity = (step === 0) ? "0.65" : "1";
+    } else {
+      // Disappeared dot (vanished from right to left)
+      dot.style.backgroundColor = "transparent";
+      dot.style.borderColor = "transparent";
+      dot.style.borderWidth = "0px";
+      dot.style.transform = "scale(0.2)";
+      dot.style.boxShadow = "none";
+      dot.style.opacity = "0";
+    }
+  });
+}
+
+if (typeof window !== "undefined") {
+  window.renderTeleprompter = renderTeleprompter;
+  window.updateTeleprompterActiveLine = updateTeleprompterActiveLine;
+  window.updateSongCountdown = updateSongCountdown;
+  window.positionSongCountdown = positionSongCountdown;
+  window.updateSpeakerLowerThird = updateSpeakerLowerThird;
+}
+
+/**
+ * Broadcast Speaker / Minister Lower Third Overlay
+ * Handles broadcast-quality animations (entry, stay, exit, morph).
+ */
+function updateSpeakerLowerThird(payload) {
+  let layer = document.getElementById("speakerLowerThirdLayer");
+  let banner = document.getElementById("speakerLowerThirdBanner");
+  let nameEl = document.getElementById("speakerLtName");
+  let roleEl = document.getElementById("speakerLtRole");
+  let innerEl = document.getElementById("speakerLtInner");
+  let iconEl = document.getElementById("speakerLtIcon");
+  let textWrap = document.getElementById("speakerLtTextWrap");
+
+  // Dynamically inject layer if presentation HTML was cached without it
+  if (!layer) {
+    layer = document.createElement("div");
+    layer.id = "speakerLowerThirdLayer";
+    layer.style.cssText = "display:none; position:absolute; left:0px; top:0px; width:100%; height:100%; z-index:20; pointer-events:none; overflow:hidden;";
+    layer.innerHTML = `
+      <div id="speakerLowerThirdBanner" style="position:absolute; bottom:6.5%; left:4.5%; pointer-events:none; transform:translateX(-120%); opacity:0;">
+        <div id="speakerLtInner" style="display:flex; align-items:center; background:rgba(15, 23, 42, 0.90); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-radius:0 14px 14px 0; border-left:6px solid #2563eb; box-shadow:0 14px 35px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.35); padding:10px 24px 10px 18px; font-family:'Segoe UI', system-ui, -apple-system, sans-serif;">
+          <div id="speakerLtBadge" style="margin-right:14px; width:40px; height:40px; border-radius:10px; background:rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; shrink-0;">
+            <i id="speakerLtIcon" class="fa-solid fa-microphone-lines" style="font-size:18px; color:#ffffff;"></i>
+          </div>
+          <div id="speakerLtTextWrap" style="display:flex; flex-direction:column; justify-content:center;">
+            <div id="speakerLtName" style="font-size:26px; font-weight:800; color:#ffffff; line-height:1.2; letter-spacing:-0.01em; text-shadow:0 1px 3px rgba(0,0,0,0.4);">Speaker Name</div>
+            <div id="speakerLtRole" style="font-size:13px; font-weight:700; color:#93c5fd; text-transform:uppercase; letter-spacing:0.06em; margin-top:2px; line-height:1.2;">Minister / Role</div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(layer);
+    banner = document.getElementById("speakerLowerThirdBanner");
+    nameEl = document.getElementById("speakerLtName");
+    roleEl = document.getElementById("speakerLtRole");
+    innerEl = document.getElementById("speakerLtInner");
+    iconEl = document.getElementById("speakerLtIcon");
+    textWrap = document.getElementById("speakerLtTextWrap");
+  }
+
+  if (!layer || !banner || !nameEl || !roleEl) return;
+
+  if (!payload || !payload.active || payload.animationState === "out") {
+    if (banner.classList.contains("lt-animate-in") || banner.classList.contains("lt-animate-stay")) {
+      banner.classList.remove("lt-animate-in", "lt-animate-stay");
+      banner.classList.add("lt-animate-out");
+      setTimeout(() => {
+        layer.style.display = "none";
+        banner.classList.remove("lt-animate-out");
+      }, 420);
+    } else {
+      layer.style.display = "none";
+      banner.classList.remove("lt-animate-in", "lt-animate-stay", "lt-animate-out");
+    }
+    return;
+  }
+
+  const speaker = payload.speaker || {};
+  layer.style.display = "block";
+
+  // Scale typography smoothly based on viewport height (ensuring crisp look across 720p, 1080p, 4K)
+  const vh = window.innerHeight || 1080;
+  const nameSize = Math.max(16, Math.round(vh * 0.026));
+  const roleSize = Math.max(10, Math.round(vh * 0.013));
+  nameEl.style.fontSize = `${nameSize}px`;
+  roleEl.style.fontSize = `${roleSize}px`;
+
+  if (payload.animationState === "morph") {
+    if (textWrap) {
+      textWrap.classList.remove("lt-text-morph");
+      void textWrap.offsetWidth;
+      textWrap.classList.add("lt-text-morph");
+    }
+    nameEl.textContent = speaker.name || "Speaker Name";
+    roleEl.textContent = speaker.role || speaker.ministry || "Minister";
+    if (innerEl) innerEl.style.borderLeftColor = speaker.accentColor || "#2563eb";
+    if (iconEl && speaker.icon) iconEl.className = `fa-solid ${speaker.icon}`;
+    banner.classList.remove("lt-animate-in", "lt-animate-out");
+    banner.classList.add("lt-animate-stay");
+  } else if (payload.animationState === "in") {
+    nameEl.textContent = speaker.name || "Speaker Name";
+    roleEl.textContent = speaker.role || speaker.ministry || "Minister";
+    if (innerEl) innerEl.style.borderLeftColor = speaker.accentColor || "#2563eb";
+    if (iconEl && speaker.icon) iconEl.className = `fa-solid ${speaker.icon}`;
+    banner.classList.remove("lt-animate-out", "lt-animate-stay");
+    banner.classList.add("lt-animate-in");
+  } else if (payload.animationState === "stay") {
+    nameEl.textContent = speaker.name || "Speaker Name";
+    roleEl.textContent = speaker.role || speaker.ministry || "Minister";
+    if (innerEl) innerEl.style.borderLeftColor = speaker.accentColor || "#2563eb";
+    if (iconEl && speaker.icon) iconEl.className = `fa-solid ${speaker.icon}`;
+    banner.classList.remove("lt-animate-in", "lt-animate-out");
+    banner.classList.add("lt-animate-stay");
+  }
+}
+
 function updateContent2() { console.log('updateContent2 called, text:', window.p_text1_arr, p_text1_arr, p_current_index); 
+  if (typeof window !== "undefined") {
+    if (typeof window.p_text1_arr !== "undefined" && window.p_text1_arr !== null) p_text1_arr = window.p_text1_arr;
+    if (typeof window.p_text2_arr !== "undefined" && window.p_text2_arr !== null) p_text2_arr = window.p_text2_arr;
+    if (typeof window.p_title !== "undefined") p_title = window.p_title;
+    if (typeof window.p_title_arr !== "undefined" && window.p_title_arr !== null) p_title_arr = window.p_title_arr;
+    if (typeof window.p_footnote !== "undefined") p_footnote = window.p_footnote;
+    if (typeof window.p_current_index !== "undefined") p_current_index = window.p_current_index;
+    if (typeof window.p_last_index !== "undefined") p_last_index = window.p_last_index;
+    if (typeof window.p_custom_slide !== "undefined") p_custom_slide = window.p_custom_slide;
+    if (typeof window.p_person_title !== "undefined") p_person_title = window.p_person_title;
+    if (typeof window.p_person_title_arr !== "undefined" && window.p_person_title_arr !== null) p_person_title_arr = window.p_person_title_arr;
+    if (typeof window.p_stage_layout !== "undefined") p_stage_layout = window.p_stage_layout;
+    if (typeof window.p_teleprompter_mode !== "undefined") p_teleprompter_mode = window.p_teleprompter_mode;
+    if (typeof window.p_teleprompter_lines !== "undefined") p_teleprompter_lines = window.p_teleprompter_lines;
+    if (typeof window.p_teleprompter_font_size !== "undefined") p_teleprompter_font_size = window.p_teleprompter_font_size;
+  }
   const pTitleEl = document.getElementById("presentationTitle");
   const pFootnoteEl = document.getElementById("footnote");
   const theme = window.activeThemeObj;
@@ -635,27 +1532,71 @@ function updateContent2() { console.log('updateContent2 called, text:', window.p
   pTitleEl.innerHTML = activeTitle;
   pFootnoteEl.innerHTML = p_footnote;
 
-  // Header Title styling from theme
   const headerVisible = theme ? (theme.headerVisible !== false) : (p_showTitle !== false);
   const headerSize = (theme && theme.headerSize) ? theme.headerSize : PROJECTION_FALLBACK_STYLE.headerSize;
+  const stageLayout = getActiveStageLayout();
+  const isLowerThird = (stageLayout === 'lower-third');
+  const totalWinY = Math.max(400, Number(p_window_Y) || 600);
+  const totalWinX = Math.max(600, Number(p_window_X) || 800);
+  const ltHeight = isLowerThird ? Math.max(160, Math.round(totalWinY * 0.32)) : 0;
+
   pTitleEl.style.display = headerVisible ? "block" : "none";
   pTitleEl.style.color = (theme && theme.headerColor) ? theme.headerColor : p_font_color;
   pTitleEl.style.fontFamily = (theme && theme.headerFont) ? theme.headerFont : (p_text1_font || "Arial");
-  pTitleEl.style.fontSize = `${headerSize}px`;
   pTitleEl.style.fontWeight = (theme && theme.headerWeight) ? theme.headerWeight : PROJECTION_FALLBACK_STYLE.headerWeight;
-  pTitleEl.style.textAlign = (theme && theme.headerAlign) ? theme.headerAlign : PROJECTION_FALLBACK_STYLE.headerAlign;
   pTitleEl.style.textTransform = (theme && theme.headerTransform) ? theme.headerTransform : PROJECTION_FALLBACK_STYLE.headerTransform;
+
+  if (isLowerThird) {
+    const ltTitleSize = Math.min(headerSize, Math.max(14, Math.round(ltHeight * 0.11)));
+    const ltTitleH = headerVisible ? Math.max(22, Math.round(ltTitleSize * 1.35)) : 0;
+    pTitleEl.style.fontSize = `${ltTitleSize}px`;
+    pTitleEl.style.lineHeight = `${ltTitleH}px`;
+    pTitleEl.style.whiteSpace = "nowrap";
+    pTitleEl.style.overflow = "hidden";
+    pTitleEl.style.textOverflow = "ellipsis";
+    pTitleEl.style.textAlign = "center";
+  } else {
+    pTitleEl.style.fontSize = `${headerSize}px`;
+    pTitleEl.style.lineHeight = "normal";
+    pTitleEl.style.whiteSpace = "normal";
+    pTitleEl.style.overflow = "visible";
+    pTitleEl.style.textOverflow = "clip";
+    pTitleEl.style.textAlign = (theme && theme.headerAlign) ? theme.headerAlign : PROJECTION_FALLBACK_STYLE.headerAlign;
+  }
 
   // Footnote styling from theme
   const footnoteVisible = theme ? (theme.footnoteVisible !== false) : true;
   const footnoteSize = (theme && theme.footnoteSize) ? theme.footnoteSize : PROJECTION_FALLBACK_STYLE.footnoteSize;
-  pFootnoteEl.style.display = footnoteVisible ? "block" : "none";
+  pFootnoteEl.style.display = (footnoteVisible && !isLowerThird) ? "block" : "none";
   pFootnoteEl.style.color = (theme && theme.footnoteColor) ? theme.footnoteColor : p_font_color;
   pFootnoteEl.style.fontFamily = (theme && theme.footnoteFont) ? theme.footnoteFont : (p_text1_font || "Arial");
   pFootnoteEl.style.fontSize = `${footnoteSize}px`;
   pFootnoteEl.style.fontWeight = (theme && theme.footnoteWeight) ? theme.footnoteWeight : PROJECTION_FALLBACK_STYLE.footnoteWeight;
-  pFootnoteEl.style.textAlign = (theme && theme.footnoteAlign) ? theme.footnoteAlign : PROJECTION_FALLBACK_STYLE.footnoteAlign;
+  pFootnoteEl.style.textAlign = isLowerThird ? "center" : ((theme && theme.footnoteAlign) ? theme.footnoteAlign : PROJECTION_FALLBACK_STYLE.footnoteAlign);
   pFootnoteEl.style.textTransform = (theme && theme.footnoteTransform) ? theme.footnoteTransform : PROJECTION_FALLBACK_STYLE.footnoteTransform;
+
+  // Intercept for continuous 5-line scrolling teleprompter mode (Audio-Synced Songs)
+  if (window.p_teleprompter_mode && Array.isArray(window.p_teleprompter_lines) && window.p_teleprompter_lines.length > 0) {
+    const actIdx = (typeof p_sync_active_line_index === "number") ? p_sync_active_line_index : -1;
+    renderTeleprompter(window.p_teleprompter_lines, actIdx, p_teleprompter_font_size);
+    const pContainer = document.getElementById("presentationContainer");
+    if (pContainer) pContainer.style.opacity = "1";
+    if (stageLayout !== "lower-third" && !window.p_teleprompter_mode) {
+      fadein.animate();
+    }
+    renderCustomSlideLayer();
+    return;
+  }
+
+  // Not in teleprompter mode: ensure teleprompter styles are reset
+  const c1Reset = document.getElementById("content1");
+  if (c1Reset) {
+    c1Reset.style.maskImage = "none";
+    c1Reset.style.webkitMaskImage = "none";
+    c1Reset.style.height = "auto";
+    c1Reset.style.maxHeight = "none";
+    c1Reset.style.position = "static";
+  }
 
   const activeAlign = (theme && theme.textAlign) ? theme.textAlign : (p_align || PROJECTION_FALLBACK_STYLE.textAlign);
   const pContentEl = document.getElementById("presentationContent");
@@ -663,14 +1604,23 @@ function updateContent2() { console.log('updateContent2 called, text:', window.p
   const pContentCell = document.getElementById("p_contentID");
   if (pContentCell) pContentCell.style.textAlign = activeAlign;
   const c1El = document.getElementById("content1");
+  const lhVal = String((theme && theme.lineHeight) ? theme.lineHeight : 1.25);
   if (c1El) {
     c1El.style.textAlign = activeAlign;
     c1El.style.fontWeight = ((theme && theme.primaryWeight) || PROJECTION_FALLBACK_STYLE.primaryWeight);
+    c1El.style.fontStyle = (theme && theme.primaryItalic) ? "italic" : "normal";
+    c1El.style.fontFamily = (theme && theme.primaryFont) ? theme.primaryFont : (p_text1_font || "Arial");
+    c1El.style.color = (theme && theme.primaryColor) ? theme.primaryColor : (p_font_color || "#FFFFFF");
+    c1El.style.lineHeight = lhVal;
   }
   const c2El = document.getElementById("content2");
   if (c2El) {
     c2El.style.textAlign = activeAlign;
     c2El.style.fontWeight = ((theme && theme.secondaryWeight) || PROJECTION_FALLBACK_STYLE.secondaryWeight);
+    c2El.style.fontStyle = (theme && theme.secondaryItalic) ? "italic" : "normal";
+    c2El.style.fontFamily = (theme && theme.secondaryFont) ? theme.secondaryFont : (p_text2_font || p_text1_font || "Arial");
+    c2El.style.color = (theme && theme.secondaryColor) ? theme.secondaryColor : (p_font_color || "#FFFFFF");
+    c2El.style.lineHeight = lhVal;
   }
 
   const titleSh = elShadow("header");
@@ -685,8 +1635,10 @@ function updateContent2() { console.log('updateContent2 called, text:', window.p
   } else {
     pFootnoteEl.style.textShadow = "none";
   }
-  document.getElementById("content1").style.visibility = "hidden";
-  document.getElementById("content2").style.visibility = "hidden";
+  if (!isLowerThird && !window.p_teleprompter_mode) {
+    document.getElementById("content1").style.visibility = "hidden";
+    document.getElementById("content2").style.visibility = "hidden";
+  }
   const divEl = document.getElementById("presentationDivider");
   const hasBothVerses = (p_text1_arr && p_text1_arr[p_current_index] && p_text2_arr && p_text2_arr[p_current_index] && p_text2_arr[p_current_index].trim() !== "");
   const isDividerEnabled = theme ? (theme.showDivider !== false) : true;
@@ -716,24 +1668,44 @@ function updateContent2() { console.log('updateContent2 called, text:', window.p
   const html1Val = formatProjectedVerseNumbers(text1Val, activeTitle, theme, hasText2);
   const html2Val = hasText2 ? formatProjectedVerseNumbers(text2Val, activeTitle, theme, true) : "";
 
-  const winY = Math.max(400, Number(p_window_Y) || 600);
-  const n = Math.max(100, winY - (Number(p_topMargin) || 0) - (Number(p_bottomMargin) || 0) - headerHeight - 20 - dividerSpace);
+  let n;
+  let availW;
+  const ltBottomSafe = isLowerThird ? Math.max(34, Math.round(totalWinY * 0.045)) : 0;
+  if (isLowerThird) {
+    const ltTitleSize = Math.min(headerSize, Math.max(14, Math.round(ltHeight * 0.11)));
+    const ltTitleH = headerVisible ? Math.max(22, Math.round(ltTitleSize * 1.35)) : 0;
+    const contentTopOffset = headerVisible ? (10 + ltTitleH + 8) : 14;
+    n = Math.max(40, ltHeight - contentTopOffset - ltBottomSafe);
+    availW = totalWinX - 96;
+  } else if (stageLayout === 'split') {
+    n = Math.max(80, totalWinY - (Number(p_topMargin) || 0) - (Number(p_bottomMargin) || 0) - headerHeight - 20 - dividerSpace);
+    availW = Math.round(totalWinX / 2) - (Number(p_leftMargin) || 0) - (Number(p_rightMargin) || 0);
+  } else {
+    n = Math.max(100, totalWinY - (Number(p_topMargin) || 0) - (Number(p_bottomMargin) || 0) - headerHeight - 20 - dividerSpace);
+    availW = totalWinX - (Number(p_leftMargin) || 0) - (Number(p_rightMargin) || 0);
+  }
+
   let m = 0;
   let g = 0;
-  let e = Math.abs(font_size(text1Val, p_ver1ScaleFactor));
-  let a = hasText2 ? Math.abs(font_size(text2Val, p_ver2ScaleFactor)) : 0;
+  const baseE = Math.abs(font_size(text1Val, p_ver1ScaleFactor));
+  const baseA = hasText2 ? Math.abs(font_size(text2Val, p_ver2ScaleFactor)) : 0;
+
+  // In lower-third mode, seed starting font size from lower-third dimensions to avoid huge initial overshoot
+  let e = isLowerThird ? Math.min(baseE, hasText2 ? Math.round(ltHeight * 0.15) : Math.round(ltHeight * 0.22)) : baseE;
+  let a = isLowerThird ? (hasText2 ? Math.min(baseA, Math.round(ltHeight * 0.13)) : 0) : baseA;
 
   if (ptEl) {
     if (curPersonTitle) {
       ptEl.textContent = curPersonTitle;
       ptEl.style.display = "block";
-      ptEl.style.fontFamily = p_text1_font || (theme && theme.primaryFont) || "Arial";
+      ptEl.style.fontFamily = (theme && theme.personTitleFont) ? theme.personTitleFont : (p_text1_font || (theme && theme.primaryFont) || "Arial");
       ptEl.style.textAlign = activeAlign;
-      ptEl.style.color = (theme && theme.secondaryColor) ? theme.secondaryColor : (theme && theme.headerColor ? theme.headerColor : "#FDE68A");
-      ptEl.style.fontWeight = "600";
+      ptEl.style.color = (theme && theme.personTitleColor) ? theme.personTitleColor : ((theme && theme.secondaryColor) ? theme.secondaryColor : (theme && theme.headerColor ? theme.headerColor : "#FDE68A"));
+      ptEl.style.fontWeight = (theme && theme.personTitleWeight) ? theme.personTitleWeight : "600";
+      ptEl.style.fontStyle = (theme && theme.personTitleItalic) ? "italic" : "normal";
       ptEl.style.letterSpacing = "0.04em";
       ptEl.style.lineHeight = "1.2";
-      ptEl.style.marginBottom = `${Math.max(4, Math.round(winY * 0.012))}px`;
+      ptEl.style.marginBottom = `${Math.max(4, Math.round(totalWinY * 0.012))}px`;
     } else {
       ptEl.textContent = "";
       ptEl.style.display = "none";
@@ -742,35 +1714,55 @@ function updateContent2() { console.log('updateContent2 called, text:', window.p
 
   try {
     let loopCount = 0;
-    const maxLoops = 25; // Strict ceiling to prevent infinite loops or layout thrashing
+    const maxLoops = 45; // Generous ceiling for convergent font fitting
+    const minE = isLowerThird ? 10 : 12;
+    const minA = isLowerThird ? 8 : 8;
+
     do {
-      document.getElementById("content1").style.fontSize = `${e}px`;
-      document.getElementById("content1").innerHTML = html1Val;
+      c1El.style.fontSize = `${e}px`;
+      c1El.innerHTML = html1Val;
       if (ptEl && curPersonTitle) {
-        ptEl.style.fontSize = `${Math.max(13, Math.round(e * 0.48))}px`;
+        const ptScale = (theme && typeof theme.personTitleScale === "number" && isFinite(theme.personTitleScale)) ? theme.personTitleScale : 0.48;
+        ptEl.style.fontSize = `${Math.max(11, Math.round(e * ptScale))}px`;
       }
       if (hasText2) {
-        document.getElementById("content2").style.fontSize = `${a}px`;
-        document.getElementById("content2").innerHTML = html2Val;
+        c2El.style.fontSize = `${a}px`;
+        c2El.innerHTML = html2Val;
       } else {
-        document.getElementById("content2").innerHTML = "";
+        c2El.innerHTML = "";
       }
-      m = document.getElementById("content1").clientHeight;
-      g = hasText2 ? document.getElementById("content2").clientHeight : 0;
-      const ptH = (ptEl && curPersonTitle) ? ptEl.clientHeight : 0;
-      const i = m + g + ptH;
-      var h = 1 - i / n;
-      if (h < 0.05) {
-        // Content height (i) exceeds 95% of available space (n) -> shrink active fonts
-        if (e > 12) e -= 2;
-        if (hasText2 && a > 8) a -= 2;
+
+      // Read both scroll and client bounds to catch text overflow precisely
+      m = Math.max(c1El.scrollHeight, c1El.offsetHeight, c1El.clientHeight);
+      g = hasText2 ? Math.max(c2El.scrollHeight, c2El.offsetHeight, c2El.clientHeight) : 0;
+      const ptH = (ptEl && curPersonTitle) ? Math.max(ptEl.scrollHeight, ptEl.offsetHeight, ptEl.clientHeight) : 0;
+      const activeDivSpace = (hasBothVerses && isDividerEnabled) ? (isLowerThird ? 10 : dividerSpace) : 0;
+      const totalH = m + g + ptH + activeDivSpace;
+
+      // Check vertical & horizontal overflow against container bounds
+      const vOverflow = (totalH > n);
+      const w1 = c1El.scrollWidth || 0;
+      const w2 = hasText2 ? (c2El.scrollWidth || 0) : 0;
+      const hOverflow = (availW > 100) && ((w1 > availW + 12) || (w2 > availW + 12));
+
+      if (vOverflow || hOverflow) {
+        const vDiff = totalH - n;
+        const shrinkStep = (vDiff > 40) ? 3 : ((vDiff > 12) ? 2 : 1);
+        if (e > minE) e = Math.max(minE, e - shrinkStep);
+        if (hasText2 && a > minA) a = Math.max(minA, a - shrinkStep);
+
+        if (e <= minE && (!hasText2 || a <= minA)) {
+          break; // Hit floor limits
+        }
+      } else {
+        break; // Clean fit achieved!
       }
       loopCount++;
-    } while (loopCount < maxLoops && h < 0.05 && (e > 12 || (hasText2 && a > 8)));
+    } while (loopCount < maxLoops);
 
-    document.getElementById("content1").style.fontSize = `${Math.max(12, e)}px`;
+    c1El.style.fontSize = `${Math.max(minE, e)}px`;
     if (hasText2) {
-      document.getElementById("content2").style.fontSize = `${Math.max(8, a)}px`;
+      c2El.style.fontSize = `${Math.max(minA, a)}px`;
     }
 
     // Apply Version Divider Line between content1 and content2
@@ -820,9 +1812,13 @@ function updateContent2() { console.log('updateContent2 called, text:', window.p
     document.getElementById("content2").style.visibility = hasText2 ? "visible" : "hidden";
     const pContainer = document.getElementById("presentationContainer");
     if (pContainer) pContainer.style.opacity = "1";
-    fadein.animate();
+    if (stageLayout !== "lower-third" && !window.p_teleprompter_mode) {
+      fadein.animate();
+    }
     renderCustomSlideLayer();
-    if (typeof applySongLineHighlight === "function") {
+    if (window.p_teleprompter_mode && typeof updateTeleprompterActiveLine === "function") {
+      updateTeleprompterActiveLine(p_sync_active_line_index);
+    } else if (typeof applySongLineHighlight === "function") {
       applySongLineHighlight(p_sync_active_line_index, p_sync_enabled);
     }
   }
@@ -875,8 +1871,73 @@ function showThemeProcess() {
   }
 }
 function showBlankProcess() {}
+
+/**
+ * Returns the active stage video layout ('full', 'pip', 'split', 'lower-third')
+ * when a live camera or remote guest is currently on stage, or null if slide-only.
+ * Note: Centro camera is excluded from the main centro projection screen
+ * (only remote guest video feeds are projected to the congregation).
+ */
+function getActiveStageLayout() {
+  const isSanctuaryProjector = Boolean(
+    window.isSanctuaryProjector ||
+    window.name === "UECFI_Presentation" ||
+    (window.opener && window.opener.newWindow && window.opener.newWindow.window === window)
+  );
+
+  try {
+    const studio = (window.opener && window.opener.liveStudio) || (window.parent && window.parent.liveStudio) || (typeof window !== "undefined" && window.liveStudio);
+    if (studio && studio.activeStageSource && studio.activeStageSource.stream) {
+      // Exclude centro camera on the main centro projection screen
+      if (isSanctuaryProjector && studio.activeStageSource.type === "camera") {
+        return null;
+      }
+      return studio.stageLayout || 'full';
+    }
+  } catch (e) {}
+  if (typeof window !== "undefined") {
+    if (window.previewState && window.previewState.stageLayout) {
+      if (isSanctuaryProjector && window.previewState.stageSourceType === "camera") {
+        return null;
+      }
+      return window.previewState.stageLayout;
+    }
+    if (typeof p_stage_layout !== "undefined" && p_stage_layout) {
+      if (isSanctuaryProjector && typeof p_stage_source_type !== "undefined" && p_stage_source_type === "camera") {
+        return null;
+      }
+      return p_stage_layout;
+    }
+  }
+  return null;
+}
+
 function updatePresentation() {
+  if (typeof window !== "undefined") {
+    if (typeof window.p_text1_arr !== "undefined" && window.p_text1_arr !== null) p_text1_arr = window.p_text1_arr;
+    if (typeof window.p_text2_arr !== "undefined" && window.p_text2_arr !== null) p_text2_arr = window.p_text2_arr;
+    if (typeof window.p_title !== "undefined") p_title = window.p_title;
+    if (typeof window.p_title_arr !== "undefined" && window.p_title_arr !== null) p_title_arr = window.p_title_arr;
+    if (typeof window.p_footnote !== "undefined") p_footnote = window.p_footnote;
+    if (typeof window.p_current_index !== "undefined") p_current_index = window.p_current_index;
+    if (typeof window.p_last_index !== "undefined") p_last_index = window.p_last_index;
+    if (typeof window.p_custom_slide !== "undefined") p_custom_slide = window.p_custom_slide;
+    if (typeof window.p_person_title !== "undefined") p_person_title = window.p_person_title;
+    if (typeof window.p_person_title_arr !== "undefined" && window.p_person_title_arr !== null) p_person_title_arr = window.p_person_title_arr;
+    if (typeof window.p_stage_layout !== "undefined") p_stage_layout = window.p_stage_layout;
+  }
   const theme = window.activeThemeObj;
+  const stageLayout = getActiveStageLayout();
+  const totalWinX = Number(p_window_X) || 800;
+  const totalWinY = Number(p_window_Y) || 600;
+
+  let effectiveWinX = totalWinX;
+  let offsetX = 0;
+
+  if (stageLayout === 'split') {
+    effectiveWinX = Math.round(totalWinX / 2);
+    offsetX = Math.round(totalWinX / 2);
+  }
 
   document.getElementById("content1").style.fontFamily = p_text1_font;
   document.getElementById("content1").style.color = p_font_color;
@@ -902,29 +1963,35 @@ function updatePresentation() {
   const pCell = document.getElementById("p_contentID");
   if (pCell) pCell.style.textAlign = activeAlign;
 
-  // Handle Background (Image, Gradient, or Solid Color)
+  // Handle Background (Image, Looping Motion Video, Gradient, or Solid Color)
   const bgImg = document.getElementById("backgroundImage");
+  const bgVid = document.getElementById("backgroundVideo");
   const bgLayer = document.getElementById("backgroundLayer");
   const overlay = document.getElementById("overlayLayer");
+  let resolvedImgSrc = "";
 
   if (theme && theme.backgroundType === "gradient" && theme.bgGradient) {
     if (bgImg) bgImg.style.display = "none";
+    if (bgVid) { bgVid.style.display = "none"; try { bgVid.pause(); } catch(e) {} }
     if (bgLayer) {
       bgLayer.style.backgroundImage = theme.bgGradient;
       bgLayer.style.backgroundColor = "transparent";
-      bgLayer.style.width = p_window_X + "px";
-      bgLayer.style.height = p_window_Y + "px";
+      bgLayer.style.backgroundPosition = "center center";
+      bgLayer.style.backgroundSize = "cover";
+      bgLayer.style.width = (stageLayout === 'split' ? effectiveWinX : totalWinX) + "px";
+      bgLayer.style.height = totalWinY + "px";
     }
   } else if (theme && theme.backgroundType === "color" && theme.bgColor) {
     if (bgImg) bgImg.style.display = "none";
+    if (bgVid) { bgVid.style.display = "none"; try { bgVid.pause(); } catch(e) {} }
     if (bgLayer) {
       bgLayer.style.backgroundImage = "none";
       bgLayer.style.backgroundColor = theme.bgColor;
-      bgLayer.style.width = p_window_X + "px";
-      bgLayer.style.height = p_window_Y + "px";
+      bgLayer.style.width = (stageLayout === 'split' ? effectiveWinX : totalWinX) + "px";
+      bgLayer.style.height = totalWinY + "px";
     }
   } else {
-    // Default image mode
+    // Media mode (Image or Looping Motion Video)
     let imgSrc = "";
     if (p_bkgnd_filename && p_bkgnd_filename.trim() !== "") {
       imgSrc = p_bkgnd_filename.startsWith("file://") ? p_bkgnd_filename : AppStorage.resolvePath(p_bkgnd_filename);
@@ -933,20 +2000,66 @@ function updatePresentation() {
           imgSrc = AppStorage.toFileUrl(imgSrc);
         } catch (e) {}
       }
-      bgImg.style.display = "block";
-      bgImg.src = imgSrc;
-    } else {
-      bgImg.style.display = "none";
+    } else if (theme && theme.bgImage && theme.bgImage.trim() !== "") {
+      const themeBg = theme.bgImage.startsWith("file://") ? theme.bgImage : `./background/${encodeURIComponent(theme.bgImage)}`;
+      imgSrc = (typeof AppStorage !== "undefined" ? AppStorage.resolvePath(themeBg) : themeBg);
+      if (typeof AppStorage !== "undefined" && typeof AppStorage.toFileUrl === "function") {
+        try {
+          imgSrc = AppStorage.toFileUrl(imgSrc);
+        } catch (e) {}
+      }
     }
-    bgImg.width = p_window_X;
-    bgImg.height = p_window_Y;
-    bgImg.style.width = p_window_X + "px";
-    bgImg.style.height = p_window_Y + "px";
-    bgImg.style.objectFit = "cover";
-    bgImg.style.objectPosition = "center";
+    resolvedImgSrc = imgSrc;
+
+    const isVideo = Boolean(imgSrc && (/\.(mp4|webm|ogv|mov)(\?.*)?$/i).test(imgSrc));
+
+    if (isVideo) {
+      // Looping motion video background
+      if (bgImg) bgImg.style.display = "none";
+      if (bgVid) {
+        bgVid.style.display = "block";
+        bgVid.style.width = "100%";
+        bgVid.style.height = "100%";
+        bgVid.style.objectFit = "cover";
+        bgVid.style.objectPosition = "center";
+        if (bgVid.src !== imgSrc && !bgVid.src.endsWith(encodeURI(imgSrc))) {
+          bgVid.src = imgSrc;
+          try { bgVid.load(); } catch(e) {}
+        }
+        try {
+          const playPromise = bgVid.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(() => {});
+          }
+        } catch(e) {}
+      }
+    } else {
+      // Still photo or graphic background
+      if (bgVid) {
+        bgVid.style.display = "none";
+        try { bgVid.pause(); } catch(e) {}
+      }
+      if (bgImg) {
+        if (imgSrc) {
+          bgImg.style.display = "block";
+          if (bgImg.src !== imgSrc && !bgImg.src.endsWith(encodeURI(imgSrc))) {
+            bgImg.src = imgSrc;
+          }
+          bgImg.removeAttribute("width");
+          bgImg.removeAttribute("height");
+          bgImg.style.width = "100%";
+          bgImg.style.height = "100%";
+          bgImg.style.objectFit = "cover";
+          bgImg.style.objectPosition = "center";
+        } else {
+          bgImg.style.display = "none";
+        }
+      }
+    }
+
     if (bgLayer) {
-      bgLayer.style.width = p_window_X + "px";
-      bgLayer.style.height = p_window_Y + "px";
+      bgLayer.style.width = (stageLayout === 'split' ? effectiveWinX : totalWinX) + "px";
+      bgLayer.style.height = totalWinY + "px";
       bgLayer.style.backgroundImage = "none";
       bgLayer.style.backgroundColor = "transparent";
     }
@@ -965,21 +2078,133 @@ function updatePresentation() {
     }
   }
 
+  const isLowerThird = (stageLayout === 'lower-third');
+  const ltHeight = isLowerThird ? Math.max(160, Math.round(totalWinY * 0.32)) : 0;
+  const ltTop = isLowerThird ? (totalWinY - ltHeight) : 0;
+
+  // Handle stageLayout background and overlay positioning
+  if (bgLayer) {
+    if (stageLayout === 'split') {
+      bgLayer.style.display = "block";
+      bgLayer.style.left = `${offsetX}px`;
+      bgLayer.style.width = `${effectiveWinX}px`;
+      bgLayer.style.height = `${totalWinY}px`;
+    } else if (stageLayout === 'lower-third') {
+      bgLayer.style.display = "none";
+    } else {
+      bgLayer.style.display = "block";
+      bgLayer.style.left = "0px";
+      bgLayer.style.width = `${totalWinX}px`;
+      bgLayer.style.height = `${totalWinY}px`;
+    }
+  }
+
+  if (overlay) {
+    if (stageLayout === 'split') {
+      overlay.style.left = `${offsetX}px`;
+      overlay.style.width = `${effectiveWinX}px`;
+      overlay.style.height = `${totalWinY}px`;
+    } else if (stageLayout === 'lower-third') {
+      overlay.style.display = "none";
+    } else {
+      overlay.style.left = "0px";
+      overlay.style.width = `${totalWinX}px`;
+      overlay.style.height = `${totalWinY}px`;
+    }
+  }
+
+  // Toggle and style lowerThirdBar backdrop if present
+  const ltBar = document.getElementById("lowerThirdBar");
+  if (ltBar) {
+    if (isLowerThird) {
+      ltBar.style.display = "block";
+      ltBar.style.position = "absolute";
+      ltBar.style.left = "0px";
+      ltBar.style.right = "0px";
+      ltBar.style.width = "100%";
+      ltBar.style.top = `${ltTop}px`;
+      ltBar.style.height = `${ltHeight}px`;
+      ltBar.style.bottom = "auto";
+      ltBar.style.overflow = "hidden";
+      ltBar.style.boxSizing = "border-box";
+      ltBar.style.borderTop = "none";
+      ltBar.style.boxShadow = "none";
+
+      // Fade the top part of the background image / container using hardware-accelerated CSS masking
+      const fadeMask = "linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.35) 10%, rgba(0, 0, 0, 0.85) 24%, black 36%, black 100%)";
+      ltBar.style.maskImage = fadeMask;
+      ltBar.style.webkitMaskImage = fadeMask;
+
+      // Apply the selected background image or theme style to the lower third container
+      if (theme && theme.backgroundType === "gradient" && theme.bgGradient) {
+        ltBar.style.backgroundImage = theme.bgGradient;
+        ltBar.style.backgroundColor = "transparent";
+        ltBar.style.backgroundPosition = "center center";
+        ltBar.style.backgroundSize = "cover";
+      } else if (theme && theme.backgroundType === "color" && theme.bgColor) {
+        ltBar.style.backgroundColor = theme.bgColor;
+        ltBar.style.backgroundImage = "none";
+      } else if (resolvedImgSrc && resolvedImgSrc.trim() !== "") {
+        // Selected background image with feathered gradient overlay that dissolves at top
+        const targetBg = `linear-gradient(to bottom, rgba(2, 6, 23, 0) 0%, rgba(2, 6, 23, 0.6) 20%, rgba(2, 6, 23, 0.88) 55%, rgba(2, 6, 23, 0.95) 100%), url("${resolvedImgSrc}")`;
+        if (ltBar.dataset.currentBg !== targetBg) {
+          ltBar.dataset.currentBg = targetBg;
+          ltBar.style.backgroundImage = targetBg;
+        }
+        ltBar.style.backgroundPosition = "center bottom";
+        ltBar.style.backgroundSize = "cover";
+        ltBar.style.backgroundRepeat = "no-repeat";
+      } else {
+        // Clean elegant dark gradient backdrop fallback, faded at top
+        const defaultBg = "linear-gradient(to bottom, transparent 0%, rgba(2, 6, 23, 0.75) 25%, rgba(2, 6, 23, 0.94) 70%, rgba(2, 6, 23, 0.98) 100%)";
+        if (ltBar.dataset.currentBg !== defaultBg) {
+          ltBar.dataset.currentBg = defaultBg;
+          ltBar.style.backgroundImage = defaultBg;
+        }
+        ltBar.style.backgroundColor = "transparent";
+      }
+    } else {
+      ltBar.style.display = "none";
+      ltBar.style.maskImage = "none";
+      ltBar.style.webkitMaskImage = "none";
+      ltBar.dataset.currentBg = "";
+    }
+  }
+
   const headerVisible = theme ? (theme.headerVisible !== false) : (p_showTitle !== false);
   const headerSize = (theme && theme.headerSize) ? theme.headerSize : PROJECTION_FALLBACK_STYLE.headerSize;
   const headerHeight = headerVisible ? Math.max(40, Math.round(headerSize * 1.4)) : 0;
 
   const titleEl = document.getElementById("presentationTitle");
   titleEl.style.position = "absolute";
-  titleEl.style.left = `${Number(p_leftMargin) || 0}px`;
-  titleEl.style.top = `${Number(p_topMargin) || 0}px`;
-  titleEl.style.width = `${Math.max(100, (Number(p_window_X) || 800) - (Number(p_leftMargin) || 0) - (Number(p_rightMargin) || 0))}px`;
-  titleEl.style.height = `${headerHeight}px`;
+  if (isLowerThird) {
+    const ltTitleSize = Math.min(headerSize, Math.max(14, Math.round(ltHeight * 0.11)));
+    const ltTitleH = headerVisible ? Math.max(22, Math.round(ltTitleSize * 1.35)) : 0;
+    titleEl.style.left = "48px";
+    titleEl.style.top = `${ltTop + 10}px`;
+    titleEl.style.width = `${totalWinX - 96}px`;
+    titleEl.style.height = `${ltTitleH}px`;
+    titleEl.style.fontSize = `${ltTitleSize}px`;
+    titleEl.style.lineHeight = `${ltTitleH}px`;
+    titleEl.style.whiteSpace = "nowrap";
+    titleEl.style.overflow = "hidden";
+    titleEl.style.textOverflow = "ellipsis";
+    titleEl.style.textAlign = "center";
+  } else {
+    titleEl.style.left = `${offsetX + (Number(p_leftMargin) || 0)}px`;
+    titleEl.style.top = `${Number(p_topMargin) || 0}px`;
+    titleEl.style.width = `${Math.max(100, effectiveWinX - (Number(p_leftMargin) || 0) - (Number(p_rightMargin) || 0))}px`;
+    titleEl.style.height = `${headerHeight}px`;
+    titleEl.style.fontSize = `${headerSize}px`;
+    titleEl.style.lineHeight = "normal";
+    titleEl.style.whiteSpace = "normal";
+    titleEl.style.overflow = "visible";
+    titleEl.style.textOverflow = "clip";
+    titleEl.style.textAlign = (theme && theme.headerAlign) ? theme.headerAlign : PROJECTION_FALLBACK_STYLE.headerAlign;
+  }
   titleEl.style.color = (theme && theme.headerColor) ? theme.headerColor : p_font_color;
   titleEl.style.fontFamily = (theme && theme.headerFont) ? theme.headerFont : (p_text1_font || "Arial");
-  titleEl.style.fontSize = `${headerSize}px`;
   titleEl.style.fontWeight = (theme && theme.headerWeight) ? theme.headerWeight : PROJECTION_FALLBACK_STYLE.headerWeight;
-  titleEl.style.textAlign = (theme && theme.headerAlign) ? theme.headerAlign : PROJECTION_FALLBACK_STYLE.headerAlign;
   titleEl.style.textTransform = (theme && theme.headerTransform) ? theme.headerTransform : PROJECTION_FALLBACK_STYLE.headerTransform;
   titleEl.style.display = headerVisible ? "block" : "none";
 
@@ -987,23 +2212,45 @@ function updatePresentation() {
   const footnoteSize = (theme && theme.footnoteSize) ? theme.footnoteSize : PROJECTION_FALLBACK_STYLE.footnoteSize;
   const footEl = document.getElementById("footnote");
   footEl.style.position = "absolute";
-  footEl.style.left = `${Number(p_leftMargin) || 0}px`;
-  footEl.style.top = `${(Number(p_window_Y) || 600) - (Number(p_bottomMargin) || 0) - 20}px`;
-  footEl.style.width = `${Math.max(100, (Number(p_window_X) || 800) - (Number(p_leftMargin) || 0) - (Number(p_rightMargin) || 0))}px`;
+  footEl.style.left = isLowerThird ? "48px" : `${offsetX + (Number(p_leftMargin) || 0)}px`;
+  footEl.style.top = isLowerThird ? `${totalWinY - 24}px` : `${totalWinY - (Number(p_bottomMargin) || 0) - 20}px`;
+  footEl.style.width = isLowerThird ? `${totalWinX - 96}px` : `${Math.max(100, effectiveWinX - (Number(p_leftMargin) || 0) - (Number(p_rightMargin) || 0))}px`;
   footEl.style.height = "20px";
   footEl.style.color = (theme && theme.footnoteColor) ? theme.footnoteColor : p_font_color;
   footEl.style.fontFamily = (theme && theme.footnoteFont) ? theme.footnoteFont : (p_text1_font || "Arial");
   footEl.style.fontSize = `${footnoteSize}px`;
   footEl.style.fontWeight = (theme && theme.footnoteWeight) ? theme.footnoteWeight : PROJECTION_FALLBACK_STYLE.footnoteWeight;
-  footEl.style.textAlign = (theme && theme.footnoteAlign) ? theme.footnoteAlign : PROJECTION_FALLBACK_STYLE.footnoteAlign;
+  footEl.style.textAlign = isLowerThird ? "center" : ((theme && theme.footnoteAlign) ? theme.footnoteAlign : PROJECTION_FALLBACK_STYLE.footnoteAlign);
   footEl.style.textTransform = (theme && theme.footnoteTransform) ? theme.footnoteTransform : PROJECTION_FALLBACK_STYLE.footnoteTransform;
-  footEl.style.display = footnoteVisible ? "block" : "none";
+  footEl.style.display = (footnoteVisible && !isLowerThird) ? "block" : "none";
+
   const contentEl = document.getElementById("presentationContent");
   contentEl.style.position = "absolute";
-  contentEl.style.left = `${Number(p_leftMargin) || 0}px`;
-  contentEl.style.top = `${(Number(p_topMargin) || 0) + headerHeight}px`;
-  contentEl.style.width = `${Math.max(100, (Number(p_window_X) || 800) - (Number(p_leftMargin) || 0) - (Number(p_rightMargin) || 0))}px`;
-  const b = Math.max(50, (Number(p_window_Y) || 600) - (Number(p_topMargin) || 0) - (Number(p_bottomMargin) || 0) - headerHeight - 20);
+  let b;
+  const ltBottomSafe = isLowerThird ? Math.max(20, Math.round(totalWinY * 0.025)) : 0;
+  if (isLowerThird) {
+    const ltTitleSize = Math.min(headerSize, Math.max(14, Math.round(ltHeight * 0.11)));
+    const ltTitleH = headerVisible ? Math.max(22, Math.round(ltTitleSize * 1.35)) : 0;
+    const contentTop = headerVisible ? (ltTop + 10 + ltTitleH + 6) : (ltTop + 12);
+    b = Math.max(40, totalWinY - contentTop - ltBottomSafe);
+
+    contentEl.style.left = "48px";
+    contentEl.style.top = `${contentTop}px`;
+    contentEl.style.width = `${totalWinX - 96}px`;
+    contentEl.style.height = `${b}px`;
+    contentEl.style.maxHeight = `${b}px`;
+    contentEl.style.overflow = "visible"; // Allow descenders and soft drop-shadows to breathe without overflow clipping
+    contentEl.style.boxSizing = "border-box";
+    contentEl.style.paddingBottom = "4px";
+  } else {
+    contentEl.style.left = `${offsetX + (Number(p_leftMargin) || 0)}px`;
+    contentEl.style.top = `${(Number(p_topMargin) || 0) + headerHeight}px`;
+    contentEl.style.width = `${Math.max(100, effectiveWinX - (Number(p_leftMargin) || 0) - (Number(p_rightMargin) || 0))}px`;
+    b = Math.max(50, totalWinY - (Number(p_topMargin) || 0) - (Number(p_bottomMargin) || 0) - headerHeight - 20);
+    contentEl.style.height = `${b}px`;
+    contentEl.style.maxHeight = "none";
+    contentEl.style.overflow = "visible";
+  }
   contentEl.style.height = `${b}px`;
   const pTable = document.getElementById("p_table");
   if (pTable) {
@@ -1018,21 +2265,242 @@ function updatePresentation() {
   renderLogoLayer();
   renderOutputState();
   renderCustomSlideLayer();
+  syncOverlayVisibility();
+  renderTimerOverlay();
+  syncRemoteStageVideo(stageLayout);
+  const countdownEl = document.getElementById("songCountdownDots");
+  if (countdownEl && countdownEl.style.display !== "none" && typeof positionSongCountdown === "function") {
+    const isLowerThird = (getActiveStageLayout() === "lower-third");
+    const dotSize = isLowerThird ? 24 : 36;
+    positionSongCountdown(countdownEl, dotSize, isLowerThird);
+  }
+}
+
+/**
+ * Applies the stage video layout positioning (full, pip, split, lower-third)
+ * to the videoLayer and stageVideo elements.
+ */
+function applyVideoLayerLayout(videoLayer, stageVideo, layout) {
+  if (!videoLayer || !stageVideo) return;
+
+  // Enable hardware acceleration layer in Android WebView to eliminate stutter
+  videoLayer.style.transform = "translateZ(0)";
+  videoLayer.style.willChange = "transform";
+  stageVideo.style.transform = "translateZ(0)";
+  stageVideo.style.willChange = "transform";
+
+  if (layout === "full") {
+    videoLayer.style.position = "absolute";
+    videoLayer.style.left = "0px";
+    videoLayer.style.top = "0px";
+    videoLayer.style.right = "auto";
+    videoLayer.style.bottom = "auto";
+    videoLayer.style.width = "100%";
+    videoLayer.style.height = "100%";
+    videoLayer.style.zIndex = "12";
+    videoLayer.style.borderRadius = "0px";
+    videoLayer.style.border = "none";
+    videoLayer.style.boxShadow = "none";
+    videoLayer.style.background = "#000000";
+
+    stageVideo.style.width = "100%";
+    stageVideo.style.height = "100%";
+    stageVideo.style.objectFit = "contain";
+    stageVideo.style.objectPosition = "center";
+  } else if (layout === "pip") {
+    videoLayer.style.position = "absolute";
+    videoLayer.style.left = "auto";
+    videoLayer.style.top = "auto";
+    videoLayer.style.right = "32px";
+    videoLayer.style.bottom = "32px";
+    videoLayer.style.width = "28%";
+    videoLayer.style.aspectRatio = "16 / 9";
+    videoLayer.style.height = "auto";
+    videoLayer.style.zIndex = "12";
+    videoLayer.style.borderRadius = "16px";
+    videoLayer.style.border = "3px solid rgba(255, 255, 255, 0.45)";
+    videoLayer.style.boxShadow = "0 20px 35px -5px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(0, 0, 0, 0.2)";
+    videoLayer.style.background = "#000000";
+
+    stageVideo.style.width = "100%";
+    stageVideo.style.height = "100%";
+    stageVideo.style.objectFit = "cover";
+    stageVideo.style.objectPosition = "center";
+  } else if (layout === "split") {
+    videoLayer.style.position = "absolute";
+    videoLayer.style.left = "0px";
+    videoLayer.style.top = "0px";
+    videoLayer.style.right = "auto";
+    videoLayer.style.bottom = "auto";
+    videoLayer.style.width = "50%";
+    videoLayer.style.height = "100%";
+    videoLayer.style.zIndex = "2";
+    videoLayer.style.borderRadius = "0px";
+    videoLayer.style.border = "none";
+    videoLayer.style.borderRight = "2px solid rgba(255, 255, 255, 0.15)";
+    videoLayer.style.boxShadow = "none";
+    videoLayer.style.background = "#000000";
+
+    stageVideo.style.width = "100%";
+    stageVideo.style.height = "100%";
+    stageVideo.style.objectFit = "cover";
+    stageVideo.style.objectPosition = "center";
+  } else if (layout === "lower-third") {
+    videoLayer.style.position = "absolute";
+    videoLayer.style.left = "0px";
+    videoLayer.style.top = "0px";
+    videoLayer.style.right = "auto";
+    videoLayer.style.bottom = "auto";
+    videoLayer.style.width = "100%";
+    videoLayer.style.height = "100%";
+    videoLayer.style.zIndex = "2";
+    videoLayer.style.borderRadius = "0px";
+    videoLayer.style.border = "none";
+    videoLayer.style.boxShadow = "none";
+    videoLayer.style.background = "#000000";
+
+    stageVideo.style.width = "100%";
+    stageVideo.style.height = "100%";
+    stageVideo.style.objectFit = "contain";
+    stageVideo.style.objectPosition = "center";
+  }
+}
+
+let remoteStagePc = null;
+let currentRemoteStreamId = null;
+let isNegotiatingRemoteStream = false;
+
+/**
+ * Connects remote WebViews (like Android TV) to the desktop host's WebRTC stage video stream.
+ */
+async function syncRemoteStageVideo(stageLayout) {
+  // If desktop popup projection window, live_studio.js already sets stageVideo.srcObject directly
+  if ((window.opener && window.opener.liveStudio) || (window.parent && window.parent.liveStudio && window.parent !== window)) {
+    return;
+  }
+
+  const videoLayer = document.getElementById("videoLayer");
+  const stageVideo = document.getElementById("stageVideo");
+  if (!videoLayer || !stageVideo) return;
+
+  const streamId = (window.previewState && window.previewState.stageStreamId) || window.p_stage_stream_id || null;
+  const sourceType = (window.previewState && window.previewState.stageSourceType) || window.p_stage_source_type || "camera";
+
+  // If no stage layout or no active stream, hide video layer and close any peer connection
+  if (!stageLayout || !streamId) {
+    if (remoteStagePc) {
+      try { remoteStagePc.close(); } catch (e) {}
+      remoteStagePc = null;
+    }
+    currentRemoteStreamId = null;
+    isNegotiatingRemoteStream = false;
+    stageVideo.srcObject = null;
+    videoLayer.style.display = "none";
+    return;
+  }
+
+  // Show and position videoLayer for the active layout mode
+  videoLayer.style.display = "block";
+  applyVideoLayerLayout(videoLayer, stageVideo, stageLayout);
+
+  // Mute camera to avoid local feedback; unmute remote guest for house sound
+  stageVideo.muted = (sourceType === "camera");
+
+  // If already connected to this stream, keep playing
+  if (remoteStagePc && currentRemoteStreamId === streamId && stageVideo.srcObject) {
+    if (stageVideo.paused) {
+      stageVideo.play().catch(() => {});
+    }
+    return;
+  }
+
+  if (isNegotiatingRemoteStream) return;
+  isNegotiatingRemoteStream = true;
+
+  currentRemoteStreamId = streamId;
+  if (remoteStagePc) {
+    try { remoteStagePc.close(); } catch (e) {}
+    remoteStagePc = null;
+  }
+
+  try {
+    const pc = new RTCPeerConnection({ iceServers: [] });
+    remoteStagePc = pc;
+
+    pc.addTransceiver("video", { direction: "recvonly" });
+    pc.addTransceiver("audio", { direction: "recvonly" });
+
+    pc.ontrack = (event) => {
+      if (event.streams && event.streams[0]) {
+        stageVideo.srcObject = event.streams[0];
+        stageVideo.play().catch((err) => {
+          console.warn("[REMOTE STAGE VIDEO] Play failed:", err);
+        });
+      }
+    };
+
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
+        if (remoteStagePc === pc) {
+          remoteStagePc = null;
+          currentRemoteStreamId = null;
+        }
+      }
+    };
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    // Wait for local LAN ICE candidates
+    await new Promise((resolve) => {
+      let resolved = false;
+      const done = () => { if (!resolved) { resolved = true; resolve(); } };
+      const timer = setTimeout(done, 600);
+      pc.onicecandidate = (e) => { if (!e.candidate) { clearTimeout(timer); done(); } };
+      pc.onicegatheringstatechange = () => { if (pc.iceGatheringState === "complete") { clearTimeout(timer); done(); } };
+    });
+
+    const res = await fetch("/api/stage-stream/offer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sdp: pc.localDescription })
+    });
+
+    if (!res.ok) {
+      console.warn("[REMOTE STAGE VIDEO] Server rejected offer:", res.status);
+      isNegotiatingRemoteStream = false;
+      return;
+    }
+
+    const answerData = await res.json();
+    if (answerData.sdp && remoteStagePc === pc) {
+      await pc.setRemoteDescription(new RTCSessionDescription(answerData.sdp));
+    }
+  } catch (err) {
+    console.warn("[REMOTE STAGE VIDEO] Negotiation error:", err);
+  } finally {
+    isNegotiatingRemoteStream = false;
+  }
 }
 // Render custom slide layer (for individually customized Person & General program items)
 function renderCustomSlideLayer() {
   try {
     const layer = document.getElementById("customSlideLayer");
     if (!layer) return;
-    if (!p_custom_slide || !p_custom_slide.active) {
+    const cs = (typeof p_custom_slide !== "undefined" && p_custom_slide) ? p_custom_slide : ((typeof window !== "undefined" && window.p_custom_slide) ? window.p_custom_slide : null);
+    if (!cs || !cs.active) {
       layer.style.display = "none";
+      const cLayer = document.getElementById("contentLayer");
+      if (cLayer) cLayer.style.display = "";
       return;
     }
-    const cs = p_custom_slide;
+    const cLayer = document.getElementById("contentLayer");
+    if (cLayer) cLayer.style.display = "none";
     const theme = window.activeThemeObj || {};
     const w = Number(p_window_X) || 800;
     const h = Math.max(Number(p_window_Y) || 0, Math.round(w * 9 / 16));
     layer.style.display = "flex";
+    layer.style.zIndex = "12";
     layer.style.width = `${w}px`;
     layer.style.height = `${h}px`;
 
@@ -1328,13 +2796,114 @@ function renderCustomSlideLayer() {
     }
   } catch (e) {}
 }
+// Synchronizes slide content visibility with master overlay states (Logo / Attention / Blackout).
+// When any master overlay is active, all underlying slide content, custom slides,
+// stage video, and lower thirds are hidden so nothing can ever display behind or through it.
+function syncOverlayVisibility() {
+  try {
+    const isLogo = Boolean(p_logo_mode || p_output_mode === "logo");
+    const isAttention = Boolean(p_attention_mode || p_output_mode === "attention" || p_output_mode === "black");
+    const isMasterOverlayActive = isLogo || isAttention;
+
+    const cLayer = document.getElementById("contentLayer");
+    if (cLayer) {
+      cLayer.style.visibility = isMasterOverlayActive ? "hidden" : "";
+    }
+    const csLayer = document.getElementById("customSlideLayer");
+    if (csLayer) {
+      csLayer.style.visibility = isMasterOverlayActive ? "hidden" : "";
+    }
+    const vidLayer = document.getElementById("videoLayer");
+    if (vidLayer) {
+      vidLayer.style.visibility = isMasterOverlayActive ? "hidden" : "";
+    }
+    const ltLayer = document.getElementById("speakerLowerThirdLayer");
+    if (ltLayer) {
+      ltLayer.style.visibility = isMasterOverlayActive ? "hidden" : "";
+    }
+  } catch (e) {}
+}
+
 // Output state (Attention / Blackout overlay): renders customizable attention screen or black.
 function renderOutputState() {
   try {
     const mode = (typeof p_output_mode === "string") ? p_output_mode : "live";
     const isAtt = (mode === "black" || mode === "attention" || !!p_attention_mode);
     renderAttentionLayer(isAtt);
+    const blk = document.getElementById("blackLayer");
+    if (blk) {
+      if (mode === "black" && !p_attention_mode) {
+        blk.style.display = "block";
+        blk.style.zIndex = "60";
+      } else {
+        blk.style.display = "none";
+      }
+    }
+    syncOverlayVisibility();
   } catch (e) {}
+}
+
+// Pre-Service Centro Countdown Overlay
+function renderTimerOverlay() {
+  try {
+    const overlay = document.getElementById("serviceCountdownOverlay");
+    if (!overlay) return;
+
+    let tState = window.p_timer_state;
+    if (!tState) {
+      const src = window.opener || (window.parent !== window ? window.parent : null);
+      if (src && src.p_timer_state) tState = src.p_timer_state;
+      else if (src && src.timerManager && typeof src.timerManager.getState === "function") tState = src.timerManager.getState();
+      else {
+        try {
+          const stored = localStorage.getItem("uecfi_timer_state");
+          if (stored) tState = JSON.parse(stored);
+        } catch(e) {}
+      }
+    }
+
+    if (tState && tState.serviceCountdown && tState.serviceCountdown.active && tState.serviceCountdown.showOnProjection) {
+      const sc = tState.serviceCountdown;
+      overlay.style.display = "flex";
+      const clk = document.getElementById("scClock");
+      const hdr = document.getElementById("scHeader");
+      const sub = document.getElementById("scSub");
+
+      if (clk) {
+        const sec = Math.max(0, sc.remainingSeconds || 0);
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        clk.innerText = `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+      }
+      if (hdr) {
+        if (sc.remainingSeconds <= 0) {
+          hdr.innerText = "WELCOME TO UECFI";
+          hdr.style.color = "#38bdf8";
+        } else {
+          hdr.innerText = (sc.title || "SERVICE BEGINS IN").toUpperCase();
+          hdr.style.color = "#94a3b8";
+        }
+      }
+      if (sub) {
+        let msg = sc.subMessage || "Union Espiritista Cristiana de Filipinas, Inc.";
+        if (/United Evangelical/i.test(msg)) {
+          msg = "Union Espiritista Cristiana de Filipinas, Inc.";
+        }
+        sub.innerText = (sc.remainingSeconds <= 0) ? "Service has begun. Let us worship the Lord." : msg;
+      }
+    } else {
+      overlay.style.display = "none";
+    }
+  } catch(e) {}
+}
+
+// Background ticker to keep projection timer smooth and continuous
+if (typeof window !== "undefined" && !window._timerOverlayInterval) {
+  window._timerOverlayInterval = setInterval(() => {
+    try {
+      renderTimerOverlay();
+    } catch(e) {}
+  }, 500);
 }
 // Custom attention screen overlay (driven by the controller Attention button).
 // Scales typography and elements relative to screen height so it scales cleanly
@@ -1345,19 +2914,25 @@ function renderAttentionLayer(active) {
     const fallbackBlack = document.getElementById("blackLayer");
     const isShow = (active !== undefined) ? !!active : (p_attention_mode || p_output_mode === "attention" || p_output_mode === "black");
     if (!layer) {
-      if (fallbackBlack) fallbackBlack.style.display = isShow ? "block" : "none";
+      if (fallbackBlack) {
+        fallbackBlack.style.display = isShow ? "block" : "none";
+        fallbackBlack.style.zIndex = "60";
+      }
+      syncOverlayVisibility();
       return;
     }
     if (!isShow) {
       layer.style.display = "none";
       if (fallbackBlack) fallbackBlack.style.display = "none";
+      syncOverlayVisibility();
       return;
     }
-    const w = Number(p_window_X) || 800;
-    const h = Math.max(Number(p_window_Y) || 0, Math.round(w * 9 / 16));
+    const w = Number(p_window_X) || (typeof window !== "undefined" && window.innerWidth) || 800;
+    const h = Math.max(Number(p_window_Y) || 0, (typeof window !== "undefined" && window.innerHeight) || Math.round(w * 9 / 16));
     layer.style.display = "flex";
-    layer.style.width = `${w}px`;
-    layer.style.height = `${h}px`;
+    layer.style.zIndex = "60";
+    layer.style.width = "100%";
+    layer.style.height = "100%";
     layer.style.background = p_attention_bg || "#000000";
     if (fallbackBlack) fallbackBlack.style.display = "none";
 
@@ -1477,6 +3052,7 @@ function renderAttentionLayer(active) {
       }
       s.style.padding = `${sPadV}px ${sPadH}px`;
     }
+    syncOverlayVisibility();
   } catch (e) {}
 }
 // Custom logo screen overlay (driven by the controller Logo button).
@@ -1488,15 +3064,17 @@ function renderLogoLayer() {
     if (!layer) return;
     if (!p_logo_mode) {
       layer.style.display = "none";
+      syncOverlayVisibility();
       return;
     }
-    const w = Number(p_window_X) || 800;
+    const w = Number(p_window_X) || (typeof window !== "undefined" && window.innerWidth) || 800;
     // Height placeholder defaults ("100") predate the first projection;
     // derive from width (16:9) until a real projection reports dimensions.
-    const h = Math.max(Number(p_window_Y) || 0, Math.round(w * 9 / 16));
+    const h = Math.max(Number(p_window_Y) || 0, (typeof window !== "undefined" && window.innerHeight) || Math.round(w * 9 / 16));
     layer.style.display = "flex";
-    layer.style.width = `${w}px`;
-    layer.style.height = `${h}px`;
+    layer.style.zIndex = "50";
+    layer.style.width = "100%";
+    layer.style.height = "100%";
     layer.style.background = p_logo_bg || "#020617";
     // Background photo (optional) with dimming overlay for readability.
     const dimPct = Math.min(90, Math.max(0, isFinite(Number(p_logo_bgdim)) ? Number(p_logo_bgdim) : 50));
@@ -1566,6 +3144,7 @@ function renderLogoLayer() {
       s.style.fontWeight = p_logo_sub_bold ? "bold" : "normal";
       s.style.fontStyle = p_logo_sub_italic ? "italic" : "normal";
     }
+    syncOverlayVisibility();
   } catch (e) {}
 }
 function findKey(a) {
@@ -1660,6 +3239,13 @@ function initTransition(enabled) {
         });
       };
 
+      const stageLayout = getActiveStageLayout();
+      if (stageLayout === "lower-third" || window.p_teleprompter_mode) {
+        if (el) el.style.opacity = "1";
+        executeCallbacks();
+        return;
+      }
+
       if (!el || durationMs <= 0) {
         if (el) el.style.opacity = "1";
         executeCallbacks();
@@ -1702,6 +3288,11 @@ function initTransition(enabled) {
 
       // Always ensure the element's persistent inline style opacity is 1
       el.style.opacity = "1";
+      const stageLayout = getActiveStageLayout();
+      if (stageLayout === "lower-third" || window.p_teleprompter_mode) {
+        // Never flash or fade opacity 0 -> 1 in lower third or teleprompter mode
+        return;
+      }
       if (durationMs > 0) {
         try {
           el.animate(

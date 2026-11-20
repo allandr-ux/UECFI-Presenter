@@ -237,8 +237,21 @@
         syncActiveLineIndex: (typeof st.syncActiveLineIndex === "number") ? st.syncActiveLineIndex : -1,
         syncActiveColor: st.syncActiveColor || "#F59E0B",
         syncInactiveColor: st.syncInactiveColor || "#94A3B8",
-        customSlide: st.customSlide
+        syncActiveOutlineEnabled: st.syncActiveOutlineEnabled !== undefined ? !!st.syncActiveOutlineEnabled : false,
+        syncActiveOutlineColor: st.syncActiveOutlineColor || "#000000",
+        syncActiveOutlineThickness: (typeof st.syncActiveOutlineThickness === "number") ? st.syncActiveOutlineThickness : 2,
+        teleprompterMode: !!st.teleprompterMode,
+        teleprompterLines: st.teleprompterLines || null,
+        teleprompterFontSize: null, // Remote displays scale font size automatically based on longest line
+        isRemoteDisplay: true,
+        customSlide: st.customSlide,
+        speakerLowerThird: st.speakerLowerThird || null,
+        timerState: st.timerState || null
       };
+      if (typeof window.onRemoteTimerState === "function") {
+        try { window.onRemoteTimerState(st.timerState); } catch(e) {}
+      }
+      win.isRemoteDisplay = true;
       if (st.winX > 0 && st.winY > 0) {
         frame.setAttribute("width", st.winX);
         frame.setAttribute("height", st.winY);
@@ -247,10 +260,20 @@
         try { win.passVariable(); } catch (e) {}
       }
       win.updatePresentation();
+      if (typeof win.updateSpeakerLowerThird === "function") {
+        try { win.updateSpeakerLowerThird(st.speakerLowerThird); } catch (e) {}
+      }
       if (typeof win.updateContent2 === "function") win.updateContent2();
       else if (typeof win.updateContent === "function") win.updateContent();
-      if (typeof win.applySongLineHighlight === "function") {
+      if (st.teleprompterMode && typeof win.updateTeleprompterActiveLine === "function") {
+        try { win.updateTeleprompterActiveLine(st.syncActiveLineIndex); } catch (e) {}
+      } else if (typeof win.applySongLineHighlight === "function") {
         try { win.applySongLineHighlight(st.syncActiveLineIndex, st.syncEnabled); } catch (e) {}
+      }
+      if (st.syncCountdown && typeof win.updateSongCountdown === "function") {
+        try { win.updateSongCountdown(st.syncCountdown); } catch (e) {}
+      } else if (!st.syncCountdown && typeof win.updateSongCountdown === "function") {
+        try { win.updateSongCountdown({ active: false }); } catch (e) {}
       }
       fitEngine();
       return true;

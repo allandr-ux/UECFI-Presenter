@@ -1,7 +1,7 @@
-<div class="flex-1 min-h-0 flex flex-col bg-slate-50 w-full overflow-hidden">
+<div class="flex-1 min-h-0 flex flex-col bg-slate-50 w-full overflow-hidden relative">
 
   <!-- Top Search Controls Bar (compact single-row, matches Schedule header height) -->
-  <div class="shrink-0 bg-white border-b border-slate-200 p-4 shadow-sm z-10">
+  <div class="shrink-0 bg-white border-b border-slate-200 p-3.5 shadow-sm z-10">
     <div class="flex items-center gap-2">
       <h2 class="text-base font-bold text-slate-800 tracking-tight leading-tight flex items-center gap-1.5 shrink-0">
         <i class="fa-solid fa-magnifying-glass text-brand-600"></i> Search
@@ -12,21 +12,36 @@
         <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
           <i class="fa-solid fa-search text-xs"></i>
         </span>
-        <input id="adSearch" type="text" maxlength="100" placeholder="Type keyword or phrase to search..."
+        <input id="adSearch" type="text" maxlength="120" placeholder="Search topic, question, story, or phrase... (e.g. peace in anxiety, armor of God)"
                class="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-500 focus:bg-white transition">
       </div>
 
       <!-- Search Style (Contains vs Exact Phrase vs Exact Word) -->
-      <select id="searchStyle" class="w-28 shrink-0 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none focus:border-brand-500 focus:bg-white transition">
+      <select id="searchStyle" class="w-28 shrink-0 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none focus:border-brand-500 focus:bg-white transition" title="Match style for keyword search">
         <option value="0" selected>Contains</option>
         <option value="1">Exact Phrase</option>
         <option value="2">Exact Word</option>
       </select>
 
       <!-- Book Filter -->
-      <select id="searchBook" class="w-36 shrink-0 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none focus:border-brand-500 focus:bg-white transition">
+      <select id="searchBook" class="w-32 shrink-0 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none focus:border-brand-500 focus:bg-white transition">
         <option value="1">All Books</option>
       </select>
+
+      <!-- AI Search Toggle -->
+      <button id="btnToggleAISearch" type="button" onclick="if(window.bibleAISearch) window.bibleAISearch.toggleEnabled();"
+              class="px-2.5 py-1.5 text-xs font-bold rounded-lg border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 transition flex items-center gap-1.5 shrink-0 cursor-pointer shadow-xs"
+              title="Toggle AI-powered semantic Scripture search (Groq Cloud LPU)">
+        <i class="fa-solid fa-sparkles text-purple-600 text-xs"></i>
+        <span id="txtAISearchStatus">AI: ON</span>
+      </button>
+
+      <!-- Groq AI Settings Button -->
+      <button id="btnAISettings" type="button" onclick="if(window.bibleAISearch) window.bibleAISearch.openSettings();"
+              class="w-8 h-8 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 flex items-center justify-center transition cursor-pointer shrink-0"
+              title="Groq Cloud AI Settings & API Key">
+        <i class="fa-solid fa-gear text-xs"></i>
+      </button>
 
       <!-- Search Button -->
       <button id="adSearchButton" type="button" class="px-3.5 py-1.5 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-lg shadow-xs cursor-pointer transition flex items-center justify-center gap-1.5 shrink-0">
@@ -42,9 +57,89 @@
         <div class="text-center py-16 text-slate-400">
           <i class="fa-solid fa-book-bible text-4xl mb-3 text-slate-300"></i>
           <h3 class="text-sm font-bold text-slate-600">No Search Results Yet</h3>
-          <p class="text-xs text-slate-400 mt-1">Results appear as you type (3+ letters).</p>
+          <p class="text-xs text-slate-400 mt-1">Search by topic, concept, story, or exact keywords.</p>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Groq Cloud AI Settings Modal -->
+  <div id="modalGroqSettings" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs hidden p-4" style="display: none;">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden flex flex-col">
+      
+      <!-- Modal Header -->
+      <div class="px-5 py-4 bg-gradient-to-r from-purple-700 to-indigo-700 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-purple-200">
+            <i class="fa-solid fa-sparkles"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold leading-tight">Groq Cloud AI Settings</h3>
+            <p class="text-[11px] text-purple-200 leading-tight">Ultra-fast semantic Scripture search</p>
+          </div>
+        </div>
+        <button type="button" onclick="if(window.bibleAISearch) window.bibleAISearch.closeSettings();" class="text-white/80 hover:text-white text-base cursor-pointer">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-5 space-y-4 text-xs text-slate-700">
+        <div>
+          <label class="block font-bold text-slate-800 mb-1">Groq API Key</label>
+          <div class="relative">
+            <input type="password" id="groqApiKeyInput" placeholder="gsk_..."
+                   class="w-full px-3 py-2 pr-9 bg-slate-50 border border-slate-300 rounded-lg font-mono text-xs text-slate-800 focus:outline-none focus:border-purple-600 focus:bg-white transition">
+            <button type="button" onclick="const i = document.getElementById('groqApiKeyInput'); i.type = (i.type === 'password' ? 'text' : 'password');"
+                    class="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer">
+              <i class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1.5 flex items-center gap-1">
+            <i class="fa-solid fa-key text-[10px]"></i> Get your free key at
+            <a href="#" onclick="if(window.electronBridge && window.electronBridge.shell) window.electronBridge.shell.openExternal('https://console.groq.com/keys'); else window.open('https://console.groq.com/keys', '_blank'); return false;" class="text-purple-600 hover:underline font-semibold">console.groq.com/keys</a>
+          </p>
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-800 mb-1">AI Model</label>
+          <select id="groqModelSelect" onchange="const r = document.getElementById('groqCustomModelRow'); if(r) r.classList.toggle('hidden', this.value !== 'custom');" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-purple-600 focus:bg-white transition">
+            <option value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile (Recommended — Deep & Accurate)</option>
+            <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant (Ultra-fast ~200ms)</option>
+            <option value="openai/gpt-oss-120b">OpenAI GPT-OSS 120B (Large Capacity)</option>
+            <option value="openai/gpt-oss-20b">OpenAI GPT-OSS 20B (Fast & Balanced)</option>
+            <option value="qwen/qwen3.8-27b">Qwen 3.8 27B</option>
+            <option value="custom">Custom Model ID...</option>
+          </select>
+          <div id="groqCustomModelRow" class="hidden mt-2">
+            <input type="text" id="groqCustomModelInput" placeholder="Enter custom model ID (e.g. meta-llama/llama-3.3-70b-versatile)"
+                   class="w-full px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-lg font-mono text-xs text-slate-800 focus:outline-none focus:border-purple-600 focus:bg-white transition">
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">Free tier allows up to 1,000–14,400 queries per day depending on the model.</p>
+        </div>
+
+        <!-- Connection Test Result Feedback -->
+        <div id="groqTestFeedback" class="hidden p-3 rounded-lg text-xs font-medium"></div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-5 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+        <button type="button" id="btnTestGroqKey" onclick="if(window.bibleAISearch) window.bibleAISearch.testConnection();"
+                class="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition cursor-pointer flex items-center gap-1.5 shadow-2xs">
+          <i class="fa-solid fa-plug text-[11px]"></i> Test Key
+        </button>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="if(window.bibleAISearch) window.bibleAISearch.closeSettings();"
+                  class="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200/60 rounded-lg transition cursor-pointer">
+            Cancel
+          </button>
+          <button type="button" onclick="if(window.bibleAISearch) window.bibleAISearch.saveSettings();"
+                  class="px-4 py-1.5 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-lg shadow-sm transition cursor-pointer">
+            Save Settings
+          </button>
+        </div>
+      </div>
+
     </div>
   </div>
 

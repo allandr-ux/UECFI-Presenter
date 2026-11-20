@@ -38,7 +38,7 @@
   function createPersistentJsonDb(dbFilePath, fsMod, pathMod) {
     const lsKey = 'uecfi_jsondb_' + String(dbFilePath || 'default').replace(/[^a-zA-Z0-9_.-]/g, '_');
     const jsonPath = dbFilePath ? (dbFilePath + '.json') : null;
-    let state = { nextId: 1, tables: { sm: [], sch: [] } };
+    let state = { nextId: 1, tables: { sm: [], sch: [], rm: [] } };
 
     function loadState() {
       try {
@@ -48,10 +48,12 @@
             state = parsed;
             if (!state.tables.sch) state.tables.sch = [];
             if (!state.tables.sm) state.tables.sm = [];
+            if (!state.tables.rm) state.tables.rm = [];
             if (!state.nextId) {
               const maxSm = state.tables.sm.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0);
+              const maxRm = state.tables.rm.reduce((m, r) => Math.max(m, Number(r.id) || 0), 0);
               const maxSch = state.tables.sch.reduce((m, r) => Math.max(m, Number(r.schId) || 0), 0);
-              state.nextId = Math.max(maxSm, maxSch, 0) + 1;
+              state.nextId = Math.max(maxSm, maxRm, maxSch, 0) + 1;
             }
             return;
           }
@@ -66,6 +68,7 @@
               state = parsed;
               if (!state.tables.sch) state.tables.sch = [];
               if (!state.tables.sm) state.tables.sm = [];
+              if (!state.tables.rm) state.tables.rm = [];
               return;
             }
           }
@@ -161,6 +164,57 @@
               return { changes: before, lastInsertRowid: 0 };
             }
 
+            // --- RM (Readings) Table Operations ---
+            if (/^INSERT\s+INTO\s+rm\b/i.test(s)) {
+              if (!state.tables.rm) state.tables.rm = [];
+              const id = state.nextId++;
+              state.tables.rm.push({
+                id,
+                name: p[0] != null ? String(p[0]) : '',
+                cat: p[1] != null ? String(p[1]) : '',
+                bkgndfname: p[2] != null ? String(p[2]) : '',
+                notes: p[3] != null ? String(p[3]) : '',
+                lyrics: p[4] != null ? String(p[4]) : ''
+              });
+              saveState();
+              return { changes: 1, lastInsertRowid: id };
+            }
+            if (/^UPDATE\s+rm\s+SET\b/i.test(s)) {
+              if (!state.tables.rm) state.tables.rm = [];
+              const id = p[p.length - 1];
+              let changes = 0;
+              state.tables.rm = state.tables.rm.map(row => {
+                if (row.id == id) {
+                  changes++;
+                  return {
+                    id: row.id,
+                    name: p[0] != null ? String(p[0]) : '',
+                    cat: p[1] != null ? String(p[1]) : '',
+                    bkgndfname: p[2] != null ? String(p[2]) : '',
+                    notes: p[3] != null ? String(p[3]) : '',
+                    lyrics: p[4] != null ? String(p[4]) : ''
+                  };
+                }
+                return row;
+              });
+              saveState();
+              return { changes, lastInsertRowid: id };
+            }
+            if (/^DELETE\s+FROM\s+rm\s+WHERE\s+id\s*=/i.test(s)) {
+              if (!state.tables.rm) state.tables.rm = [];
+              const before = state.tables.rm.length;
+              state.tables.rm = state.tables.rm.filter(r => r.id != p[0]);
+              saveState();
+              return { changes: before - state.tables.rm.length, lastInsertRowid: 0 };
+            }
+            if (/^DELETE\s+FROM\s+rm\b/i.test(s)) {
+              if (!state.tables.rm) state.tables.rm = [];
+              const before = state.tables.rm.length;
+              state.tables.rm = [];
+              saveState();
+              return { changes: before, lastInsertRowid: 0 };
+            }
+
             // --- SCH (Schedule) Table Operations ---
             if (/^INSERT\s+INTO\s+sch\b/i.test(s)) {
               const id = state.nextId++;
@@ -227,6 +281,27 @@
                 return state.tables.sm.slice().sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
               }
               return state.tables.sm.slice().sort((a, b) => String(a.name || '').trim().localeCompare(String(b.name || '').trim(), undefined, { sensitivity: 'base' }));
+            }
+
+            // --- RM (Readings) Table Queries ---
+            if (/SELECT\s+COUNT\(\*\)\s+as\s+cnt\s+FROM\s+rm/i.test(s)) {
+              return [{ cnt: (state.tables.rm || []).length }];
+            }
+            if (/SELECT\s+DISTINCT\s+cat\s+FROM\s+rm/i.test(s)) {
+              const cats = Array.from(new Set((state.tables.rm || []).map(r => r.cat).filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), undefined, { sensitivity: 'base' }));
+              return cats.map(cat => ({ cat }));
+            }
+            if (/SELECT\s+\*\s+FROM\s+rm\s+WHERE\s+id\s*=/i.test(s)) {
+              return (state.tables.rm || []).filter(r => r.id == p[0]);
+            }
+            if (/SELECT\s+\*\s+FROM\s+rm\s+WHERE\s+lyrics\s+LIKE/i.test(s)) {
+              const needle = String(p[0] || '').replace(/^%+|%+$/g, '').toLowerCase();
+              return (state.tables.rm || [])
+                .filter(r => (String(r.lyrics || '').toLowerCase().includes(needle) || String(r.name || '').toLowerCase().includes(needle)))
+                .sort((a, b) => String(a.name || '').trim().localeCompare(String(b.name || '').trim(), undefined, { sensitivity: 'base' }));
+            }
+            if (/SELECT\s+\*\s+FROM\s+rm/i.test(s)) {
+              return (state.tables.rm || []).slice().sort((a, b) => String(a.name || '').trim().localeCompare(String(b.name || '').trim(), undefined, { sensitivity: 'base' }));
             }
 
             // --- SCH (Schedule) Table Queries ---

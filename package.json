@@ -1,7 +1,7 @@
 {
   "name": "uecfi-presenter",
   "version": "1.1.0",
-  "description": "UECFI Church Presentation & Worship Projection Software",
+  "description": "UECFI Centro Presentation & Worship Projection Software",
   "main": "main.js",
   "author": "UECFI",
   "license": "ISC",
@@ -47,8 +47,8 @@
       "!blob_storage/**",
       "!Shared Dictionary/**",
       "!storage/*.log",
-      "!storage/song/default.db",
-      "!storage/program/program.json",
+      "!storage/song/**",
+      "!storage/program/**",
       "!storage/xml/schedule.db"
     ],
     "mac": {

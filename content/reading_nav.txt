@@ -1,0 +1,30 @@
+<div class="flex flex-col h-full bg-white w-full" style="height: 100%;">
+    <div class="flex flex-col h-full bg-white p-3 space-y-3 min-h-0 flex-1">
+        <!-- Search Bar -->
+        <div class="flex items-center gap-1.5 shrink-0">
+            <div class="relative flex-1">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs z-10"></i>
+                <input id="modernReadingSearch" type="text" placeholder="Search title or content..." style="padding-left: 32px !important; padding-right: 64px !important;"
+                       class="w-full py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition">
+                <button id="modernReadingClearBtn" class="hidden absolute right-16 top-2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <button id="modernReadingSearchBtn" class="absolute right-1 top-1 bottom-1 px-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-md text-[11px] font-medium transition cursor-pointer">
+                    Search
+                </button>
+            </div>
+        </div>
+        
+        <!-- Category Selector -->
+        <div class="flex items-center gap-2 shrink-0">
+             <label for="modernReadingCategory" class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Category:</label>
+             <select id="modernReadingCategory" class="flex-1 text-xs bg-slate-50 border border-slate-200 rounded p-1 text-slate-700 focus:outline-none focus:border-brand-500 cursor-pointer">
+                 <option value="_ALL">All Categories</option>
+             </select>
+        </div>
+
+        <!-- Scrollable Reading List -->
+        <div id="modernReadingList" class="space-y-1.5 custom-scrollbar pr-1 py-2" style="height: calc(100vh - 200px); overflow-y: scroll; display: block;">
+        </div>
+    </div>
+</div>

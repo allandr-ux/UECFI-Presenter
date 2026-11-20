@@ -12,9 +12,14 @@
                 </div>
                 <p class="text-[11px] text-slate-400 mt-0.5 truncate"><span id="ly_cat">Category</span> &bull; Key: <span id="ly_key">C</span> &bull; <span id="ly_copy">Copyright</span> &mdash; <span class="italic">Notes: <span id="ly_notes">None</span></span></p>
             </div>
-            <button onclick="document.getElementById('songnav_presentbutton').click()" class="px-3.5 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg shadow-xs text-xs font-bold transition flex items-center gap-1.5 shrink-0">
-                <i class="fa-solid fa-play text-[10px]"></i> Present
-            </button>
+            <div class="flex items-center gap-2 shrink-0">
+                <button id="btnSongPreviewSync" type="button" onclick="if(window.songAudioEngine) window.songAudioEngine.toggleSync();" class="px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Quick toggle for backing track audio and synchronized lyrics (ON / OFF)">
+                    <i class="fa-solid fa-music"></i> <span id="songPreviewSyncText">Sync ON</span>
+                </button>
+                <button onclick="document.getElementById('songnav_presentbutton').click()" class="px-3.5 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg shadow-xs text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer">
+                    <i class="fa-solid fa-play text-[10px]"></i> Present
+                </button>
+            </div>
         </div>
         <span id="ly_font" style="display: none !important;"></span>
     </div>

@@ -1,6 +1,6 @@
 === UECFI Presenter API ===
 Contributors: uecfi
-Tags: rest-api, church, presenter, downloads
+Tags: rest-api, centro, presenter, downloads
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
@@ -66,7 +66,7 @@ admin session with `manage_options` / post-editing capabilities and nonces.
 No. Hashing reads in 1 MB chunks on save, and downloads stream in 8 KB chunks.
 
 = Can I restrict who downloads? =
-Out of the box the catalog is public, which suits a church distribution model.
+Out of the box the catalog is public, which suits a centro distribution model.
 If you need restriction later, filter `rest_pre_dispatch` or put the site behind
 basic auth — the route structure does not need to change.
 

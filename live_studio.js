@@ -3,13 +3,13 @@
  * 
  * WHY THIS CODE EXISTS:
  * This module manages:
- * 1. Local USB/HDMI church camera capture via navigator.mediaDevices.
+ * 1. Local USB/HDMI centro camera capture via navigator.mediaDevices.
  * 2. WebRTC host signaling connection to uecfi-signaling.onrender.com.
  * 3. Multi-guest "Green Room" (backstage) queue:
  *    - Private operator-to-guest intercom audio (Push-to-Talk)
  *    - Private real-time text chat
  *    - Audio VU metering for each guest
- *    - Isolation of backstage audio from the church sanctuary soundboard
+ *    - Isolation of backstage audio from the centro soundboard
  * 4. "Go Live / Put on Stage" switcher controls to route video/audio to projection.
  */
 
@@ -21,13 +21,15 @@ class LiveStudioManager {
       roomId: 'uecfi_signaling_room',
       secretKey: 'uecfi_signaling_key',
       selectedCameraId: 'uecfi_camera_device_id',
-      selectedMicId: 'uecfi_operator_mic_id'
+      selectedMicId: 'uecfi_operator_mic_id',
+      stageLayout: 'uecfi_stage_layout'
     };
 
     // Default configuration
     this.serverUrl = localStorage.getItem(this.STORAGE_KEYS.serverUrl) || 'wss://uecfi-signaling.onrender.com/ws';
-    this.roomId = localStorage.getItem(this.STORAGE_KEYS.roomId) || 'uecfi-sanctuary';
+    this.roomId = localStorage.getItem(this.STORAGE_KEYS.roomId) || 'uecfi-centro';
     this.secretKey = localStorage.getItem(this.STORAGE_KEYS.secretKey) || '1234';
+    this.stageLayout = localStorage.getItem(this.STORAGE_KEYS.stageLayout) || 'full';
 
     // WebSocket & Signaling State
     this.socket = null;
@@ -45,6 +47,8 @@ class LiveStudioManager {
 
     // Active Stage Video & Audio Source: null | { type: 'guest'|'camera', id, stream }
     this.activeStageSource = null;
+    this._suppressFullPromptUntilLayoutChange = false;
+    this._layoutPromptKeyHandler = null;
 
     // Local Camera Stream
     this.cameraStream = null;
@@ -67,12 +71,14 @@ class LiveStudioManager {
   }
 
   /**
-   * Initialize audio context and studio UI bindings
+   * Initialize studio UI bindings (lazy audio context to prevent speaker buzz/static)
    */
   init() {
-    this.initAudioContext();
+    // AudioContext is initialized lazily only when audio playback/capture is actively needed,
+    // preventing sound card DAC activation and ground buzz on idle app startup.
     this.enumerateCameras();
     this.updateHeaderBadge();
+    this.updateLayoutUI();
     this.setupKeyboardShortcuts();
     console.log('[LIVE STUDIO] Initialized.');
   }
@@ -119,7 +125,7 @@ class LiveStudioManager {
   }
 
   // ===========================================================================
-  // 1. LOCAL CHURCH CAMERA CAPTURE
+  // 1. LOCAL CENTRO CAMERA CAPTURE
   // ===========================================================================
 
   /**
@@ -170,8 +176,8 @@ class LiveStudioManager {
         }
       }
 
-      // Pre-warm operator microphone stream in background so talkback is instant
-      this.ensureOperatorMic().catch(() => {});
+      // Note: Microphone stream is acquired lazily ONLY when operator presses Talkback
+      // to avoid continuous hardware mic capture, audio preamp hiss, and speaker static buzz.
     } catch (e) {
       console.warn('[LIVE STUDIO] Could not enumerate devices:', e);
     }
@@ -208,7 +214,7 @@ class LiveStudioManager {
         video: targetDeviceId
           ? { deviceId: { ideal: targetDeviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
           : { width: { ideal: 1920 }, height: { ideal: 1080 } },
-        audio: false // Church house audio is managed independently by soundboard
+        audio: false // Centro house audio is managed independently by soundboard
       };
       this.cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
     } catch (idealErr) {
@@ -234,6 +240,12 @@ class LiveStudioManager {
 
     // Determine actual active camera deviceId from track settings
     const activeVideoTrack = this.cameraStream.getVideoTracks()[0];
+    if (activeVideoTrack) {
+      activeVideoTrack.addEventListener('ended', () => {
+        console.warn('[LIVE STUDIO] Camera video track ended unexpectedly.');
+        this.stopCamera();
+      });
+    }
     const actualDeviceId = activeVideoTrack?.getSettings()?.deviceId || targetDeviceId;
     if (actualDeviceId) {
       this.cameraDeviceId = actualDeviceId;
@@ -265,6 +277,7 @@ class LiveStudioManager {
    * Stop capturing camera
    */
   stopCamera() {
+    const wasCameraOnStage = Boolean(this.activeStageSource && this.activeStageSource.id === 'church_camera');
     if (this.cameraStream) {
       this.cameraStream.getTracks().forEach(t => t.stop());
       this.cameraStream = null;
@@ -272,6 +285,16 @@ class LiveStudioManager {
     const previewEl = document.getElementById('studioCameraPreview');
     if (previewEl) previewEl.srcObject = null;
     this.updateCameraStatusUI(false);
+
+    if (wasCameraOnStage) {
+      this.activeStageSource = null;
+      this.notifyStageSourceChanged();
+    } else {
+      // Revert to dual verse mode whenever camera feed ends
+      if (typeof window !== 'undefined' && typeof window.setBibleDisplayMode === 'function') {
+        window.setBibleDisplayMode('dual');
+      }
+    }
   }
 
   updateCameraStatusUI(isActive) {
@@ -308,7 +331,7 @@ class LiveStudioManager {
 
   connect() {
     this.initAudioContext();
-    if (this.socket && this.socket.readyState === WebSocket.OPEN) return;
+    if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) return;
 
     // Load current UI inputs or fallback to stored
     const urlInput = document.getElementById('studioServerUrl')?.value?.trim() || this.serverUrl;
@@ -323,6 +346,9 @@ class LiveStudioManager {
     localStorage.setItem(this.STORAGE_KEYS.roomId, this.roomId);
     localStorage.setItem(this.STORAGE_KEYS.secretKey, this.secretKey);
 
+    // Refresh ICE/TURN server list from signaling server if configured (non-blocking)
+    this.refreshIceConfig();
+
     // Normalize ws:// or wss:// URL
     let wsUrl = this.serverUrl;
     if (wsUrl.startsWith('http://')) wsUrl = wsUrl.replace('http://', 'ws://');
@@ -332,6 +358,16 @@ class LiveStudioManager {
     }
 
     this.updateHostConnectionUI('connecting', 'Connecting...');
+    this.isManualDisconnect = false;
+
+    // Start 15-second heartbeat ping to prevent cloud proxy idle disconnects
+    if (!this.heartbeatTimer) {
+      this.heartbeatTimer = setInterval(() => {
+        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+          try { this.socket.send(JSON.stringify({ type: 'heartbeat' })); } catch (e) {}
+        }
+      }, 15000);
+    }
 
     try {
       this.socket = new WebSocket(wsUrl);
@@ -343,7 +379,7 @@ class LiveStudioManager {
           type: 'join-host',
           roomId: this.roomId,
           secretKey: this.secretKey,
-          hostName: 'UECFI Presenter Sanctuary'
+          hostName: 'UECFI Presenter Centro'
         }));
       };
 
@@ -365,7 +401,16 @@ class LiveStudioManager {
       this.socket.onclose = () => {
         console.warn('[LIVE STUDIO] WebSocket closed.');
         this.isConnected = false;
-        this.updateHostConnectionUI('offline', 'Disconnected');
+        this.updateHostConnectionUI('offline', 'Reconnecting...');
+
+        // Auto-reconnect if not explicitly disconnected by user
+        if (!this.isManualDisconnect) {
+          clearTimeout(this.reconnectTimer);
+          this.reconnectTimer = setTimeout(() => {
+            console.log('[LIVE STUDIO] Attempting automatic host reconnect...');
+            this.connect();
+          }, 3000);
+        }
       };
     } catch (err) {
       console.error('[LIVE STUDIO] Failed to connect WebSocket:', err);
@@ -373,7 +418,33 @@ class LiveStudioManager {
     }
   }
 
+  /**
+   * Fetch optional TURN/STUN ICE configuration from the signaling server
+   */
+  async refreshIceConfig() {
+    try {
+      const httpBase = this.serverUrl
+        .replace(/^ws(s)?:\/\//i, 'http$1://')
+        .replace(/\/ws\/?$/i, '')
+        .replace(/\/+$/, '');
+      const res = await fetch(`${httpBase}/api/ice-config`, { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data && Array.isArray(data.iceServers) && data.iceServers.length > 0) {
+        this.rtcConfig = { iceServers: data.iceServers };
+      }
+    } catch (e) {
+      // Keep default STUN rtcConfig if signaling server doesn't expose /api/ice-config
+    }
+  }
+
   disconnect() {
+    this.isManualDisconnect = true;
+    clearTimeout(this.reconnectTimer);
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
     if (this.socket) {
       this.socket.close();
       this.socket = null;
@@ -478,6 +549,29 @@ class LiveStudioManager {
       }
     };
 
+    // Automatically detect WebRTC disconnect/failure and clean up stale presence
+    pc.onconnectionstatechange = () => {
+      console.log(`[LIVE STUDIO] PeerConnection for ${guestObj.guestName} changed to: ${pc.connectionState}`);
+      if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+        this.removeGuest(guestObj.guestId);
+      }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      console.log(`[LIVE STUDIO] ICE connection state for ${guestObj.guestName}: ${pc.iceConnectionState}`);
+      if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
+        setTimeout(() => {
+          if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
+            const currentGuest = this.guests.get(guestObj.guestId);
+            if (currentGuest && currentGuest.peerConnection === pc) {
+              console.log(`[LIVE STUDIO] Pruning inactive WebRTC peer for ${guestObj.guestName}`);
+              this.removeGuest(guestObj.guestId);
+            }
+          }
+        }, 5000);
+      }
+    };
+
     // Handle incoming video and audio tracks from guest
     pc.ontrack = (event) => {
       console.log(`[LIVE STUDIO] Received track (${event.track.kind}) from guest ${guestObj.guestName}`);
@@ -493,16 +587,23 @@ class LiveStudioManager {
 
         // Setup audio routing and visual VU meter
         this.setupGuestAudioRouting(guestObj);
+
+        // If guest is currently active on stage, immediately update stage video
+        if (this.activeStageSource && this.activeStageSource.id === guestObj.guestId) {
+          this.activeStageSource.stream = guestObj.stream;
+          this.syncStageVideo();
+        }
       }
     };
 
-    // Crucial: ensure operator mic is attached upfront to peer connection before answer
-    // so bidirectional sendrecv audio is negotiated in initial SDP. Track starts muted (enabled = false).
-    await this.ensureOperatorMic();
-    if (this.operatorMicStream && this.operatorMicTrack) {
+    // Negotiate bidirectional sendrecv audio in SDP without prematurely opening physical microphone
+    if (this.isOperatorTalking && this.operatorMicStream && this.operatorMicTrack) {
       guestObj.audioSender = pc.addTrack(this.operatorMicTrack, this.operatorMicStream);
     } else {
-      pc.addTransceiver('audio', { direction: 'sendrecv' });
+      const hasAudio = pc.getTransceivers ? pc.getTransceivers().some(t => t.receiver && t.receiver.track && t.receiver.track.kind === 'audio') : false;
+      if (!hasAudio && typeof pc.addTransceiver === 'function') {
+        pc.addTransceiver('audio', { direction: 'sendrecv' });
+      }
     }
   }
 
@@ -514,11 +615,18 @@ class LiveStudioManager {
     }
 
     try {
-      const pc = guestObj.peerConnection;
+      let pc = guestObj.peerConnection;
+      // If peer connection was missing or in an unstable state, recreate it freshly
+      if (!pc || pc.signalingState !== 'stable') {
+        if (pc) {
+          try { pc.close(); } catch (e) {}
+        }
+        await this.initGuestPeerConnection(guestObj);
+        pc = guestObj.peerConnection;
+      }
 
-      // Ensure operator mic track is attached if not already
-      await this.ensureOperatorMic();
-      if (pc && this.operatorMicStream && this.operatorMicTrack) {
+      // Attach operator mic track only if actively talking
+      if (this.isOperatorTalking && pc && this.operatorMicStream && this.operatorMicTrack) {
         const senders = pc.getSenders();
         const hasAudioSender = senders.some(s => s.track && s.track.kind === 'audio');
         if (!hasAudioSender) {
@@ -596,13 +704,14 @@ class LiveStudioManager {
   setupGuestAudioRouting(guestObj) {
     if (!guestObj.stream) return;
 
-    // Local operator headset audio element
+    // Local operator headset audio element (muted while guest is live on stage to avoid double audio with projector)
     if (!guestObj.audioEl) {
       guestObj.audioEl = document.createElement('audio');
       guestObj.audioEl.autoplay = true;
       document.body.appendChild(guestObj.audioEl);
     }
     guestObj.audioEl.srcObject = guestObj.stream;
+    guestObj.audioEl.muted = Boolean(guestObj.onStage);
 
     // Web Audio VU Meter
     try {
@@ -718,7 +827,14 @@ class LiveStudioManager {
   }
 
   async changeOperatorMic(deviceId) {
-    await this.ensureOperatorMic(deviceId);
+    this.operatorMicId = deviceId || '';
+    if (deviceId) {
+      localStorage.setItem(this.STORAGE_KEYS.selectedMicId, deviceId);
+    }
+    // Only acquire microphone hardware if talkback is actively in progress
+    if (this.isOperatorTalking) {
+      await this.ensureOperatorMic(deviceId);
+    }
   }
 
   setupOperatorMicMeter(stream) {
@@ -735,7 +851,12 @@ class LiveStudioManager {
       const dataArray = new Uint8Array(bufferLength);
 
       const updateOpMeter = () => {
-        if (!this.operatorMicStream) return;
+        // Exit loop immediately if microphone is not actively streaming
+        if (!this.operatorMicStream || !this.isOperatorTalking) {
+          const meterBar = document.getElementById('studioOperatorMicMeter');
+          if (meterBar) meterBar.style.width = '0%';
+          return;
+        }
         analyser.getByteFrequencyData(dataArray);
 
         let sum = 0;
@@ -759,6 +880,35 @@ class LiveStudioManager {
   }
 
   /**
+   * Release microphone hardware completely to prevent ground loops and speaker buzzing
+   */
+  stopOperatorMic() {
+    if (this.operatorMicStream) {
+      try {
+        this.operatorMicStream.getTracks().forEach((t) => {
+          t.stop();
+        });
+      } catch (e) {}
+      this.operatorMicStream = null;
+      this.operatorMicTrack = null;
+    }
+    // Detach track from all active guest peer connections
+    this.guests.forEach((g) => {
+      if (g.peerConnection) {
+        try {
+          const senders = g.peerConnection.getSenders();
+          const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
+          if (audioSender) {
+            audioSender.replaceTrack(null);
+          }
+        } catch (e) {}
+      }
+    });
+    const meterBar = document.getElementById('studioOperatorMicMeter');
+    if (meterBar) meterBar.style.width = '0%';
+  }
+
+  /**
    * Toggle Talkback ON/OFF (Tap to Talk)
    */
   async toggleOperatorTalkback() {
@@ -778,20 +928,34 @@ class LiveStudioManager {
 
     this.isOperatorTalking = true;
     this.operatorMicTrack.enabled = true;
+
+    // Attach operator mic track to all active peer connections
+    this.guests.forEach((g) => {
+      if (g.peerConnection) {
+        try {
+          const senders = g.peerConnection.getSenders();
+          const audioSender = senders.find(s => s.track && s.track.kind === 'audio');
+          if (audioSender) {
+            audioSender.replaceTrack(this.operatorMicTrack);
+          } else {
+            g.audioSender = g.peerConnection.addTrack(this.operatorMicTrack, this.operatorMicStream);
+          }
+        } catch (e) {}
+      }
+    });
+
     this.updateTalkbackUI(true);
     console.log('[LIVE STUDIO] Operator talkback LIVE (mic unmuted to Green Room).');
   }
 
   /**
-   * Stop operator microphone talkback
+   * Stop operator microphone talkback and fully release microphone hardware
    */
   stopOperatorTalkback() {
     this.isOperatorTalking = false;
-    if (this.operatorMicTrack) {
-      this.operatorMicTrack.enabled = false;
-    }
+    this.stopOperatorMic();
     this.updateTalkbackUI(false);
-    console.log('[LIVE STUDIO] Operator talkback muted.');
+    console.log('[LIVE STUDIO] Operator talkback stopped and microphone released.');
   }
 
   updateTalkbackUI(isLive) {
@@ -846,6 +1010,9 @@ class LiveStudioManager {
     });
 
     guestObj.onStage = true;
+    if (guestObj.audioEl) {
+      guestObj.audioEl.muted = true; // House sound is routed via projector stageVideo
+    }
 
     // Notify signaling server so guest's mobile UI turns RED "YOU ARE LIVE"
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
@@ -877,6 +1044,9 @@ class LiveStudioManager {
     if (!guestObj) return;
 
     guestObj.onStage = false;
+    if (guestObj.audioEl) {
+      guestObj.audioEl.muted = false; // Restore backstage headset monitoring
+    }
 
     // Notify signaling server
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
@@ -897,11 +1067,18 @@ class LiveStudioManager {
   }
 
   /**
-   * Take church camera to stage
+   * Take centro camera to stage (or toggle off if already on stage)
    */
   putCameraOnStage() {
+    // If centro camera is already on stage, toggle it off back to slide-only
+    if (this.activeStageSource && this.activeStageSource.id === 'church_camera') {
+      console.log('[LIVE STUDIO] Toggling centro camera off stage.');
+      this.clearStageVideo();
+      return;
+    }
+
     if (!this.cameraStream) {
-      return alert('Please start the church camera first.');
+      return alert('Please start the centro camera first.');
     }
 
     // Take any guest off stage
@@ -912,12 +1089,12 @@ class LiveStudioManager {
     this.activeStageSource = {
       type: 'camera',
       id: 'church_camera',
-      name: 'Sanctuary Camera',
+      name: 'Centro Camera',
       stream: this.cameraStream
     };
 
     this.notifyStageSourceChanged();
-    console.log('[LIVE STUDIO] Church Camera is now LIVE ON STAGE.');
+    console.log('[LIVE STUDIO] Centro Camera is now LIVE ON STAGE.');
   }
 
   clearStageVideo() {
@@ -926,16 +1103,53 @@ class LiveStudioManager {
     });
     this.activeStageSource = null;
     this.notifyStageSourceChanged();
+
+    // Whenever stage video is cleared (no video on stage), all projection screens must be in dual verse mode
+    console.log('[LIVE STUDIO] Cleared stage video: reverting back to dual verse mode.');
+    if (typeof window !== 'undefined' && typeof window.setBibleDisplayMode === 'function') {
+      window.setBibleDisplayMode('dual');
+    }
   }
 
   /**
    * Dispatches stage source change event to presentation window & layouts
    */
   notifyStageSourceChanged() {
+    const hadVideo = Boolean(this._lastStageSourceType);
+    const hasVideoNow = Boolean(this.activeStageSource && this.activeStageSource.stream);
+    this._lastStageSourceType = hasVideoNow ? this.activeStageSource.type : null;
+
+    // Synchronize video stream directly to external projection window and live monitor preview
+    this.syncStageVideo();
+
+    // When video feed ends (no video on stage), revert all projection screens back to dual verse mode
+    if (hadVideo && !hasVideoNow) {
+      console.log('[LIVE STUDIO] Video feed ended: reverting all projection screens to dual verse mode.');
+      if (typeof window !== 'undefined' && typeof window.setBibleDisplayMode === 'function') {
+        window.setBibleDisplayMode('dual');
+      }
+    }
+
     const event = new CustomEvent('uecfi-stage-source-changed', {
       detail: this.activeStageSource
     });
     window.dispatchEvent(event);
+
+    // Update Stage button state for camera
+    const btnCameraStage = document.getElementById('btnStudioCameraToStage');
+    if (btnCameraStage) {
+      if (this.activeStageSource && this.activeStageSource.id === 'church_camera') {
+        btnCameraStage.innerHTML = '<i class="fa-solid fa-tower-broadcast text-[11px] mr-1"></i> Live';
+        btnCameraStage.style.backgroundColor = '#dc2626';
+        btnCameraStage.style.color = '#ffffff';
+        btnCameraStage.style.borderColor = '#b91c1c';
+      } else {
+        btnCameraStage.innerHTML = '<i class="fa-solid fa-tower-broadcast text-[11px] mr-1"></i> Stage';
+        btnCameraStage.style.backgroundColor = '#f1f5f9';
+        btnCameraStage.style.color = '#334155';
+        btnCameraStage.style.borderColor = '#cbd5e1';
+      }
+    }
 
     // Update active source label in Studio UI
     const activeLabel = document.getElementById('studioActiveStageLabel');
@@ -947,6 +1161,486 @@ class LiveStudioManager {
         activeLabel.textContent = 'Slide-Only (No Video Live)';
         activeLabel.className = 'text-xs font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full';
       }
+    }
+  }
+
+  /**
+   * Synchronizes active stage video stream to both the external projector window
+   * and the live monitor preview iframe in the operator workspace.
+   */
+  syncStageVideo() {
+    // 1. External Projector Window
+    try {
+      if (typeof presentWindowOpen !== 'undefined' && presentWindowOpen && typeof newWindow !== 'undefined' && newWindow && newWindow.window && !newWindow.window.closed) {
+        this.syncStageVideoToWindow(newWindow.window, false /* isExternalProjector */);
+      }
+    } catch (e) {
+      console.warn('[LIVE STUDIO] Error syncing video to projector window:', e);
+    }
+
+    // 2. Live preview frame in operator workspace
+    try {
+      const frame = document.getElementById('livePreviewFrame');
+      if (frame && frame.contentWindow) {
+        this.syncStageVideoToWindow(frame.contentWindow, true /* isPreview */);
+      }
+    } catch (e) {
+      console.warn('[LIVE STUDIO] Error syncing video to live preview frame:', e);
+    }
+  }
+
+  /**
+   * Switches the active projection layout ('full', 'pip', 'split', 'lower-third')
+   */
+  setLayout(layout) {
+    if (!['full', 'pip', 'split', 'lower-third'].includes(layout)) layout = 'full';
+    const wasLowerThird = (this.stageLayout === 'lower-third');
+    const isSwitchingAwayFromLowerThird = wasLowerThird && (layout !== 'lower-third');
+
+    this.stageLayout = layout;
+    this._suppressFullPromptUntilLayoutChange = false;
+    try {
+      localStorage.setItem(this.STORAGE_KEYS.stageLayout, layout);
+    } catch (e) {}
+
+    this.updateLayoutUI();
+    this.syncStageVideo();
+
+    // When switching away from lower third to a different layout, switch back to dual verse mode
+    if (isSwitchingAwayFromLowerThird) {
+      console.log(`[LIVE STUDIO] Switched away from lower-third to ${layout}: switching back to dual verse mode.`);
+      if (typeof window !== 'undefined' && typeof window.setBibleDisplayMode === 'function') {
+        window.setBibleDisplayMode('dual');
+      }
+    } else if (layout === 'lower-third') {
+      // Lower third should always be single version only. Prompt user to choose Version 1 or Version 2.
+      if (typeof window.promptLowerThirdVersion === 'function' && window.bibleDisplayMode === 'dual') {
+        window.promptLowerThirdVersion();
+      } else if (window.bibleDisplayMode === 'dual') {
+        if (typeof window.setBibleDisplayMode === 'function') window.setBibleDisplayMode('v1');
+      }
+    }
+
+    // Trigger presentation update to recalculate font sizing and text bounds
+    try {
+      if (typeof presentWindowOpen !== 'undefined' && presentWindowOpen && typeof newWindow !== 'undefined' && newWindow && newWindow.window && !newWindow.window.closed) {
+        if (typeof newWindow.window.updatePresentation === 'function') newWindow.window.updatePresentation();
+        if (typeof newWindow.window.updateContent2 === 'function') newWindow.window.updateContent2();
+      }
+      const frame = document.getElementById('livePreviewFrame');
+      if (frame && frame.contentWindow) {
+        if (typeof frame.contentWindow.updatePresentation === 'function') frame.contentWindow.updatePresentation();
+        if (typeof frame.contentWindow.updateContent2 === 'function') frame.contentWindow.updateContent2();
+      }
+    } catch (e) {}
+
+    console.log(`[LIVE STUDIO] Projection layout switched to: ${layout}`);
+  }
+
+  /**
+   * Prompts operator to select a stage layout when projecting a slide while
+   * any video feed (centro camera or remote guest) is currently in full screen.
+   */
+  promptLayoutForSlideProjection() {
+    if (window.isAdvancingSlide) return false;
+    if (!this.activeStageSource || !this.activeStageSource.stream) return false;
+    const currentLayout = this.stageLayout || 'full';
+    if (currentLayout !== 'full') return false;
+    if (this._suppressFullPromptUntilLayoutChange) return false;
+
+    const modal = document.getElementById('stageLayoutPromptModal');
+    if (!modal) return false;
+
+    // Update source badge in modal header
+    const badge = document.getElementById('promptStageSourceBadge');
+    if (badge) {
+      const srcName = this.activeStageSource.name || (this.activeStageSource.type === 'guest' ? 'Remote Guest' : 'Centro Camera');
+      badge.textContent = `${srcName} Full Screen`;
+    }
+
+    modal.style.display = 'flex';
+    modal.classList.remove('hidden');
+
+    // Attach keyboard shortcut listener (keys 1-4, S/P/L/O, and Esc)
+    if (this._layoutPromptKeyHandler) {
+      window.removeEventListener('keydown', this._layoutPromptKeyHandler, true);
+    }
+    this._layoutPromptKeyHandler = (e) => {
+      if (modal.style.display === 'none') return;
+      if (e.key === '1' || e.key.toLowerCase() === 's') {
+        e.preventDefault(); e.stopPropagation();
+        this.chooseLayoutFromPrompt('split');
+      } else if (e.key === '2' || e.key.toLowerCase() === 'p') {
+        e.preventDefault(); e.stopPropagation();
+        this.chooseLayoutFromPrompt('pip');
+      } else if (e.key === '3' || e.key.toLowerCase() === 'l') {
+        e.preventDefault(); e.stopPropagation();
+        this.chooseLayoutFromPrompt('lower-third');
+      } else if (e.key === '4' || e.key.toLowerCase() === 'o') {
+        e.preventDefault(); e.stopPropagation();
+        this.chooseLayoutFromPrompt('slide-only');
+      } else if (e.key === 'Escape' || e.key.toLowerCase() === 'k') {
+        e.preventDefault(); e.stopPropagation();
+        this.cancelLayoutPrompt();
+      }
+    };
+    window.addEventListener('keydown', this._layoutPromptKeyHandler, true);
+
+    return true;
+  }
+
+  /**
+   * Handles layout selection from the prompt modal
+   */
+  chooseLayoutFromPrompt(layout) {
+    this.closeLayoutPromptModal();
+    this._suppressFullPromptUntilLayoutChange = false;
+
+    if (layout === 'slide-only') {
+      this.clearStageVideo();
+    } else if (layout === 'lower-third') {
+      this.setLayout('lower-third');
+      if (typeof window.promptLowerThirdVersion === 'function') {
+        window.promptLowerThirdVersion();
+      }
+      return;
+    } else {
+      this.setLayout(layout);
+    }
+
+    // Refresh projection views with the chosen layout
+    try {
+      if (typeof passVariable === 'function') passVariable();
+      if (typeof newWindow !== 'undefined' && newWindow && newWindow.window) {
+        if (typeof newWindow.window.passVariable === 'function') newWindow.window.passVariable();
+        if (typeof newWindow.window.updatePresentation === 'function') newWindow.window.updatePresentation();
+        if (typeof newWindow.window.updateContent2 === 'function') newWindow.window.updateContent2();
+      }
+      if (typeof pushSidebarPreview === 'function') pushSidebarPreview();
+    } catch (e) {
+      console.warn('[LIVE STUDIO] Error refreshing projection after layout selection:', e);
+    }
+  }
+
+  /**
+   * Cancels the layout prompt, keeping full-screen video
+   */
+  cancelLayoutPrompt() {
+    this.closeLayoutPromptModal();
+    this._suppressFullPromptUntilLayoutChange = true;
+  }
+
+  closeLayoutPromptModal() {
+    const modal = document.getElementById('stageLayoutPromptModal');
+    if (modal) {
+      modal.style.display = 'none';
+      modal.classList.add('hidden');
+    }
+    if (this._layoutPromptKeyHandler) {
+      window.removeEventListener('keydown', this._layoutPromptKeyHandler, true);
+      this._layoutPromptKeyHandler = null;
+    }
+  }
+
+  /**
+   * Updates button states across the main monitor quick-layout toolbar
+   */
+  updateLayoutUI() {
+    const layout = this.stageLayout || 'full';
+
+    const quickBtns = [
+      { id: 'quickBtnLayoutFull', mode: 'full' },
+      { id: 'quickBtnLayoutPip', mode: 'pip' },
+      { id: 'quickBtnLayoutSplit', mode: 'split' },
+      { id: 'quickBtnLayoutLowerThird', mode: 'lower-third' }
+    ];
+
+    quickBtns.forEach(({ id, mode }) => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      const isActive = (layout === mode);
+      if (isActive) {
+        btn.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-blue-600 text-white shadow-xs cursor-pointer';
+      } else {
+        btn.className = 'px-2 py-0.5 rounded text-[10px] font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer';
+      }
+    });
+
+    const dot = document.getElementById('quickLayoutIndicatorDot');
+    if (dot) {
+      dot.className = this.activeStageSource
+        ? 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse'
+        : 'w-2 h-2 rounded-full bg-slate-600';
+    }
+  }
+
+  /**
+   * Applies the active stage video source to a specific target window (projector or preview)
+   */
+  syncStageVideoToWindow(targetWin, isPreview = false) {
+    if (!targetWin || !targetWin.document) return;
+
+    try {
+      const doc = targetWin.document;
+      let videoLayer = doc.getElementById('videoLayer');
+      let stageVideo = doc.getElementById('stageVideo');
+      const bgLayer = doc.getElementById('backgroundLayer');
+      const contentLayer = doc.getElementById('contentLayer');
+      const layout = this.stageLayout || 'full';
+
+      // Dynamically instantiate videoLayer if not already present in the target window DOM
+      if (!videoLayer) {
+        videoLayer = doc.createElement('div');
+        videoLayer.id = 'videoLayer';
+        videoLayer.style.cssText = 'display: none; position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; z-index: 4; background: #000000; overflow: hidden;';
+        
+        stageVideo = doc.createElement('video');
+        stageVideo.id = 'stageVideo';
+        stageVideo.autoplay = true;
+        stageVideo.playsInline = true;
+        stageVideo.style.cssText = 'width: 100%; height: 100%; object-fit: contain; background: #000000; display: block;';
+        
+        const lowerThird = doc.createElement('div');
+        lowerThird.id = 'stageLowerThird';
+        lowerThird.style.cssText = 'display: none; position: absolute; bottom: 6%; left: 5%; background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(8px); border-left: 6px solid #2563eb; border-radius: 0 12px 12px 0; padding: 12px 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); font-family: sans-serif; transition: all 0.3s ease; z-index: 10;';
+        lowerThird.innerHTML = `
+          <div id="stageLowerThirdName" style="font-size: 26px; font-weight: 800; color: #ffffff; line-height: 1.2;">Speaker Name</div>
+          <div id="stageLowerThirdRole" style="font-size: 14px; font-weight: 600; color: #93c5fd; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px;">Live Video Feed</div>
+        `;
+
+        videoLayer.appendChild(stageVideo);
+        videoLayer.appendChild(lowerThird);
+
+        const logoLayer = doc.getElementById('logoLayer');
+        if (logoLayer && logoLayer.parentNode) {
+          logoLayer.parentNode.insertBefore(videoLayer, logoLayer);
+        } else {
+          doc.body.appendChild(videoLayer);
+        }
+      }
+
+      // Main centro projection screen rule:
+      // We do NOT want the centro camera to be fed to the centro projection screen.
+      // Only remote guest video feeds should be projected to the congregation.
+      // Operator preview monitor (isPreview === true) and remote audience streams can still receive the camera.
+      const isSanctuaryProjector = !isPreview || Boolean(targetWin.isSanctuaryProjector) || targetWin.name === 'UECFI_Presentation';
+      const isExcludedCamera = isSanctuaryProjector && this.activeStageSource && this.activeStageSource.type === 'camera';
+      const shouldFeedVideoToWindow = Boolean(this.activeStageSource && this.activeStageSource.stream && !isExcludedCamera);
+
+      if (shouldFeedVideoToWindow) {
+        // Bind stream
+        if (stageVideo.srcObject !== this.activeStageSource.stream) {
+          stageVideo.srcObject = this.activeStageSource.stream;
+        }
+
+        // Preview monitor is always muted to prevent audio feedback; projector un-mutes guest audio for house PA
+        stageVideo.muted = isPreview || (this.activeStageSource.type === 'camera');
+        
+        stageVideo.play().catch(err => {
+          console.warn('[LIVE STUDIO] stageVideo play() error in window:', err);
+        });
+
+        // ---------------------------------------------------------------------
+        // PHASE 3: PROJECTION LAYOUT ENGINE APPLICATION
+        // ---------------------------------------------------------------------
+        videoLayer.style.display = 'block';
+
+        if (layout === 'full') {
+          // 1. FULL VIDEO MODE: Video covers entire projection window
+          videoLayer.style.position = 'absolute';
+          videoLayer.style.left = '0px';
+          videoLayer.style.top = '0px';
+          videoLayer.style.right = 'auto';
+          videoLayer.style.bottom = 'auto';
+          videoLayer.style.width = '100%';
+          videoLayer.style.height = '100%';
+          videoLayer.style.zIndex = '12'; // Above contentLayer to cover slides
+          videoLayer.style.borderRadius = '0px';
+          videoLayer.style.border = 'none';
+          videoLayer.style.boxShadow = 'none';
+          videoLayer.style.background = '#000000';
+
+          stageVideo.style.width = '100%';
+          stageVideo.style.height = '100%';
+          stageVideo.style.objectFit = 'contain';
+          stageVideo.style.objectPosition = 'center';
+        } else if (layout === 'pip') {
+          // 2. PICTURE-IN-PICTURE (PiP) MODE: Slides full screen, video in bottom-right box
+          videoLayer.style.position = 'absolute';
+          videoLayer.style.left = 'auto';
+          videoLayer.style.top = 'auto';
+          videoLayer.style.right = '32px';
+          videoLayer.style.bottom = '32px';
+          videoLayer.style.width = '28%';
+          videoLayer.style.aspectRatio = '16 / 9';
+          videoLayer.style.height = 'auto';
+          videoLayer.style.zIndex = '12'; // Floating over slide in corner
+          videoLayer.style.borderRadius = '16px';
+          videoLayer.style.border = '3px solid rgba(255, 255, 255, 0.45)';
+          videoLayer.style.boxShadow = '0 20px 35px -5px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(0, 0, 0, 0.2)';
+          videoLayer.style.background = '#000000';
+
+          stageVideo.style.width = '100%';
+          stageVideo.style.height = '100%';
+          stageVideo.style.objectFit = 'cover';
+          stageVideo.style.objectPosition = 'center';
+        } else if (layout === 'split') {
+          // 3. SPLIT SCREEN (50/50) MODE: Video on Left half (cropped in center), Slides on Right half
+          videoLayer.style.position = 'absolute';
+          videoLayer.style.left = '0px';
+          videoLayer.style.top = '0px';
+          videoLayer.style.right = 'auto';
+          videoLayer.style.bottom = 'auto';
+          videoLayer.style.width = '50%';
+          videoLayer.style.height = '100%';
+          videoLayer.style.zIndex = '2'; // Behind contentLayer
+          videoLayer.style.borderRadius = '0px';
+          videoLayer.style.border = 'none';
+          videoLayer.style.borderRight = '2px solid rgba(255, 255, 255, 0.15)';
+          videoLayer.style.boxShadow = 'none';
+          videoLayer.style.background = '#000000';
+
+          stageVideo.style.width = '100%';
+          stageVideo.style.height = '100%';
+          stageVideo.style.objectFit = 'cover'; // Crop in the middle as requested!
+          stageVideo.style.objectPosition = 'center';
+        } else if (layout === 'lower-third') {
+          // 4. LOWER-THIRD MODE: Video full screen in background, slides on bottom third
+          videoLayer.style.position = 'absolute';
+          videoLayer.style.left = '0px';
+          videoLayer.style.top = '0px';
+          videoLayer.style.right = 'auto';
+          videoLayer.style.bottom = 'auto';
+          videoLayer.style.width = '100%';
+          videoLayer.style.height = '100%';
+          videoLayer.style.zIndex = '2'; // Behind contentLayer
+          videoLayer.style.borderRadius = '0px';
+          videoLayer.style.border = 'none';
+          videoLayer.style.boxShadow = 'none';
+          videoLayer.style.background = '#000000';
+
+          stageVideo.style.width = '100%';
+          stageVideo.style.height = '100%';
+          stageVideo.style.objectFit = 'contain';
+          stageVideo.style.objectPosition = 'center';
+        }
+
+        // Keep contentLayer full screen at z-index 10 across all modes
+        if (contentLayer) {
+          contentLayer.style.position = 'absolute';
+          contentLayer.style.left = '0px';
+          contentLayer.style.top = '0px';
+          contentLayer.style.right = 'auto';
+          contentLayer.style.bottom = 'auto';
+          contentLayer.style.width = '100%';
+          contentLayer.style.height = '100%';
+          contentLayer.style.zIndex = '10';
+          contentLayer.style.display = 'block';
+          contentLayer.style.background = 'transparent';
+          contentLayer.style.backdropFilter = 'none';
+        }
+
+        // Trigger presentation update so slide text positions adjust for the active layout
+        if (typeof targetWin.updatePresentation === 'function') {
+          try { targetWin.updatePresentation(); } catch (e) {}
+        }
+        if (typeof targetWin.updateContent2 === 'function') {
+          try { targetWin.updateContent2(); } catch (e) {}
+        }
+
+        // Lower-Third graphic handling for remote speakers
+        const lowerThird = doc.getElementById('stageLowerThird');
+        const nameEl = doc.getElementById('stageLowerThirdName');
+        const roleEl = doc.getElementById('stageLowerThirdRole');
+
+        if (lowerThird && nameEl && roleEl) {
+          if (this.activeStageSource.type === 'guest') {
+            nameEl.textContent = this.activeStageSource.name || 'Remote Guest Speaker';
+            roleEl.textContent = 'Live Remote Speaker';
+
+            if (layout === 'pip') {
+              // Compact bottom badge inside PiP box
+              lowerThird.style.display = 'block';
+              lowerThird.style.opacity = '1';
+              lowerThird.style.bottom = '0px';
+              lowerThird.style.left = '0px';
+              lowerThird.style.right = '0px';
+              lowerThird.style.padding = '4px 8px';
+              lowerThird.style.borderRadius = '0 0 13px 13px';
+              lowerThird.style.textAlign = 'center';
+              nameEl.style.fontSize = '12px';
+              roleEl.style.display = 'none';
+            } else if (layout === 'lower-third') {
+              // Hide speaker name lower-third in lower-third mode so it doesn't clash with scripture/lyrics
+              lowerThird.style.display = 'none';
+            } else {
+              // Full or Split mode: Standard broadcast lower-third
+              lowerThird.style.display = 'block';
+              lowerThird.style.opacity = '1';
+              lowerThird.style.bottom = '6%';
+              lowerThird.style.left = '5%';
+              lowerThird.style.right = 'auto';
+              lowerThird.style.padding = '12px 24px';
+              lowerThird.style.borderRadius = '0 12px 12px 0';
+              lowerThird.style.textAlign = 'left';
+              nameEl.style.fontSize = '26px';
+              roleEl.style.display = 'block';
+
+              // Auto-hide lower-third after 7 seconds for clean presentation
+              if (targetWin._ltTimeout) clearTimeout(targetWin._ltTimeout);
+              targetWin._ltTimeout = setTimeout(() => {
+                try {
+                  if (lowerThird) {
+                    lowerThird.style.transition = 'opacity 0.8s ease';
+                    lowerThird.style.opacity = '0';
+                    setTimeout(() => { if (lowerThird) lowerThird.style.display = 'none'; }, 800);
+                  }
+                } catch (e) {}
+              }, 7000);
+            }
+          } else {
+            // Centro Camera feed does not show guest lower-third
+            lowerThird.style.display = 'none';
+          }
+        }
+      } else {
+        // No active video on stage (or centro camera excluded from centro projector):
+        // hide video layer and reset presentation layers only if previously showing video
+        if (videoLayer.style.display !== 'none') {
+          videoLayer.style.display = 'none';
+          if (stageVideo) {
+            stageVideo.srcObject = null;
+          }
+          if (bgLayer) {
+            bgLayer.style.display = 'block';
+            bgLayer.style.left = '0px';
+            bgLayer.style.width = '100%';
+          }
+          if (contentLayer) {
+            contentLayer.style.position = 'absolute';
+            contentLayer.style.left = '0px';
+            contentLayer.style.top = '0px';
+            contentLayer.style.right = 'auto';
+            contentLayer.style.bottom = 'auto';
+            contentLayer.style.width = '100%';
+            contentLayer.style.height = '100%';
+            contentLayer.style.background = 'transparent';
+            contentLayer.style.backdropFilter = 'none';
+          }
+          const lowerThird = doc.getElementById('stageLowerThird');
+          if (lowerThird) lowerThird.style.display = 'none';
+
+          // Trigger presentation update so slides recalculate full bounds on projector
+          if (typeof targetWin.updatePresentation === 'function') {
+            try { targetWin.updatePresentation(); } catch (e) {}
+          }
+          if (typeof targetWin.updateContent2 === 'function') {
+            try { targetWin.updateContent2(); } catch (e) {}
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[LIVE STUDIO] Failed to sync stage video to target window:', err);
     }
   }
 
@@ -997,13 +1691,13 @@ class LiveStudioManager {
       modal.classList.remove('hidden');
       modal.style.display = 'flex';
       this.enumerateCameras();
+      this.updateLayoutUI();
       // Auto-connect if not connected
       if (!this.isConnected && !this.socket) {
         this.connect();
       }
     } else {
-      modal.classList.add('hidden');
-      modal.style.display = 'none';
+      this.closeModal();
     }
   }
 
@@ -1012,6 +1706,11 @@ class LiveStudioManager {
     if (modal) {
       modal.classList.add('hidden');
       modal.style.display = 'none';
+    }
+    if (this.isOperatorTalking) {
+      this.stopOperatorTalkback();
+    } else {
+      this.stopOperatorMic();
     }
   }
 
@@ -1036,9 +1735,9 @@ class LiveStudioManager {
         : 'background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 8px; position: relative; box-shadow: 0 1px 3px rgba(0,0,0,0.05);';
 
       card.innerHTML = `
-        <!-- Video Feed Thumbnail (True 16:9 Aspect Ratio) -->
-        <div style="width: 100%; aspect-ratio: 16 / 9; max-height: 200px; background: #000000; position: relative; border-radius: 12px; overflow: hidden; border: 1px solid #1e293b; display: flex; align-items: center; justify-content: center;">
-          <video id="guestVideo_${guest.guestId}" autoplay playsinline style="width: 100%; height: 100%; object-fit: contain; background: #000000; display: block;"></video>
+        <!-- Video Feed Thumbnail (Strict 16:9 Aspect Ratio) -->
+        <div style="width: 100%; aspect-ratio: 16 / 9; background: #000000; position: relative; border-radius: 12px; overflow: hidden; border: 1px solid #1e293b; display: flex; align-items: center; justify-content: center;">
+          <video id="guestVideo_${guest.guestId}" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: contain; background: #000000; display: block;"></video>
           
           <!-- Tally Overlay Badge -->
           <div class="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide" style="background-color: ${

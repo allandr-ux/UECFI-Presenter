@@ -51,9 +51,18 @@ data class PresenterState(
     val outputMode: String,
     val logoMode: Boolean,
     val attentionActive: Boolean = false,
+    val stageLayout: String? = null,
+    val stageStreamId: String? = null,
+    val stageSourceType: String? = null,
+    val bibleDisplayMode: String = "dual",
     val rawJson: String,
     val forced16x9Json: String
 )
+
+enum class AppMode {
+    SPEAKER_REMOTE, // Speaker pulpit control: full-screen slides, touch controls, no video feeds, unaffected by stage layout
+    VIEWER_ONLY     // Clean viewer display: zero controls, supports stage layouts (Split/Lower-Third) and live video feeds
+}
 
 enum class SlideCommand(val code: Int) {
     NEXT(2),
@@ -195,16 +204,22 @@ class PresenterApiClient {
      * Fetches the current `/api/state` from the UECFI Presenter server and normalizes
      * the virtual resolution to a constant `1920 x 1080` (16:9).
      */
-    suspend fun fetchState(host: String, port: Int, isTvDevice: Boolean = false): PresenterState? = withContext(Dispatchers.IO) {
+    suspend fun fetchState(
+        host: String,
+        port: Int,
+        isTvDevice: Boolean = false,
+        appMode: AppMode = AppMode.VIEWER_ONLY
+    ): PresenterState? = withContext(Dispatchers.IO) {
         val cleanHost = host.trim()
         if (cleanHost.isEmpty() || port !in 1..65535) return@withContext null
 
-        val url = if (isTvDevice) "http://$cleanHost:$port/api/state?client=tv" else "http://$cleanHost:$port/api/state"
+        val isViewer = (appMode == AppMode.VIEWER_ONLY)
+        val url = if (isViewer) "http://$cleanHost:$port/api/state?client=tv" else "http://$cleanHost:$port/api/state"
         val request = Request.Builder()
             .url(url)
             .header("Accept", "application/json")
             .header("Cache-Control", "no-cache")
-            .header("X-Client-Device", if (isTvDevice) "tv" else "speaker")
+            .header("X-Client-Device", if (isViewer) "tv" else "speaker")
             .get()
             .build()
 
@@ -212,7 +227,7 @@ class PresenterApiClient {
             pollClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext null
                 val body = response.body?.string() ?: return@withContext null
-                parsePresenterState(body, isTvDevice = isTvDevice)
+                parsePresenterState(body, isTvDevice = isTvDevice, appMode = appMode)
             }
         } catch (_: Exception) {
             null
@@ -226,8 +241,14 @@ class PresenterApiClient {
      *    constant `1920 x 1080` stage regardless of the physical monitor/projector resolution.
      * 2. Changes solely to `st.winX` / `st.winY` on the desktop produce an identical
      *    `forced16x9Json` and never trigger an unnecessary re-layout.
+     * 3. When in SPEAKER_REMOTE mode, strips stageLayout and stageStreamId so slides on the
+     *    speaker tablet are ALWAYS pure full screen 16:9 and never show video feeds.
      */
-    fun parsePresenterState(rawBody: String, isTvDevice: Boolean = false): PresenterState? {
+    fun parsePresenterState(
+        rawBody: String,
+        isTvDevice: Boolean = false,
+        appMode: AppMode = AppMode.VIEWER_ONLY
+    ): PresenterState? {
         return try {
             val json = JSONObject(rawBody)
             if (!json.has("live") && !json.has("text1") && !json.has("winX")) {
@@ -250,9 +271,9 @@ class PresenterApiClient {
             val attentionSpeakerShow = json.optBoolean("attentionSpeakerShow", false)
             val attentionActive = outputMode == "attention" || attentionMode || json.optBoolean("attentionActive", false)
 
-            // When attention screen is active on the church projector, speaker remote keeps the current slide visible.
-            // On TV devices, this setting NEVER applies: attention screen always shows when active.
-            val overrideAttentionForSpeaker = !isTvDevice && attentionActive && !attentionSpeakerShow
+            // When attention screen is active on the centro projector, speaker remote keeps the current slide visible.
+            // On viewer devices (TV or viewer tablet), attention screen always shows when active.
+            val overrideAttentionForSpeaker = (appMode == AppMode.SPEAKER_REMOTE) && attentionActive && !attentionSpeakerShow
             if (overrideAttentionForSpeaker) {
                 json.put("outputMode", "live")
                 json.put("attentionMode", false)
@@ -273,10 +294,27 @@ class PresenterApiClient {
                 themeId == "verses" ||
                 status.contains("Verse", ignoreCase = true)
 
+            // In Speaker Remote mode: strip stageLayout, stageStreamId, stageSourceType so the speaker
+            // tablet is 100% full-screen slides only, unaffected by stage layouts, with no video feeds.
+            // Furthermore, for speaker mode, Bible verses must ALWAYS be dual mode.
+            if (appMode == AppMode.SPEAKER_REMOTE) {
+                json.put("stageLayout", JSONObject.NULL)
+                json.put("stageStreamId", JSONObject.NULL)
+                json.put("stageSourceType", JSONObject.NULL)
+                if (isVerse) {
+                    json.put("bibleDisplayMode", "dual")
+                }
+            }
+
             // Overwrite winX and winY to 1920x1080 before serializing forced16x9Json
             json.put("winX", VIRTUAL_W)
             json.put("winY", VIRTUAL_H)
             val forced16x9Json = json.toString()
+
+            val stageLayout = if (appMode == AppMode.SPEAKER_REMOTE) null else json.optString("stageLayout", "").takeIf { it.isNotEmpty() }
+            val stageStreamId = if (appMode == AppMode.SPEAKER_REMOTE) null else json.optString("stageStreamId", "").takeIf { it.isNotEmpty() }
+            val stageSourceType = if (appMode == AppMode.SPEAKER_REMOTE) null else json.optString("stageSourceType", "").takeIf { it.isNotEmpty() }
+            val bibleDisplayMode = if (appMode == AppMode.SPEAKER_REMOTE && isVerse) "dual" else json.optString("bibleDisplayMode", "dual")
 
             PresenterState(
                 live = live,
@@ -294,6 +332,10 @@ class PresenterApiClient {
                 outputMode = if (overrideAttentionForSpeaker) "live" else outputMode,
                 logoMode = logoMode,
                 attentionActive = attentionActive,
+                stageLayout = stageLayout,
+                stageStreamId = stageStreamId,
+                stageSourceType = stageSourceType,
+                bibleDisplayMode = bibleDisplayMode,
                 rawJson = rawBody,
                 forced16x9Json = forced16x9Json
             )

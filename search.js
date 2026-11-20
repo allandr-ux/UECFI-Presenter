@@ -32,17 +32,39 @@ function vvsearch(M) {
       searchEl.addEventListener("blur", d);
       searchEl.addEventListener("focus", n);
       searchEl.addEventListener("input", onBasicInput);
+      searchEl.addEventListener("keydown", onSearchKeyDown);
     }
     const adSearchEl = document.getElementById("adSearch");
     if (adSearchEl) {
       adSearchEl.addEventListener("blur", u);
       adSearchEl.addEventListener("focus", v);
       adSearchEl.addEventListener("input", onAdvancedInput);
+      adSearchEl.addEventListener("keydown", onAdSearchKeyDown);
     }
     const styleEl = document.getElementById("searchStyle");
     if (styleEl) styleEl.addEventListener("change", onAdvancedInput);
     const bookEl = document.getElementById("searchBook");
     if (bookEl) bookEl.addEventListener("change", onAdvancedInput);
+  }
+  function onSearchKeyDown(evt) {
+    if (evt.key === "Enter" || evt.keyCode === 13) {
+      evt.preventDefault();
+      if (quietTimer) {
+        try { clearTimeout(quietTimer); } catch (e) {}
+        quietTimer = null;
+      }
+      p(false);
+    }
+  }
+  function onAdSearchKeyDown(evt) {
+    if (evt.key === "Enter" || evt.keyCode === 13) {
+      evt.preventDefault();
+      if (quietTimer) {
+        try { clearTimeout(quietTimer); } catch (e) {}
+        quietTimer = null;
+      }
+      s(false);
+    }
   }
   function n() {
     w = true;
@@ -60,9 +82,15 @@ function vvsearch(M) {
     document.getElementById("searchButtonID").removeEventListener("click", p);
     document.getElementById("adSearchButton").removeEventListener("click", s);
     const searchEl = document.getElementById("searchID");
-    if (searchEl) searchEl.removeEventListener("input", onBasicInput);
+    if (searchEl) {
+      searchEl.removeEventListener("input", onBasicInput);
+      searchEl.removeEventListener("keydown", onSearchKeyDown);
+    }
     const adSearchEl = document.getElementById("adSearch");
-    if (adSearchEl) adSearchEl.removeEventListener("input", onAdvancedInput);
+    if (adSearchEl) {
+      adSearchEl.removeEventListener("input", onAdvancedInput);
+      adSearchEl.removeEventListener("keydown", onAdSearchKeyDown);
+    }
     const styleEl = document.getElementById("searchStyle");
     if (styleEl) styleEl.removeEventListener("change", onAdvancedInput);
     const bookEl = document.getElementById("searchBook");
@@ -111,6 +139,9 @@ function vvsearch(M) {
       );
     }
     document.getElementById("searchBook").selectedIndex = 0;
+    if (typeof window !== "undefined" && window.bibleAISearch && typeof window.bibleAISearch.updateUI === "function") {
+      window.bibleAISearch.updateUI();
+    }
   }
   // Scans the loaded Bible XMLs directly -- no separate search database
   // needed. A verse matches when the query hits EITHER active version
@@ -196,19 +227,64 @@ function vvsearch(M) {
     }
     return rows;
   }
-  function T(quiet) {
-    const V = m(0);
-    console.log(`Length of keyword array: ${V[0]}`);
-    const rows = scanBible(V, 0, 0);
-    G = { data: rows.length > 0 ? rows : null };
+  // Hybrid search coordinator: Groq Cloud AI semantic search when enabled
+  // and explicit (Search button / Enter), with seamless local XML fallback.
+  // Live as-you-type search (quiet === true) runs fast local XML scans.
+  async function performSearch(quiet, bookNum, styleNum) {
+    const isExplicit = (quiet !== true);
+    const hasAI = Boolean(
+      typeof window !== "undefined" &&
+      window.bibleAISearch &&
+      window.bibleAISearch.isEnabled()
+    );
+
+    // If explicit search and AI toggle is ON
+    if (isExplicit && hasAI) {
+      if (!window.bibleAISearch.getApiKey()) {
+        // Prompt user to enter their Groq API key
+        window.bibleAISearch.openSettings();
+      } else {
+        const resEl = document.getElementById("searchResultID");
+        if (resEl) {
+          resEl.innerHTML = `
+            <div class="text-center py-16 text-slate-500">
+              <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-purple-100 text-purple-600 mb-3 animate-pulse">
+                <i class="fa-solid fa-sparkles text-xl"></i>
+              </div>
+              <h3 class="text-sm font-bold text-slate-800">Searching Scriptures with Groq AI...</h3>
+              <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">Understanding "${C}" semantically and retrieving matching passages...</p>
+            </div>
+          `;
+          if (typeof tabViewN !== "undefined") tabViewN.selectTab(4);
+        }
+
+        try {
+          const aiRows = await window.bibleAISearch.searchWithGroq(C);
+          if (aiRows && aiRows.length > 0) {
+            G = { data: aiRows, isAI: true };
+            x(quiet);
+            return;
+          }
+        } catch (err) {
+          console.warn("[SEARCH] Groq AI error, falling back to local XML scan:", err);
+        }
+        // If AI returned null/error, fall back gracefully to local XML scan
+      }
+    }
+
+    // Local XML keyword search (offline default or fallback)
+    const V = m(styleNum);
+    console.log(`Length of keyword array: ${V.length || V[0]}`);
+    const rows = scanBible(V, bookNum, parseInt(styleNum, 10) || 0);
+    const isFallback = Boolean(isExplicit && hasAI && window.bibleAISearch.getApiKey());
+    G = { data: rows.length > 0 ? rows : null, isFallback: isFallback };
     x(quiet);
   }
+  function T(quiet) {
+    performSearch(quiet, 0, 0);
+  }
   function f(quiet) {
-    const V = m(e);
-    console.log(`Length of keyword array: ${V.length}`);
-    const rows = scanBible(V, l, parseInt(e, 10) || 0);
-    G = { data: rows.length > 0 ? rows : null };
-    x(quiet);
+    performSearch(quiet, l, parseInt(e, 10) || 0);
   }
   function x(U) {
     const quiet = (U === true);
@@ -221,19 +297,48 @@ function vvsearch(M) {
     console.log(`Time to print:${K.delta()}`);
     // Explicit searches jump to the results tab; live typing stays put.
     // Tab 3 is Search (0: Verses, 1: Lyrics, 2: Slides, 3: Search, 4: Schedule)
-    if (!quiet) tabViewN.selectTab(3);
+    if (!quiet) tabViewN.selectTab(4);
   }
   function k() {
     const V = document.getElementById("searchResultID");
     V.innerHTML = "";
     if (G.data == null) {
-      V.innerHTML = `No match found for "<b>${C}</b>".`;
+      if (G && G.isFallback) {
+        V.innerHTML = `<div class="mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-xs font-semibold text-amber-900">
+          <i class="fa-solid fa-wifi-slash text-amber-600"></i>
+          <span>Groq AI offline or unavailable &mdash; fell back to local keyword scan.</span>
+        </div>No match found for "<b>${C}</b>".`;
+      } else if (typeof window !== "undefined" && window.bibleAISearch && window.bibleAISearch.isEnabled() && window.bibleAISearch.getApiKey()) {
+        V.innerHTML = `No direct keyword match found for "<b>${C}</b>".<br><span style="display:inline-block;margin-top:6px;font-size:12px;color:#7e22ce;"><i class="fa-solid fa-sparkles mr-1"></i> Press <b>Enter</b> or click <b>Search</b> to search semantically with Groq AI.</span>`;
+      } else {
+        V.innerHTML = `No match found for "<b>${C}</b>".`;
+      }
     } else {
       A = G.data.length;
       let ag = "";
       let X = J;
       if (A < O + J) {
         X = A - O;
+      }
+      if (G.isAI) {
+        ag += `<div class="mb-3 px-3.5 py-2.5 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-xl flex items-center justify-between shadow-xs">
+          <div class="flex items-center gap-2.5">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-600 text-white font-bold text-[10px] tracking-wide uppercase shadow-xs">
+              <i class="fa-solid fa-sparkles text-xs"></i> Groq AI
+            </span>
+            <span class="text-xs font-bold text-purple-950">Semantic Scripture Search</span>
+            <span class="text-xs text-purple-700 hidden sm:inline">&bull; Found ${A} matching ${A === 1 ? 'passage' : 'passages'}</span>
+          </div>
+          <div class="text-[11px] font-medium text-purple-700 flex items-center gap-1.5">
+            <i class="fa-solid fa-circle-check text-purple-600"></i>
+            <span class="hidden md:inline">Verified in local Bible XML</span>
+          </div>
+        </div>`;
+      } else if (G.isFallback) {
+        ag += `<div class="mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-xs font-semibold text-amber-900">
+          <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
+          <span>Groq AI connection timed out or unavailable &mdash; showing local keyword match results instead.</span>
+        </div>`;
       }
       ag = `${ag}Found <b>${A}</b> results for "<b>${C}</b>". Showing results ${O + 1} to ${O + X}<br>`;
       if (A > J) {
@@ -281,14 +386,18 @@ function vvsearch(M) {
           [ai.bookNum - 1].getElementsByTagName("c")
           [ai.chNum - 1].getElementsByTagName("v")[ai.verseNum - 1].textContent;
         W = g(W);
+        let reasonBadge = "";
+        if (ai.aiReason) {
+          reasonBadge = `<div style="margin-top:2px;margin-bottom:4px;"><span style="display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:600;background:#f3e8ff;color:#6b21a8;border:1px solid #e9d5ff;"><i class="fa-solid fa-sparkles" style="font-size:9px;color:#9333ea;"></i> ${ai.aiReason}</span></div>`;
+        }
         Z[i] = new verseClass();
-        var ae = `<font face="Arial, Helvetica, sans-serif">${booknames[ai.bookNum - 1]} ${ai.chNum}:${ai.verseNum}</font><br>${W}`;
+        var ae = `<font face="Arial, Helvetica, sans-serif"><b>${booknames[ai.bookNum - 1]} ${ai.chNum}:${ai.verseNum}</b></font>${reasonBadge}<br>${W}`;
         var ad = bibleVersionArray[version1][6];
         Z[i].init(af, ae, ai.bookNum, ai.chNum, ai.verseNum, ad);
         Y[i] = new verseClass();
-        var ae = `<font face="Arial, Helvetica, sans-serif">${booknames[ai.bookNum - 1]} ${ai.chNum}:${ai.verseNum}</font><br>${g(U)}`;
-        var ad = bibleVersionArray[version2][6];
-        Y[i].init(aa, ae, ai.bookNum, ai.chNum, ai.verseNum, ad);
+        var ae2 = `<font face="Arial, Helvetica, sans-serif"><b>${booknames[ai.bookNum - 1]} ${ai.chNum}:${ai.verseNum}</b></font>${reasonBadge}<br>${g(U)}`;
+        var ad2 = bibleVersionArray[version2][6];
+        Y[i].init(aa, ae2, ai.bookNum, ai.chNum, ai.verseNum, ad2);
       }
       if (A > J) {
         document.getElementById("prevResult").addEventListener("click", a);
@@ -388,32 +497,33 @@ function vvsearch(M) {
     const U = `Error message:${V.error.message} Details:${V.error.details}Error handling results Contact uecfipresenter@yahoo.com with this error message`;
     alert(U);
   }
-  function p(quiet) {
+  async function p(quiet) {
     const U = j(0, quiet === true);
     if (U) {
       document.getElementById("adSearch").value = C;
       K.start();
       e = 0;
-      T(quiet === true);
+      await performSearch(quiet === true, 0, 0);
     }
   }
-  function s(quiet) {
+  async function s(quiet) {
     const U = j(1, quiet === true);
     if (U) {
       K.start();
       e = document.getElementById("searchStyle").value;
       l = document.getElementById("searchBook").value;
-      f(quiet === true);
+      await performSearch(quiet === true, l, parseInt(e, 10) || 0);
     }
   }
   function H() {
     if (w) {
-      p();
+      p(false);
+    } else if (F) {
+      s(false);
+    } else if (typeof tabViewN !== "undefined" && tabViewN.get && tabViewN.get("activeIndex") === 4) {
+      s(false);
     } else {
-      if (F) {
-        s();
-      } else {
-      }
+      p(false);
     }
   }
   function j(V, quiet) {
