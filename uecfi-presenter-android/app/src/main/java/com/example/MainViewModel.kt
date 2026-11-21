@@ -30,8 +30,13 @@ data class ProjectionUiState(
     val manualPortInput: String = PresenterApiClient.DEFAULT_PRESENTER_PORT.toString(),
     val isManualConnecting: Boolean = false,
     val isNavigating: Boolean = false,
-    val customButtons: List<CustomRemoteButton> = emptyList(),
-    val isLoadingButtons: Boolean = false,
+    val programItems: List<ProgramRemoteItem> = emptyList(),
+    val isLoadingProgramItems: Boolean = false,
+    val chatMessages: List<ChatMessage> = emptyList(),
+    val unreadChatCount: Int = 0,
+    val isChatOpen: Boolean = false,
+    val isSendingChat: Boolean = false,
+    val latestIncomingChatToast: ChatMessage? = null,
     val manualErrorHost: String? = null,
     val manualErrorPort: Int? = null,
     val webViewSyncVersion: Int = 0,
@@ -428,30 +433,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Refreshes the list of custom speaker remote buttons from `GET /api/buttons`.
+     * Refreshes the list of desktop program items from `GET /api/program`.
      */
-    fun refreshCustomButtons() {
+    fun refreshProgramItems() {
         val current = _uiState.value
         val host = current.activeHost ?: return
         val port = current.activePort
         if (current.status != ConnectionStatus.CONNECTED) return
 
-        _uiState.update { it.copy(isLoadingButtons = true) }
+        _uiState.update { it.copy(isLoadingProgramItems = true) }
         viewModelScope.launch {
             try {
-                val buttons = apiClient.fetchCustomButtons(host, port)
-                _uiState.update { it.copy(customButtons = buttons) }
+                val items = apiClient.fetchProgramItems(host, port)
+                _uiState.update { it.copy(programItems = items) }
             } finally {
-                _uiState.update { it.copy(isLoadingButtons = false) }
+                _uiState.update { it.copy(isLoadingProgramItems = false) }
             }
         }
     }
 
     /**
-     * Triggers a custom speaker remote button (`command` + `value`) and immediately
+     * Presents a program item by id (`command=9&value=<id>`) and immediately
      * refreshes `/api/state` so any multi-slide item updates navigation controls right away.
      */
-    fun sendCustomButtonCommand(button: CustomRemoteButton) {
+    fun presentProgramItem(item: ProgramRemoteItem) {
         val current = _uiState.value
         if (current.status != ConnectionStatus.CONNECTED || current.isNavigating) return
         val host = current.activeHost ?: return
@@ -460,7 +465,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(isNavigating = true) }
         viewModelScope.launch {
             try {
-                val sent = apiClient.sendCustomCommand(host, port, button.command, button.value)
+                val sent = apiClient.sendCustomCommand(host, port, "9", item.id)
                 if (sent) {
                     val refreshed = apiClient.fetchState(host, port, isTvDevice = isTvDevice, appMode = current.appMode)
                     if (refreshed != null) {
@@ -506,7 +511,69 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         startLiveStatePolling(cleanHost, port)
-        refreshCustomButtons()
+        refreshProgramItems()
+        refreshChatMessages()
+    }
+
+    private var lastSyncedChatId: Int = 0
+
+    fun setChatOpen(open: Boolean) {
+        _uiState.update {
+            it.copy(
+                isChatOpen = open,
+                unreadChatCount = if (open) 0 else it.unreadChatCount,
+                latestIncomingChatToast = if (open) null else it.latestIncomingChatToast
+            )
+        }
+        if (open) {
+            refreshChatMessages()
+        }
+    }
+
+    fun dismissChatToast() {
+        _uiState.update { it.copy(latestIncomingChatToast = null) }
+    }
+
+    fun refreshChatMessages() {
+        val current = _uiState.value
+        val host = current.activeHost ?: return
+        val port = current.activePort
+        if (current.status != ConnectionStatus.CONNECTED) return
+
+        viewModelScope.launch {
+            val msgs = apiClient.fetchChatMessages(host, port, sinceId = 0)
+            lastSyncedChatId = msgs.maxOfOrNull { it.id } ?: 0
+            _uiState.update { it.copy(chatMessages = msgs) }
+        }
+    }
+
+    fun sendChatMessage(text: String) {
+        val current = _uiState.value
+        val clean = text.trim()
+        if (clean.isEmpty() || current.status != ConnectionStatus.CONNECTED || current.isSendingChat) return
+        val host = current.activeHost ?: return
+        val port = current.activePort
+
+        _uiState.update { it.copy(isSendingChat = true) }
+        viewModelScope.launch {
+            try {
+                val sent = apiClient.sendChatMessage(host, port, clean, senderName = "Speaker")
+                if (sent != null) {
+                    lastSyncedChatId = maxOf(lastSyncedChatId, sent.id)
+                    _uiState.update { prev ->
+                        val merged = if (prev.chatMessages.any { it.id == sent.id }) {
+                            prev.chatMessages
+                        } else {
+                            (prev.chatMessages + sent).takeLast(100)
+                        }
+                        prev.copy(chatMessages = merged)
+                    }
+                    immediatePollChannel.trySend(Unit)
+                }
+            } finally {
+                _uiState.update { it.copy(isSendingChat = false) }
+            }
+        }
     }
 
     /**
@@ -529,6 +596,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             status = ConnectionStatus.CONNECTED,
                             presenterState = state
                         )
+                    }
+                    if (state.chatLatestId == 0 && lastSyncedChatId > 0) {
+                        lastSyncedChatId = 0
+                        _uiState.update { it.copy(chatMessages = emptyList(), unreadChatCount = 0, latestIncomingChatToast = null) }
+                    } else if (state.chatLatestId > lastSyncedChatId) {
+                        val incoming = apiClient.fetchChatMessages(host, port, sinceId = lastSyncedChatId)
+                        if (incoming.isNotEmpty()) {
+                            lastSyncedChatId = maxOf(lastSyncedChatId, incoming.maxOf { it.id })
+                            _uiState.update { prev ->
+                                val existingIds = prev.chatMessages.map { it.id }.toSet()
+                                val fresh = incoming.filter { it.id !in existingIds }
+                                val merged = (prev.chatMessages + fresh).takeLast(100)
+                                val newFromDesktop = fresh.filter { it.sender == "desktop" }
+                                val addUnread = if (prev.isChatOpen) 0 else newFromDesktop.size
+                                val toast = if (!prev.isChatOpen && newFromDesktop.isNotEmpty()) newFromDesktop.last() else prev.latestIncomingChatToast
+                                prev.copy(
+                                    chatMessages = merged,
+                                    unreadChatCount = prev.unreadChatCount + addUnread,
+                                    latestIncomingChatToast = toast
+                                )
+                            }
+                        } else {
+                            lastSyncedChatId = state.chatLatestId
+                        }
                     }
                 } else {
                     consecutiveFailures++

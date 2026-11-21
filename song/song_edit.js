@@ -216,7 +216,18 @@ function songEditClass() {
     }
     var seLead = document.getElementById("se_leadAdvanceMs");
     if (seLead) {
-      var savedLead = P ? (P.leadAdvanceMs != null ? P.leadAdvanceMs : (typeof localStorage !== "undefined" && P.name ? (localStorage.getItem("uecfi_song_lead_" + P.name.trim()) || localStorage.getItem("uecfi_song_lead_advance_ms")) : "")) : "";
+      var savedLead = null;
+      if (P && typeof localStorage !== "undefined") {
+        if (P.id != null) savedLead = localStorage.getItem("uecfi_song_lead_id_" + P.id);
+        if (savedLead === null && P.name) {
+          savedLead = localStorage.getItem("uecfi_song_lead_" + P.name.trim().toLowerCase());
+          if (savedLead === null) savedLead = localStorage.getItem("uecfi_song_lead_" + P.name.trim());
+        }
+        if (savedLead === null) savedLead = localStorage.getItem("uecfi_song_lead_advance_ms");
+      }
+      if (savedLead === null && P && P.leadAdvanceMs != null && P.leadAdvanceMs > 0) {
+        savedLead = P.leadAdvanceMs;
+      }
       seLead.value = (savedLead !== "" && savedLead != null) ? savedLead : "";
     }
     // Highlighted Text Outline settings per song
@@ -358,17 +369,36 @@ function songEditClass() {
       }
     }
     var leadInput = document.getElementById("se_leadAdvanceMs");
-    if (leadInput && leadInput.value !== "") {
-      var parsedLead = parseInt(leadInput.value, 10);
-      if (!isNaN(parsedLead)) {
-        var clampedLead = Math.max(0, Math.min(2000, Math.round(parsedLead / 100) * 100));
-        U.leadAdvanceMs = clampedLead;
-        if (typeof localStorage !== "undefined" && U.name) {
-          try {
-            localStorage.setItem("uecfi_song_lead_" + U.name.trim().toLowerCase(), String(clampedLead));
-            localStorage.setItem("uecfi_song_lead_" + U.name.trim(), String(clampedLead));
-          } catch (e) {}
+    if (leadInput) {
+      if (leadInput.value !== "") {
+        var parsedLead = parseInt(leadInput.value, 10);
+        if (!isNaN(parsedLead)) {
+          var clampedLead = Math.max(0, Math.min(2000, Math.round(parsedLead / 100) * 100));
+          U.leadAdvanceMs = clampedLead;
+          if (typeof localStorage !== "undefined") {
+            try {
+              if (U.id != null) localStorage.setItem("uecfi_song_lead_id_" + U.id, String(clampedLead));
+              if (U.name) {
+                localStorage.setItem("uecfi_song_lead_" + U.name.trim().toLowerCase(), String(clampedLead));
+                localStorage.setItem("uecfi_song_lead_" + U.name.trim(), String(clampedLead));
+              }
+            } catch (e) {}
+          }
+          if (typeof window !== "undefined" && window.songAudioEngine && window.songAudioEngine.currentSong) {
+            var cur = window.songAudioEngine.currentSong;
+            if ((U.id != null && cur.id == U.id) || (U.name && cur.name && cur.name.trim().toLowerCase() === U.name.trim().toLowerCase())) {
+              window.songAudioEngine.leadAdvanceMs = clampedLead;
+            }
+          }
         }
+      } else if (typeof localStorage !== "undefined") {
+        try {
+          if (U.id != null) localStorage.removeItem("uecfi_song_lead_id_" + U.id);
+          if (U.name) {
+            localStorage.removeItem("uecfi_song_lead_" + U.name.trim().toLowerCase());
+            localStorage.removeItem("uecfi_song_lead_" + U.name.trim());
+          }
+        } catch (e) {}
       }
     }
     // Save highlighted text outline options per song
@@ -494,21 +524,35 @@ function songEditClass() {
         try {
           var fs = require("fs");
           var path = require("path");
-          var dir1 = path.join(process.cwd(), "audio");
-          var dir2 = path.join(process.cwd(), "storage", "audio");
-          if (!fs.existsSync(dir1)) fs.mkdirSync(dir1, { recursive: true });
-          if (!fs.existsSync(dir2)) fs.mkdirSync(dir2, { recursive: true });
+          var destDirs = [];
+          if (typeof AppStorage !== "undefined" && typeof AppStorage.resolveStoragePath === "function") {
+            destDirs.push(path.dirname(AppStorage.resolveStoragePath("audio", fileName)));
+          }
+          destDirs.push(path.join(process.cwd(), "audio"));
+          destDirs.push(path.join(process.cwd(), "storage", "audio"));
+          var uniqueDirs = Array.from(new Set(destDirs));
+
+          var writeToDirs = function(buf) {
+            uniqueDirs.forEach(function(d) {
+              try {
+                if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
+                var target = path.join(d, fileName);
+                if (file.path && !buf) {
+                  fs.copyFileSync(file.path, target);
+                } else if (buf) {
+                  fs.writeFileSync(target, buf);
+                }
+              } catch (dirErr) {}
+            });
+          };
 
           if (file.path) {
-            fs.copyFileSync(file.path, path.join(dir1, fileName));
-            fs.copyFileSync(file.path, path.join(dir2, fileName));
+            writeToDirs(null);
           } else {
             var reader = new FileReader();
             reader.onload = function() {
               try {
-                var buffer = Buffer.from(reader.result);
-                fs.writeFileSync(path.join(dir1, fileName), buffer);
-                fs.writeFileSync(path.join(dir2, fileName), buffer);
+                writeToDirs(Buffer.from(reader.result));
               } catch (e2) {}
             };
             reader.readAsArrayBuffer(file);
@@ -539,7 +583,9 @@ function songEditClass() {
       previewAudioEl.pause();
       if (icon) icon.className = "fa-solid fa-play text-[10px]";
     } else {
-      previewAudioEl.src = "./audio/" + encodeURIComponent(fn);
+      previewAudioEl.src = (window.songAudioEngine && typeof window.songAudioEngine.resolveAudioUrl === "function")
+        ? window.songAudioEngine.resolveAudioUrl(fn)
+        : ("./audio/" + encodeURIComponent(fn));
       previewAudioEl.play().catch(function() {});
       if (icon) icon.className = "fa-solid fa-pause text-[10px]";
       previewAudioEl.onended = function() {
@@ -598,7 +644,10 @@ function songEditClass() {
       };
     });
 
-    var syncAudio = new Audio("./audio/" + encodeURIComponent(audioFile));
+    var syncAudioUrl = (window.songAudioEngine && typeof window.songAudioEngine.resolveAudioUrl === "function")
+      ? window.songAudioEngine.resolveAudioUrl(audioFile)
+      : ("./audio/" + encodeURIComponent(audioFile));
+    var syncAudio = new Audio(syncAudioUrl);
     var currentLineIndex = 0;
     while (currentLineIndex < lineObjects.length && lineObjects[currentLineIndex].isBlank) {
       currentLineIndex++;
@@ -612,6 +661,16 @@ function songEditClass() {
     modalEl.id = modalId;
     modalEl.className = "p-0 bg-transparent border-0 rounded-2xl shadow-2xl backdrop:bg-slate-900/80 backdrop:backdrop-blur-xs max-w-xl w-full m-auto overflow-hidden text-slate-800 focus:outline-none";
 
+    function parseLrcTimeToSecs(ts) {
+      if (!ts) return null;
+      var m = String(ts).match(/^(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?$/);
+      if (!m) return null;
+      var mins = parseInt(m[1], 10) || 0;
+      var secs = parseInt(m[2], 10) || 0;
+      var frac = m[3] ? parseFloat("0." + m[3]) : 0;
+      return mins * 60 + secs + frac;
+    }
+
     function renderLinesHtml() {
       return lineObjects.map(function(lo, idx) {
         if (lo.isBlank) {
@@ -619,10 +678,15 @@ function songEditClass() {
         }
         var isCurrent = (idx === currentLineIndex);
         var hasTs = !!lo.timestamp;
-        var ringClass = isCurrent ? "ring-2 ring-purple-600 bg-purple-50/70 border-purple-300 font-bold" : (hasTs ? "bg-emerald-50/60 border-emerald-200" : "bg-white border-slate-200");
-        return '<div id="syncLineItem_' + idx + '" class="flex items-center justify-between p-2 rounded-lg border ' + ringClass + ' transition">' +
-          '<span class="text-xs text-slate-800">' + (lo.clean || "&nbsp;") + '</span>' +
-          '<span class="text-[11px] font-mono font-bold ' + (hasTs ? 'text-emerald-700' : 'text-slate-400') + '">' + (lo.timestamp ? '[' + lo.timestamp + ']' : '--:--') + '</span>' +
+        var ringClass = isCurrent ? "ring-2 ring-purple-600 bg-purple-50/70 border-purple-300 font-bold" : (hasTs ? "bg-emerald-50/60 border-emerald-200" : "bg-white border-slate-200 hover:border-purple-300");
+        return '<div id="syncLineItem_' + idx + '" data-sync-idx="' + idx + '" class="sync-line-row flex items-center justify-between gap-2 p-2 rounded-lg border ' + ringClass + ' transition cursor-pointer" title="Click to select this line for re-stamping">' +
+          '<span class="text-xs text-slate-800 flex-1 min-w-0 truncate">' + (lo.clean || "&nbsp;") + '</span>' +
+          '<div class="flex items-center gap-1 shrink-0">' +
+            (hasTs ? '<button type="button" data-nudge-idx="' + idx + '" data-delta="-0.2" class="px-1.5 py-0.5 text-[10px] font-bold text-slate-500 hover:text-slate-800 bg-white border border-slate-200 rounded cursor-pointer" title="0.2s earlier">-0.2s</button>' : '') +
+            '<span data-seek-idx="' + idx + '" class="text-[11px] font-mono font-bold px-1.5 py-0.5 rounded ' + (hasTs ? 'text-emerald-700 bg-emerald-100/70 hover:bg-emerald-200/70' : 'text-slate-400') + '" title="' + (hasTs ? 'Click to jump audio near this timestamp' : 'Not stamped yet') + '">' + (lo.timestamp ? '[' + lo.timestamp + ']' : '--:--') + '</span>' +
+            (hasTs ? '<button type="button" data-nudge-idx="' + idx + '" data-delta="0.2" class="px-1.5 py-0.5 text-[10px] font-bold text-slate-500 hover:text-slate-800 bg-white border border-slate-200 rounded cursor-pointer" title="0.2s later">+0.2s</button>' : '') +
+            (hasTs ? '<button type="button" data-clear-idx="' + idx + '" class="px-1.5 py-0.5 text-[10px] font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded cursor-pointer" title="Clear this line timestamp">&times;</button>' : '') +
+          '</div>' +
         '</div>';
       }).join("");
     }
@@ -637,22 +701,30 @@ function songEditClass() {
           '<button type="button" id="tapSyncCloseBtn" class="text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>' +
         '</div>' +
 
-        '<div class="p-4 bg-slate-100 border-b border-slate-200 flex items-center justify-between gap-3 shrink-0">' +
-          '<div class="flex items-center gap-3">' +
-            '<button type="button" id="tapSyncPlayPause" class="w-9 h-9 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center transition cursor-pointer">' +
-              '<i id="tapSyncPlayIcon" class="fa-solid fa-play text-xs"></i>' +
-            '</button>' +
-            '<span id="tapSyncTimer" class="text-sm font-mono font-bold text-slate-800">00:00.00</span>' +
+        '<div class="p-3.5 bg-slate-100 border-b border-slate-200 space-y-2 shrink-0">' +
+          '<div class="flex items-center justify-between gap-2">' +
+            '<div class="flex items-center gap-2">' +
+              '<button type="button" id="tapSyncPlayPause" class="w-9 h-9 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center transition cursor-pointer shrink-0">' +
+                '<i id="tapSyncPlayIcon" class="fa-solid fa-play text-xs"></i>' +
+              '</button>' +
+              '<button type="button" id="tapSyncRewindBtn" class="px-2 py-1 text-[11px] font-bold bg-white hover:bg-slate-200 border border-slate-300 text-slate-700 rounded-lg cursor-pointer" title="Rewind 3 seconds (Left Arrow)">-3s</button>' +
+              '<button type="button" id="tapSyncForwardBtn" class="px-2 py-1 text-[11px] font-bold bg-white hover:bg-slate-200 border border-slate-300 text-slate-700 rounded-lg cursor-pointer" title="Forward 3 seconds (Right Arrow)">+3s</button>' +
+              '<span id="tapSyncTimer" class="text-xs font-mono font-bold text-slate-800 ml-1">00:00.00</span>' +
+            '</div>' +
+            '<div class="text-[11px] text-slate-500 font-medium text-right">Click any line to re-sync &bull; <kbd class="px-1 py-0.5 bg-white border border-slate-300 rounded font-bold">SPACE</kbd> stamp &bull; <kbd class="px-1 py-0.5 bg-white border border-slate-300 rounded font-bold">⌫</kbd> undo</div>' +
           '</div>' +
-          '<div class="text-[11px] text-slate-500 font-medium">Press <kbd class="px-1.5 py-0.5 bg-white border border-slate-300 rounded font-bold shadow-xs">SPACE</kbd> or click <b>Stamp Line</b> when each line starts</div>' +
+          '<input type="range" id="tapSyncSeekBar" min="0" max="100" step="0.05" value="0" class="w-full accent-purple-600 cursor-pointer h-1.5">' +
         '</div>' +
 
         '<div id="tapSyncLinesContainer" class="p-4 overflow-y-auto flex-1 space-y-1.5 bg-slate-50 custom-scrollbar">' +
           renderLinesHtml() +
         '</div>' +
 
-        '<div class="p-3 bg-purple-50/40 border-t border-purple-100 flex items-center justify-center shrink-0">' +
-          '<button type="button" id="tapSyncStampBtn" class="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer">' +
+        '<div class="p-3 bg-purple-50/40 border-t border-purple-100 flex items-center gap-2 shrink-0">' +
+          '<button type="button" id="tapSyncUndoBtn" class="px-3.5 py-3 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0" title="Undo last stamp (Backspace)">' +
+            '<i class="fa-solid fa-rotate-left"></i> Undo' +
+          '</button>' +
+          '<button type="button" id="tapSyncStampBtn" class="flex-1 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm rounded-xl shadow-md transition flex items-center justify-center gap-2 cursor-pointer">' +
             '<i class="fa-solid fa-tag"></i> Stamp Current Line (SPACE)' +
           '</button>' +
         '</div>' +
@@ -688,6 +760,10 @@ function songEditClass() {
     var playBtn = document.getElementById("tapSyncPlayPause");
     var playIcon = document.getElementById("tapSyncPlayIcon");
     var timerEl = document.getElementById("tapSyncTimer");
+    var seekBar = document.getElementById("tapSyncSeekBar");
+    var rewindBtn = document.getElementById("tapSyncRewindBtn");
+    var forwardBtn = document.getElementById("tapSyncForwardBtn");
+    var undoBtn = document.getElementById("tapSyncUndoBtn");
     var stampBtn = document.getElementById("tapSyncStampBtn");
     var linesContainer = document.getElementById("tapSyncLinesContainer");
 
@@ -698,9 +774,46 @@ function songEditClass() {
       return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s + "." + (ms < 10 ? "0" : "") + ms;
     }
 
+    function refreshLinesUI(scrollTargetIdx) {
+      if (!linesContainer) return;
+      linesContainer.innerHTML = renderLinesHtml();
+      var idx = (typeof scrollTargetIdx === "number") ? scrollTargetIdx : currentLineIndex;
+      var targetEl = document.getElementById("syncLineItem_" + idx);
+      if (targetEl) targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    function seekRelative(deltaSecs) {
+      if (!syncAudio) return;
+      var dur = isFinite(syncAudio.duration) ? syncAudio.duration : 9999;
+      syncAudio.currentTime = Math.max(0, Math.min(dur, (syncAudio.currentTime || 0) + deltaSecs));
+      if (timerEl) timerEl.textContent = formatLrcTime(syncAudio.currentTime);
+      if (seekBar) seekBar.value = String(syncAudio.currentTime);
+    }
+
+    if (syncAudio) {
+      syncAudio.addEventListener("loadedmetadata", function() {
+        if (seekBar && isFinite(syncAudio.duration)) {
+          seekBar.max = String(syncAudio.duration);
+        }
+      });
+    }
+    if (seekBar) {
+      seekBar.oninput = function() {
+        if (!syncAudio) return;
+        syncAudio.currentTime = parseFloat(seekBar.value) || 0;
+        if (timerEl) timerEl.textContent = formatLrcTime(syncAudio.currentTime);
+      };
+    }
+    if (rewindBtn) rewindBtn.onclick = function() { seekRelative(-3); };
+    if (forwardBtn) forwardBtn.onclick = function() { seekRelative(3); };
+
     var timerInterval = setInterval(function() {
-      if (syncAudio && !syncAudio.paused && timerEl) {
-        timerEl.textContent = formatLrcTime(syncAudio.currentTime);
+      if (syncAudio && !syncAudio.paused) {
+        if (timerEl) timerEl.textContent = formatLrcTime(syncAudio.currentTime);
+        if (seekBar && isFinite(syncAudio.duration)) {
+          seekBar.max = String(syncAudio.duration);
+          seekBar.value = String(syncAudio.currentTime);
+        }
       }
     }, 50);
 
@@ -727,19 +840,96 @@ function songEditClass() {
         currentLineIndex++;
       }
 
-      if (linesContainer) {
-        linesContainer.innerHTML = renderLinesHtml();
-        var targetEl = document.getElementById("syncLineItem_" + currentLineIndex);
-        if (targetEl) targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      refreshLinesUI(currentLineIndex);
+    }
+
+    function undoLastStamp() {
+      var prev = currentLineIndex - 1;
+      while (prev >= 0 && lineObjects[prev].isBlank) {
+        prev--;
       }
+      if (prev < 0) return;
+      var prevSecs = parseLrcTimeToSecs(lineObjects[prev].timestamp);
+      lineObjects[prev].timestamp = "";
+      currentLineIndex = prev;
+      if (prevSecs !== null && syncAudio) {
+        syncAudio.currentTime = Math.max(0, prevSecs - 1.5);
+        if (timerEl) timerEl.textContent = formatLrcTime(syncAudio.currentTime);
+        if (seekBar) seekBar.value = String(syncAudio.currentTime);
+      }
+      refreshLinesUI(currentLineIndex);
     }
 
     if (stampBtn) stampBtn.onclick = stampCurrentLine;
+    if (undoBtn) undoBtn.onclick = undoLastStamp;
+
+    if (linesContainer) {
+      linesContainer.addEventListener("click", function(e) {
+        var clearBtn = e.target.closest("[data-clear-idx]");
+        if (clearBtn) {
+          e.stopPropagation();
+          var cIdx = parseInt(clearBtn.getAttribute("data-clear-idx"), 10);
+          if (!isNaN(cIdx) && lineObjects[cIdx]) {
+            lineObjects[cIdx].timestamp = "";
+            currentLineIndex = cIdx;
+            refreshLinesUI(cIdx);
+          }
+          return;
+        }
+        var nudgeBtn = e.target.closest("[data-nudge-idx]");
+        if (nudgeBtn) {
+          e.stopPropagation();
+          var nIdx = parseInt(nudgeBtn.getAttribute("data-nudge-idx"), 10);
+          var delta = parseFloat(nudgeBtn.getAttribute("data-delta")) || 0;
+          if (!isNaN(nIdx) && lineObjects[nIdx] && lineObjects[nIdx].timestamp) {
+            var curS = parseLrcTimeToSecs(lineObjects[nIdx].timestamp);
+            if (curS !== null) {
+              lineObjects[nIdx].timestamp = formatLrcTime(Math.max(0, curS + delta));
+              refreshLinesUI(nIdx);
+            }
+          }
+          return;
+        }
+        var seekPill = e.target.closest("[data-seek-idx]");
+        if (seekPill) {
+          var sIdx = parseInt(seekPill.getAttribute("data-seek-idx"), 10);
+          if (!isNaN(sIdx) && lineObjects[sIdx] && lineObjects[sIdx].timestamp) {
+            e.stopPropagation();
+            var tSecs = parseLrcTimeToSecs(lineObjects[sIdx].timestamp);
+            if (tSecs !== null && syncAudio) {
+              syncAudio.currentTime = Math.max(0, tSecs - 1.5);
+              if (timerEl) timerEl.textContent = formatLrcTime(syncAudio.currentTime);
+              if (seekBar) seekBar.value = String(syncAudio.currentTime);
+            }
+            currentLineIndex = sIdx;
+            refreshLinesUI(sIdx);
+            return;
+          }
+        }
+        var row = e.target.closest("[data-sync-idx]");
+        if (row) {
+          var rIdx = parseInt(row.getAttribute("data-sync-idx"), 10);
+          if (!isNaN(rIdx) && lineObjects[rIdx] && !lineObjects[rIdx].isBlank) {
+            currentLineIndex = rIdx;
+            refreshLinesUI(rIdx);
+          }
+        }
+      });
+    }
 
     function handleKeyDown(e) {
       if (e.code === "Space") {
         e.preventDefault();
         stampCurrentLine();
+      } else if (e.code === "Backspace" || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z")) {
+        e.preventDefault();
+        undoLastStamp();
+      } else if (e.code === "ArrowLeft") {
+        e.preventDefault();
+        seekRelative(-3);
+      } else if (e.code === "ArrowRight") {
+        e.preventDefault();
+        seekRelative(3);
       }
     }
     window.addEventListener("keydown", handleKeyDown);

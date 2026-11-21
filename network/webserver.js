@@ -39,6 +39,68 @@ function vvWebServer() {
   // The IP selected in Settings is display-only (shown in status URLs).
   let displayHost = "";
 
+  // Shared in-memory chat store for Desktop <-> Android Speaker Remote
+  const MAX_CHAT_MESSAGES = 100;
+  let chatMessages = [];
+  let chatNextId = 1;
+
+  function getLatestChatId() {
+    return chatMessages.length > 0 ? chatMessages[chatMessages.length - 1].id : 0;
+  }
+
+  function addChatMessage(payload) {
+    const rawText = payload && typeof payload.text === "string" ? payload.text.trim() : "";
+    if (!rawText) return null;
+    const text = rawText.slice(0, 500);
+    const sender = (payload && payload.sender === "desktop") ? "desktop" : "remote";
+    const defaultName = sender === "desktop" ? "Operator" : "Speaker";
+    const senderName = (payload && typeof payload.senderName === "string" && payload.senderName.trim())
+      ? payload.senderName.trim().slice(0, 40)
+      : defaultName;
+    const msg = {
+      id: chatNextId++,
+      sender: sender,
+      senderName: senderName,
+      text: text,
+      timestamp: Date.now()
+    };
+    chatMessages.push(msg);
+    if (chatMessages.length > MAX_CHAT_MESSAGES) {
+      chatMessages = chatMessages.slice(chatMessages.length - MAX_CHAT_MESSAGES);
+    }
+    try {
+      if (typeof window !== "undefined" && window.desktopChat && typeof window.desktopChat.onMessageReceived === "function") {
+        window.desktopChat.onMessageReceived(msg);
+      }
+    } catch (e) {}
+    return msg;
+  }
+
+  function getChatMessages(sinceId) {
+    const since = Number(sinceId) || 0;
+    const list = since > 0 ? chatMessages.filter(m => m.id > since) : chatMessages.slice();
+    return { messages: list, latestId: getLatestChatId() };
+  }
+
+  function clearChatMessages() {
+    chatMessages = [];
+    try {
+      if (typeof window !== "undefined" && window.desktopChat && typeof window.desktopChat.onCleared === "function") {
+        window.desktopChat.onCleared();
+      }
+    } catch (e) {}
+    return { ok: true, latestId: 0 };
+  }
+
+  if (typeof window !== "undefined") {
+    window.remoteChatApi = {
+      addMessage: addChatMessage,
+      getMessages: getChatMessages,
+      clearMessages: clearChatMessages,
+      getLatestId: getLatestChatId
+    };
+  }
+
   // mDNS advertisement (_uecfi-presenter._tcp) for Android auto-discovery.
   // Best-effort: any failure only logs, the HTTP servers keep working.
   const MDNS_SERVICE_TYPE = "uecfi-presenter";
@@ -321,6 +383,45 @@ function vvWebServer() {
 
           if (urlPath === "/api/buttons") {
             sendJson(res, getCustomButtons());
+            return;
+          }
+
+          if (urlPath === "/api/chat") {
+            if (req.method === "POST") {
+              let body = "";
+              req.on("data", chunk => {
+                body += chunk;
+                if (body.length > 16384) {
+                  try { req.destroy(); } catch (e) {}
+                }
+              });
+              req.on("end", () => {
+                try {
+                  const parsed = JSON.parse(body || "{}");
+                  const msg = addChatMessage({
+                    sender: parsed.sender === "desktop" ? "desktop" : "remote",
+                    senderName: parsed.senderName,
+                    text: parsed.text
+                  });
+                  if (!msg) {
+                    res.writeHead(400, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+                    res.end(JSON.stringify({ ok: false, error: "Empty message" }));
+                    return;
+                  }
+                  sendJson(res, { ok: true, message: msg, latestId: getLatestChatId() });
+                } catch (e) {
+                  res.writeHead(400, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+                  res.end(JSON.stringify({ ok: false, error: "Invalid JSON" }));
+                }
+              });
+              return;
+            }
+            sendJson(res, getChatMessages(qs(reqUrl, "since")));
+            return;
+          }
+
+          if (urlPath === "/api/chat/clear" && req.method === "POST") {
+            sendJson(res, clearChatMessages());
             return;
           }
 
@@ -1021,7 +1122,8 @@ function vvWebServer() {
         })(),
         bibleDisplayMode: bibleDisplayMode,
         speakerLowerThird: (typeof window !== "undefined" && window.p_speaker_lower_third) ? window.p_speaker_lower_third : null,
-        timerState: (typeof window !== "undefined" && window.timerManager && typeof window.timerManager.getState === "function") ? window.timerManager.getState() : null
+        timerState: (typeof window !== "undefined" && window.timerManager && typeof window.timerManager.getState === "function") ? window.timerManager.getState() : null,
+        chatLatestId: (role === "presenter") ? getLatestChatId() : 0
       };
     } catch (e) {
       return { live: false };

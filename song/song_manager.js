@@ -349,8 +349,8 @@ function songManagerClass() {
       }
     }
 
-    var insertSql = "INSERT INTO sm (name, cat, font, bkgndfname, key, copy, notes, lyrics) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-    var updateSql = "UPDATE sm SET name=?, cat=?, font=?, bkgndfname=?, key=?, copy=?, notes=?, lyrics=? WHERE id=?";
+    var insertSql = "INSERT INTO sm (name, cat, font, bkgndfname, key, copy, notes, lyrics, audio) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    var updateSql = "UPDATE sm SET name=?, cat=?, font=?, bkgndfname=?, key=?, copy=?, notes=?, lyrics=?, audio=? WHERE id=?";
     var lastInsertedId = 0;
 
     var inTx = false;
@@ -380,23 +380,24 @@ function songManagerClass() {
         var notes = String(item.notes || "").trim();
         var rawLyrics = item.lyrics != null ? item.lyrics : (item.slides || "");
         var lyrics = Array.isArray(rawLyrics) ? joinSlides(rawLyrics) : normalizeLyricsString(rawLyrics);
+        var audio = String(item.audio != null ? item.audio : "").trim();
 
         var lookupKey = name.toLowerCase();
         var preExisting = existingByName[lookupKey];
 
         if (preExisting) {
           var existingLyricsNorm = normalizeLyricsString(preExisting.lyrics || "");
-          if (existingLyricsNorm === lyrics && String(preExisting.cat || "") === cat) {
+          if (existingLyricsNorm === lyrics && String(preExisting.cat || "") === cat && String(preExisting.audio || "") === audio) {
             stats.skipped++;
             continue;
           }
-          AppDB.runSync(dbConn, updateSql, [name, cat, font, bkgnd, key, copy, notes, lyrics, preExisting.id]);
+          AppDB.runSync(dbConn, updateSql, [name, cat, font, bkgnd, key, copy, notes, lyrics, audio, preExisting.id]);
           lastInsertedId = preExisting.id;
           // Remove from preExisting map so if the import file itself has a second song with the same title (e.g. SPEAKER), both are kept
           delete existingByName[lookupKey];
           stats.updated++;
         } else {
-          var runRes = AppDB.runSync(dbConn, insertSql, [name, cat, font, bkgnd, key, copy, notes, lyrics]);
+          var runRes = AppDB.runSync(dbConn, insertSql, [name, cat, font, bkgnd, key, copy, notes, lyrics, audio]);
           if (runRes && runRes.lastInsertRowid) {
             lastInsertedId = Number(runRes.lastInsertRowid);
           }

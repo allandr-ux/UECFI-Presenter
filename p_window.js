@@ -209,9 +209,13 @@ function presentWindowClosed() {
     updateSongSlideHighlight();
   }
   window.liveReadingState = null;
+  window.presentedReadingId = null;
   window.presentedReadingSlideIdx = -1;
   if (typeof window.updateReadingSlideHighlight === "function") {
     window.updateReadingSlideHighlight();
+  }
+  if (typeof window.updateReadingListHighlight === "function") {
+    window.updateReadingListHighlight();
   }
   if (typeof updateSongListHighlight === "function") {
     updateSongListHighlight();

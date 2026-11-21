@@ -26,6 +26,7 @@
     <script type="text/javascript" src="setup.js"></script>
     <script type="text/javascript" src="network/webserver.js"></script>
     <script type="text/javascript" src="network/support.js"></script>
+    <script type="text/javascript" src="network/chat.js"></script>
     <script type="text/javascript" src="song/song_edit.js"></script>
     <script type="text/javascript" src="song/song_nav.js"></script>
     <script type="text/javascript" src="song/song_manager.js"></script>
@@ -247,6 +248,13 @@
                 <i class="fa-solid fa-stopwatch text-indigo-600"></i>
                 <span id="txtToolbarTimer">Timers</span>
                 <span id="timerActiveBadge" class="hidden px-1.5 py-0.2 bg-indigo-600 text-white rounded-full text-[10px] font-black leading-tight">LIVE</span>
+            </button>
+
+            <!-- Remote Speaker Chat Button -->
+            <button id="btnToolbarChat" onclick="if(window.desktopChat) window.desktopChat.toggle();" class="px-2.5 py-1.5 text-xs font-bold text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 rounded-lg transition flex items-center gap-1.5 cursor-pointer shadow-xs" title="Chat with Android Speaker Remote">
+                <i class="fa-solid fa-comments text-cyan-600"></i>
+                <span>Chat</span>
+                <span id="chatUnreadBadge" class="hidden px-1.5 py-0.2 bg-rose-600 text-white rounded-full text-[10px] font-black leading-tight">0</span>
             </button>
 
             <div class="h-6 w-[1px] bg-slate-200 mx-1"></div>
@@ -1008,6 +1016,35 @@
         </button>
       </div>
 
+    </div>
+  </div>
+
+  <!-- Docked Desktop <-> Android Remote Chat Drawer -->
+  <div id="desktopChatDrawer" style="display:none; position:fixed; bottom:0; right:16px; width:340px; height:420px; max-height:75vh; z-index:9990; border-radius:16px 16px 0 0; flex-direction:column;" class="bg-white shadow-2xl border border-b-0 border-slate-200 overflow-hidden">
+    <div class="px-3.5 py-2.5 bg-slate-900 text-white flex items-center justify-between shrink-0">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-comments text-cyan-400 text-sm"></i>
+        <span class="text-xs font-bold tracking-wide">Remote Chat</span>
+        <span id="desktopChatNewPill" style="display:none; background:#06b6d4; color:#0f172a; font-size:10px; font-weight:800; padding:1px 6px; border-radius:9999px; letter-spacing:0.03em;">NEW</span>
+      </div>
+      <div class="flex items-center gap-1">
+        <button type="button" onclick="if(window.desktopChat) window.desktopChat.clear();" class="px-2 py-1 text-[10px] font-semibold text-slate-300 hover:text-white hover:bg-slate-800 rounded transition cursor-pointer" title="Clear chat history">Clear</button>
+        <button type="button" onclick="if(window.desktopChat) window.desktopChat.toggle(false);" class="p-1 text-slate-300 hover:text-white hover:bg-slate-800 rounded transition cursor-pointer" title="Close chat"><i class="fa-solid fa-xmark text-xs"></i></button>
+      </div>
+    </div>
+
+    <div id="desktopChatMessages" class="flex-1 overflow-y-auto p-3 bg-slate-50/70"></div>
+
+    <div class="px-2.5 py-1.5 bg-white border-t border-slate-100 flex items-center gap-1 overflow-x-auto shrink-0">
+      <button type="button" onclick="if(window.desktopChat) window.desktopChat.send('Ready');" class="px-2 py-0.5 text-[10px] font-semibold bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 rounded-full border border-slate-200 shrink-0 cursor-pointer">Ready</button>
+      <button type="button" onclick="if(window.desktopChat) window.desktopChat.send('Stand by');" class="px-2 py-0.5 text-[10px] font-semibold bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 rounded-full border border-slate-200 shrink-0 cursor-pointer">Stand by</button>
+      <button type="button" onclick="if(window.desktopChat) window.desktopChat.send('Mic check');" class="px-2 py-0.5 text-[10px] font-semibold bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 rounded-full border border-slate-200 shrink-0 cursor-pointer">Mic check</button>
+      <button type="button" onclick="if(window.desktopChat) window.desktopChat.send('Time check');" class="px-2 py-0.5 text-[10px] font-semibold bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 rounded-full border border-slate-200 shrink-0 cursor-pointer">Time check</button>
+    </div>
+
+    <div class="p-2.5 bg-white border-t border-slate-200 flex items-center gap-2 shrink-0">
+      <input id="desktopChatInput" type="text" maxlength="500" placeholder="Message Android remote..." class="flex-1 text-xs px-3 py-1.5 rounded-xl border border-slate-300 focus:outline-none focus:border-blue-500" onkeydown="if(event.key==='Enter'){event.preventDefault(); if(window.desktopChat) window.desktopChat.send();}">
+      <button type="button" onclick="if(window.desktopChat) window.desktopChat.send();" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition cursor-pointer shrink-0">Send</button>
     </div>
   </div>
 

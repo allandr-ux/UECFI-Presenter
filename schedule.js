@@ -7,6 +7,7 @@
 function schedule() {
   this.init = N;
   this.processAddSong = l;
+  this.processAddReading = addReadingToSchedule;
   this.processAddVerse = M;
   this.getScheduleText = j;
   this.processRemotePresent = O;
@@ -105,9 +106,10 @@ function schedule() {
   function C(isSong, book, ch, ver, songID, sch_order) {
     w(`Adding Record ${book} ${ch} ${ver} ${sch_order} ${isSong} ${songID}`);
     try {
+      const kindVal = (typeof isSong === "number") ? isSong : (isSong ? 1 : 0);
       uDb.run(
         "INSERT INTO sch (isSong, book, ch, ver, songID, sch_order) VALUES (?, ?, ?, ?, ?, ?)",
-        [isSong ? 1 : 0, book, ch, ver, songID, sch_order]
+        [kindVal, book, ch, ver, songID, sch_order]
       );
       w("Inserted into schedule DB successfully...");
       a();
@@ -255,6 +257,40 @@ function schedule() {
       document.getElementById("sch_verseTextID").innerHTML = ac;
       const textDiv = document.getElementById("scheduleTextDIV");
       if (textDiv) textDiv.addEventListener("click", t, false);
+    } else if (Number(p.data[R].isSong) === 2) {
+      const ab = p.data[R].songID;
+      const X = (typeof readingManagerObj !== "undefined" && readingManagerObj)
+        ? readingManagerObj.getReadingObjWithID(ab)
+        : null;
+      if (X != null) {
+        const readingPrimaryFont = (typeof window !== "undefined" && window.themeManager && typeof window.themeManager.resolveProjectionStyle === "function")
+          ? window.themeManager.resolveProjectionStyle("readings").primaryFont
+          : "sans-serif";
+        const Z = X.slides ? X.slides.length : 0;
+        if (typeEl) typeEl.textContent = "Reading";
+        ac = `${ac}<div class="mb-3 flex items-center justify-between gap-2">`;
+        ac = `${ac}<span class="text-[15px] font-bold text-slate-900 truncate">${X.name}</span>`;
+        ac = `${ac}<span class="shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100 rounded-full px-2 py-0.5">${Z} slide${Z !== 1 ? "s" : ""}</span></div>`;
+        ac = `${ac}<div class="space-y-3">`;
+        for (let W = 0; W < Z; W++) {
+          ac = `${ac}<div id="schlyricsID${W}" class="rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2"></div>`;
+        }
+        ac = `${ac}</div>`;
+        document.getElementById("sch_verseTextID").innerHTML = ac;
+        for (let W = 0; W < Z; W++) {
+          const U = `schlyricsID${W}`;
+          const el = document.getElementById(U);
+          if (el) el.style.fontFamily = readingPrimaryFont || "sans-serif";
+          if (typeof readingSlidesClass !== "undefined") {
+            const lyr = new readingSlidesClass();
+            lyr.init(X, U, W);
+          }
+        }
+        if (typeof window.updateScheduleSlideHighlight === "function") window.updateScheduleSlideHighlight();
+      } else {
+        alert("Reading Deleted from Readings Database");
+        x();
+      }
     } else {
       const ab = p.data[R].songID;
       const X = songManagerObj.getSongObjWithID(ab);
@@ -314,6 +350,21 @@ function schedule() {
     return 0;
   }
 
+  function addReadingToSchedule(R) {
+    w(`Add Reading with ID ${R}`);
+    try {
+      const existing = uDb.getSync("SELECT schId FROM sch WHERE isSong = 2 AND songID = ?", [R]);
+      if (existing && existing.schId) {
+        w("Reading already in schedule, skipping.");
+        a();
+        return false;
+      }
+    } catch (e) {}
+    const S = e();
+    C(2, 0, 0, 0, R, S);
+    return true;
+  }
+
   function l(R) {
     w(`Add Song with ID ${R}`);
     // Prevent duplicates: same song already scheduled
@@ -361,7 +412,7 @@ function schedule() {
       const pid = (typeof window.presentedScheduleId !== "undefined" && window.presentedScheduleId !== null) ? String(window.presentedScheduleId) : null;
       if (pid === null || !p || !p.data || !p.data[G]) return;
       const row = p.data[G];
-      if (!(row.isSong == true) || String(row.schId) !== pid) return;
+      if (!(Number(row.isSong) === 1 || Number(row.isSong) === 2) || String(row.schId) !== pid) return;
       const idx = (typeof window.presentedSlideIdx === "number" && window.presentedSlideIdx >= 0) ? window.presentedSlideIdx : 0;
       const el = document.getElementById(`schlyricsID${idx}`);
       if (el) el.classList.add("sch-slide-presented");
@@ -375,6 +426,10 @@ function schedule() {
       // chapter/verse display is 1-based. bibleBook was a legacy undefined global.
       const bookName = (typeof booknames !== "undefined" && booknames[V]) ? booknames[V] : `Book ${V + 1}`;
       W = `${bookName} ${U + 1}:${R + 1}`;
+    } else if (Number(S) === 2) {
+      if (typeof readingManagerObj === "undefined" || !readingManagerObj) return "[R] Reading";
+      const reading = readingManagerObj.getReadingObjWithID(T);
+      W = reading ? `[R] ${reading.name}` : "[R] Unknown Reading";
     } else {
       // songManagerObj isn't ready on the very first render (it initializes
       // after schedule); the guarded re-init refreshes labels once it is.
@@ -446,6 +501,16 @@ function schedule() {
         if (vSel) vSel.selectedIndex = R.ver;
         if (typeof present === "function") present();
       }
+    } else if (Number(R.isSong) === 2) {
+      const S = (typeof readingManagerObj !== "undefined" && readingManagerObj)
+        ? readingManagerObj.getReadingObjWithID(R.songID)
+        : null;
+      if (S && typeof readingPresentObj !== "undefined") {
+        const pres = new readingPresentObj();
+        pres.init(S);
+        pres.present(0);
+        window.presentedSlideIdx = 0;
+      }
     } else {
       const S = songManagerObj.getSongObjWithID(R.songID);
       if (S) {
@@ -472,6 +537,15 @@ function schedule() {
         chapterIndex = S.ch;
         verseIndex = S.ver;
         if (typeof present === "function") present();
+      }
+    } else if (Number(S.isSong) === 2) {
+      const T = (typeof readingManagerObj !== "undefined" && readingManagerObj)
+        ? readingManagerObj.getReadingObjWithID(S.songID)
+        : null;
+      if (T && typeof readingPresentObj !== "undefined") {
+        const pres = new readingPresentObj();
+        pres.init(T);
+        pres.present(0);
       }
     } else {
       const T = songManagerObj.getSongObjWithID(S.songID);

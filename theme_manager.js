@@ -51,10 +51,16 @@ class ThemeManager {
         text2: "",
         footnote: "Himnario #1"
       },
+      readings: {
+        title: "Mga Pangunahing Aral",
+        text1: "• Sumasampalataya kami sa iisang Dios na Lumikha ng lahat ng bagay.",
+        text2: "",
+        footnote: "Doctrines"
+      },
       tema: {
         title: "(Tema)",
         text1: "\"Ang Matibay na Pananampalataya sa Panahon ng Pagsubok\"",
-        text2: "Batayan: Santiago 1:2-4; 1 Pedro 1:6-7",
+        text2: "Santiago 1:2-4; 1 Pedro 1:6-7",
         footnote: ""
       },
       person: {
@@ -80,6 +86,7 @@ class ThemeManager {
   getActiveTargetKey() {
     if (this.activeCategory === "verses") return "verses";
     if (this.activeCategory === "songs") return "songs";
+    if (this.activeCategory === "readings") return "readings";
     if (this.activeCategory === "program") {
       if (this.activeProgramSubTab === "person") return "program_person";
       if (this.activeProgramSubTab === "general") return "program_general";
@@ -90,7 +97,7 @@ class ThemeManager {
 
   // Fallback defaults for a style bundle
   getDefaultStyleBundle(type) {
-    if (type === "songs") {
+    if (type === "songs" || type === "readings") {
       return {
         backgroundType: "image",
         bgGradient: "linear-gradient(135deg, #090d16 0%, #1e1b4b 50%, #0f172a 100%)",
@@ -104,6 +111,9 @@ class ThemeManager {
         primaryWeight: "bold",
         alternateLineColorEnabled: true,
         alternateLineColor: "#FDE68A",
+        bulletColor: "#FBBF24",
+        bulletSymbol: "•",
+        bulletScale: 1.2,
         syncActiveColor: "#F59E0B",
         syncInactiveColor: "#94A3B8",
         syncActiveOutlineEnabled: false,
@@ -535,7 +545,7 @@ class ThemeManager {
       if (this.currentTheme) allThemes.push(this.currentTheme);
       (this.themes || []).forEach(t => { if (!allThemes.includes(t)) allThemes.push(t); });
       allThemes.forEach(th => {
-        ["verses", "songs", "program_tema", "program_person", "program_general"].forEach(cat => {
+        ["verses", "songs", "readings", "program_tema", "program_person", "program_general"].forEach(cat => {
           const style = th.styles ? th.styles[cat] : null;
           if (style && style.bgImage && String(style.bgImage).toLowerCase() === String(file).toLowerCase()) {
             style.bgImage = "UECFI.png";
@@ -961,6 +971,7 @@ class ThemeManager {
           th.styles = {
             verses: this.getDefaultStyleBundle("verses"),
             songs: this.getDefaultStyleBundle("songs"),
+            readings: this.getDefaultStyleBundle("readings"),
             program_tema: this.getDefaultStyleBundle("program_tema"),
             program_person: this.getDefaultStyleBundle("program_person"),
             program_general: this.getDefaultStyleBundle("program_general")
@@ -993,7 +1004,7 @@ class ThemeManager {
           }
         }
         // Fill missing category bundles and backfill any missing properties (e.g., headerWeight, headerAlign, footnoteWeight)
-        ["verses", "songs", "program_tema", "program_person", "program_general"].forEach(cat => {
+        ["verses", "songs", "readings", "program_tema", "program_person", "program_general"].forEach(cat => {
           const defaults = this.getDefaultStyleBundle(cat);
           if (!th.styles[cat]) {
             th.styles[cat] = defaults;
@@ -1104,7 +1115,7 @@ class ThemeManager {
   }
 
   selectSlideTarget(target) {
-    if (target === "verses" || target === "songs") {
+    if (target === "verses" || target === "songs" || target === "readings") {
       this.activeCategory = target;
     } else {
       this.activeCategory = "program";
@@ -1112,7 +1123,7 @@ class ThemeManager {
     }
     const hasDivider = (target === "verses" || target === "tema" || target === "person");
     const hasSecondary = (target === "verses" || target === "tema" || target === "person");
-    const hasFootnote = (target === "verses" || target === "songs");
+    const hasFootnote = (target === "verses" || target === "songs" || target === "readings");
     const hasPersonTitle = (target === "person");
     if ((this.selectedElement === "divider" && !hasDivider) ||
         (this.selectedElement === "secondary" && !hasSecondary) ||
@@ -1324,6 +1335,7 @@ class ThemeManager {
     const style = this.getActiveStyle();
     const catVersesActive = (this.activeCategory === "verses");
     const catSongsActive = (this.activeCategory === "songs");
+    const catReadingsActive = (this.activeCategory === "readings");
     const catProgramActive = (this.activeCategory === "program");
 
     container.innerHTML = `
@@ -1339,6 +1351,10 @@ class ThemeManager {
             <button type="button" onclick="themeManager.selectSlideTarget('songs')"
                     class="px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer ${catSongsActive ? 'bg-white shadow-xs text-brand-700' : 'text-slate-600 hover:text-slate-900'}">
               <i class="fa-solid fa-music"></i> Songs
+            </button>
+            <button type="button" onclick="themeManager.selectSlideTarget('readings')"
+                    class="px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer ${catReadingsActive ? 'bg-white shadow-xs text-brand-700' : 'text-slate-600 hover:text-slate-900'}">
+              <i class="fa-solid fa-book-open"></i> Readings
             </button>
             <button type="button" onclick="themeManager.selectSlideTarget('tema')"
                     class="px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer ${(catProgramActive && this.activeProgramSubTab === 'tema') ? 'bg-white shadow-xs text-brand-700' : 'text-slate-600 hover:text-slate-900'}">
@@ -1732,6 +1748,21 @@ class ThemeManager {
             <input type="color" value="${style.syncActiveColor || '#fde047'}" title="Audio Sync Active Color" oninput="themeManager.setStyleField('syncActiveColor', this.value)" class="w-6 h-6 rounded border border-slate-200 cursor-pointer p-0.5">
           </div>
         ` : ""}
+        ${(isPrimary && this.activeCategory === "readings") ? `
+          <div class="flex items-center gap-1.5 pl-2 border-l border-slate-200">
+            <span class="text-[11px] font-semibold text-slate-500">Bullet</span>
+            <select onchange="themeManager.setStyleField('bulletSymbol', this.value)" title="Reading List Bullet Symbol" class="px-1.5 py-0.5 bg-slate-100 rounded border border-slate-200 text-xs font-bold text-slate-700 cursor-pointer">
+              <option value="•" ${(style.bulletSymbol || '•') === '•' ? 'selected' : ''}>•</option>
+              <option value="▸" ${style.bulletSymbol === '▸' ? 'selected' : ''}>▸</option>
+              <option value="◆" ${style.bulletSymbol === '◆' ? 'selected' : ''}>◆</option>
+              <option value="✓" ${style.bulletSymbol === '✓' ? 'selected' : ''}>✓</option>
+              <option value="★" ${style.bulletSymbol === '★' ? 'selected' : ''}>★</option>
+              <option value="–" ${style.bulletSymbol === '–' ? 'selected' : ''}>–</option>
+            </select>
+            <input type="color" value="${style.bulletColor || '#FBBF24'}" title="Bullet Color" oninput="themeManager.setStyleField('bulletColor', this.value)" class="w-6 h-6 rounded border border-slate-200 cursor-pointer p-0.5">
+            <input type="range" min="0.8" max="1.8" step="0.1" value="${style.bulletScale || 1.2}" title="Bullet Size" oninput="themeManager.setStyleField('bulletScale', parseFloat(this.value))" class="w-12 accent-brand-600 cursor-pointer">
+          </div>
+        ` : ""}
       </div>
     `;
   }
@@ -2046,6 +2077,29 @@ class ThemeManager {
         }
       }
 
+      if (this.activeCategory === "readings" && typeof document !== "undefined") {
+        const nameEl = document.getElementById("rd_name");
+        if (nameEl && nameEl.innerText && nameEl.innerText.trim() && nameEl.innerText.trim() !== "No Reading Selected") {
+          let firstSlide = "";
+          const slideHost = document.getElementById("rd_slide");
+          if (slideHost) {
+            const firstLink = slideHost.querySelector("div a") || slideHost.querySelector("div");
+            if (firstLink && firstLink.innerHTML) {
+              firstSlide = firstLink.innerHTML.trim();
+            } else if (firstLink && firstLink.innerText) {
+              firstSlide = firstLink.innerText.trim().replace(/\r?\n/g, "<BR>");
+            }
+          }
+          const notesEl = document.getElementById("rd_notes");
+          return {
+            title: nameEl.innerText.trim(),
+            text1: firstSlide || String(fallback.text1 || "").replace(/\r?\n/g, "<BR>"),
+            text2: "",
+            footnote: (notesEl && notesEl.innerText.trim() !== "None") ? notesEl.innerText.trim() : ""
+          };
+        }
+      }
+
       // Program: mirror executePresentation() for the selected item
       if (this.activeCategory === "program" && typeof window !== "undefined" && window.programManager) {
         const pm = window.programManager;
@@ -2284,6 +2338,8 @@ class ThemeManager {
     verses: "verses",
     songs: "songs",
     song: "songs",
+    readings: "readings",
+    reading: "readings",
     scripture: "verses",
     program_scripture: "verses",
     tema: "program_tema",
@@ -2366,6 +2422,9 @@ class ThemeManager {
     if (canonical === "songs") {
       return theme.styles.songs || this.getDefaultStyleBundle("songs");
     }
+    if (canonical === "readings") {
+      return theme.styles.readings || this.getDefaultStyleBundle("readings");
+    }
     if (canonical === "program_tema") {
       return theme.styles.program_tema || this.getDefaultStyleBundle("program_tema");
     }
@@ -2388,6 +2447,7 @@ class ThemeManager {
     if (!context) {
       // Use active category/subtab as context
       if (this.activeCategory === "songs") context = "songs";
+      else if (this.activeCategory === "readings") context = "readings";
       else if (this.activeCategory === "program") context = this.activeProgramSubTab;
       else context = "verses";
     }
@@ -2860,7 +2920,28 @@ class ThemeManager {
 // Canonical examples: "verses", "songs", "scripture", "tema", "person", "general".
 function setLiveProjectionType(type) {
   try {
-    window.liveProjectionType = type || null;
+    const prevType = window.liveProjectionType || null;
+    const nextType = type || null;
+    window.liveProjectionType = nextType;
+
+    // Clear stale Songs tab live state/highlights when replaced by any non-Songs projection
+    if (prevType === "songs" && nextType !== "songs") {
+      window.presentedSongIdx = -1;
+      window.presentedSlideIdx = -1;
+      window.liveSongState = null;
+      if (typeof window.updateSongSlideHighlight === "function") window.updateSongSlideHighlight();
+      if (typeof window.updateSongListHighlight === "function") window.updateSongListHighlight();
+    }
+
+    // Clear stale Readings tab live state/highlights when replaced by any non-Readings projection
+    if (prevType === "readings" && nextType !== "readings") {
+      window.presentedReadingId = null;
+      window.presentedReadingSlideIdx = -1;
+      window.liveReadingState = null;
+      if (typeof window.updateReadingSlideHighlight === "function") window.updateReadingSlideHighlight();
+      if (typeof window.updateReadingListHighlight === "function") window.updateReadingListHighlight();
+    }
+
     if (window.themeManager && typeof window.themeManager.updateRefreshButtonState === "function") {
       window.themeManager.updateRefreshButtonState();
     }

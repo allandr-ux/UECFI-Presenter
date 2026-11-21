@@ -223,10 +223,46 @@ function readingManagerClass() {
   }
 
   function splitSlides(raw) {
-    if (!raw) return [""];
-    return String(raw).split(/<slide>/gi).map(function(s) {
-      return s.trim();
+    if (!raw || !String(raw).trim()) return [""];
+    var str = String(raw).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    var blocks = /<slide>/i.test(str)
+      ? str.split(/<slide>/gi)
+      : str.split(/\n\s*\n+/);
+    var listRe = /^\s*(?:([-*•])|(\d+[.)]|[a-zA-Z][.)]))\s+(.+)$/;
+    var slides = [];
+
+    blocks.forEach(function(block) {
+      var trimmedBlock = block.trim();
+      if (!trimmedBlock) return;
+      var lines = trimmedBlock.split("\n");
+      var hasList = lines.some(function(l) { return listRe.test(l); });
+      if (!hasList) {
+        slides.push(trimmedBlock);
+        return;
+      }
+      var buf = [];
+      lines.forEach(function(line) {
+        var m = line.match(listRe);
+        if (m) {
+          if (buf.length > 0) {
+            slides.push(buf.join("\n").trim());
+            buf = [];
+          }
+          var marker = m[1] ? "•" : m[2];
+          buf.push(marker + " " + m[3].trim());
+        } else if (line.trim()) {
+          buf.push(line.trim());
+        }
+      });
+      if (buf.length > 0) {
+        slides.push(buf.join("\n").trim());
+      }
     });
+
+    return slides.length > 0 ? slides : [""];
+  }
+  if (typeof window !== "undefined") {
+    window.splitReadingSlides = splitSlides;
   }
 
   function sortRowsCaseInsensitive(rows) {

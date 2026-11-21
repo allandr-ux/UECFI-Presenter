@@ -178,22 +178,88 @@ function readingNavClass() {
       return;
     }
 
-    filtered.forEach(function(item, idx) {
-      var isSelected = selectedReading && selectedReading.id === item.id;
-      var card = document.createElement("div");
-      card.className = "p-2.5 rounded-lg border cursor-pointer transition text-xs " +
-        (isSelected
-          ? "bg-brand-50/80 border-brand-500 shadow-xs font-bold text-brand-900"
-          : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-800");
+    filtered.forEach(function(item) {
+      var isLiveReading = Boolean(
+        typeof window !== "undefined" &&
+        window.presentWindowOpen &&
+        window.liveProjectionType === "readings" &&
+        window.presentedReadingId != null &&
+        String(window.presentedReadingId) === String(item.id)
+      );
+      var isSelected = selectedReading && String(selectedReading.id) === String(item.id);
+      var classes = "bg-slate-50 border-slate-200 hover:border-brand-500 hover:shadow-sm text-slate-800";
+      if (isLiveReading) {
+        classes = "song-presented";
+      } else if (isSelected) {
+        classes = "song-selected";
+      }
 
-      card.innerHTML = '<div class="flex items-center justify-between gap-1.5">' +
-        '<span class="truncate font-semibold">' + (item.name || "Untitled") + '</span>' +
-        '<span class="shrink-0 text-[10px] text-slate-400 uppercase tracking-wider bg-slate-100 px-1.5 py-0.5 rounded">' + (item.cat || "") + '</span>' +
-      '</div>';
+      var card = document.createElement("div");
+      card.id = "readingRow_" + item.id;
+      card.dataset.readingId = String(item.id);
+      card.className = "p-2.5 border rounded-lg cursor-pointer transition " + classes;
+
+      var safeTitle = String(item.name || "Untitled")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+
+      card.innerHTML =
+        '<div class="flex items-center justify-between gap-1">' +
+          '<div class="flex-1 min-w-0">' +
+            '<p class="text-xs font-bold leading-snug truncate flex items-center">' +
+              '<span class="truncate">' + safeTitle + '</span>' +
+            '</p>' +
+          '</div>' +
+          (isLiveReading ? '<span class="px-1.5 py-0.2 rounded-full bg-emerald-600 text-white text-[9px] font-bold uppercase tracking-wider shrink-0">LIVE</span>' : '') +
+          '<div class="flex items-center gap-1 opacity-90 shrink-0 text-[10px]">' +
+            '<div class="has-tooltip"><button type="button" data-action="present" class="p-1 hover:bg-black/10 text-emerald-600 hover:text-emerald-700 rounded transition"><i class="fa-solid fa-play"></i></button><div class="tooltip-content tooltip-bottom">Present Reading</div></div>' +
+            '<div class="has-tooltip"><button type="button" data-action="schedule" class="p-1 hover:bg-black/10 text-brand-600 hover:text-brand-700 rounded transition"><i class="fa-regular fa-calendar-plus"></i></button><div class="tooltip-content tooltip-bottom">Add Reading to Schedule</div></div>' +
+            '<div class="has-tooltip"><button type="button" data-action="edit" class="p-1 hover:bg-black/10 text-slate-600 hover:text-slate-900 rounded transition"><i class="fa-solid fa-pen-to-square"></i></button><div class="tooltip-content tooltip-bottom">Edit Reading</div></div>' +
+            '<div class="has-tooltip"><button type="button" data-action="delete" class="p-1 hover:bg-red-500/20 text-red-500 rounded transition"><i class="fa-regular fa-trash-can"></i></button><div class="tooltip-content tooltip-bottom">Delete Reading</div></div>' +
+          '</div>' +
+        '</div>';
 
       card.addEventListener("click", function() {
         selectReading(item.id);
       }, false);
+
+      card.addEventListener("dblclick", function() {
+        presentReadingById(item.id);
+      }, false);
+
+      var btnPresent = card.querySelector("[data-action='present']");
+      if (btnPresent) {
+        btnPresent.addEventListener("click", function(ev) {
+          ev.stopPropagation();
+          presentReadingById(item.id);
+        }, false);
+      }
+
+      var btnSchedule = card.querySelector("[data-action='schedule']");
+      if (btnSchedule) {
+        btnSchedule.addEventListener("click", function(ev) {
+          ev.stopPropagation();
+          addReadingToSchedule(item);
+        }, false);
+      }
+
+      var btnEdit = card.querySelector("[data-action='edit']");
+      if (btnEdit) {
+        btnEdit.addEventListener("click", function(ev) {
+          ev.stopPropagation();
+          editReadingById(item.id);
+        }, false);
+      }
+
+      var btnDelete = card.querySelector("[data-action='delete']");
+      if (btnDelete) {
+        btnDelete.addEventListener("click", function(ev) {
+          ev.stopPropagation();
+          deleteReadingById(item);
+        }, false);
+      }
 
       listEl.appendChild(card);
     });
@@ -204,21 +270,75 @@ function readingNavClass() {
     }
   }
 
+  function presentReadingById(id) {
+    if (typeof readingManagerObj === "undefined" || !readingManagerObj) return;
+    var r = readingManagerObj.getReadingObjWithID(id);
+    if (!r) return;
+    selectedReading = r;
+    displayReadingSlides(r);
+    renderReadingList();
+    if (typeof readingPresentObj !== "undefined") {
+      var p = new readingPresentObj();
+      p.init(r);
+      p.present(0);
+    }
+  }
+
+  function addReadingToSchedule(item) {
+    if (!item || item.id == null) return;
+    if (typeof scheduleObj === "undefined" || !scheduleObj || typeof scheduleObj.processAddReading !== "function") {
+      if (typeof showToast === "function") showToast("Schedule is not available", "error");
+      return;
+    }
+    var added = scheduleObj.processAddReading(item.id);
+    var label = item.name || "Reading";
+    if (typeof showToast === "function") {
+      if (added === false) {
+        showToast(label + " is already in the Schedule", "info");
+      } else {
+        showToast(label + " added to Schedule");
+      }
+    }
+  }
+
+  function editReadingById(id) {
+    if (typeof readingManagerObj === "undefined" || !readingManagerObj) return;
+    var r = readingManagerObj.getReadingObjWithID(id);
+    if (!r) return;
+    selectedReading = r;
+    displayReadingSlides(r);
+    renderReadingList();
+    if (typeof window !== "undefined" && window.readingEditObj && typeof window.readingEditObj.openModal === "function") {
+      window.readingEditObj.openModal(r);
+    }
+  }
+
+  function deleteReadingById(item) {
+    if (!item || item.id == null) return;
+    if (typeof readingManagerObj === "undefined" || !readingManagerObj) return;
+    var name = item.name || "this reading";
+    if (!confirm('Delete "' + name + '"?')) return;
+    if (selectedReading && String(selectedReading.id) === String(item.id)) {
+      selectedReading = null;
+    }
+    readingManagerObj.deleteReading(item.id);
+    if (typeof showToast === "function") {
+      showToast('Deleted "' + name + '"', "info");
+    }
+  }
+
   function selectReading(id) {
     if (typeof readingManagerObj !== "undefined" && readingManagerObj) {
       var r = readingManagerObj.getReadingObjWithID(id);
       if (r) {
         selectedReading = r;
         displayReadingSlides(r);
-        // Refresh highlight in the list
-        var items = document.querySelectorAll("#modernReadingList > div");
-        items.forEach(function(el) {
-          el.classList.remove("bg-brand-50/80", "border-brand-500", "font-bold", "text-brand-900", "shadow-xs");
-          el.classList.add("bg-white", "border-slate-200", "text-slate-800");
-        });
+        renderReadingList();
       }
     }
   }
+
+  window.updateReadingListHighlight = renderReadingList;
 
   function displayReadingSlides(r) {
     selectedReading = r;
@@ -241,7 +361,7 @@ function readingNavClass() {
 
     // Resolve font from global theme
     var font = (typeof window !== "undefined" && window.themeManager && typeof window.themeManager.resolveProjectionStyle === "function")
-      ? window.themeManager.resolveProjectionStyle("songs").primaryFont
+      ? window.themeManager.resolveProjectionStyle("readings").primaryFont
       : "sans-serif";
     slideHost.style.fontFamily = font || "sans-serif";
 

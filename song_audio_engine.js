@@ -271,12 +271,9 @@ class SongAudioEngine {
       if (barEl) barEl.style.display = "flex";
       this._updateSongTitleUI(songObj.name || songObj.title || "");
 
-      // Resolve audio URL
+      // Resolve audio URL (checks userData/storage/audio first, then bundled ./audio/)
       const fileName = String(songObj.audio).trim();
-      let audioSrc = fileName;
-      if (!fileName.startsWith("./") && !fileName.startsWith("/") && !fileName.startsWith("http:") && !fileName.startsWith("https:") && !fileName.startsWith("file:")) {
-        audioSrc = `./audio/${encodeURIComponent(fileName)}`;
-      }
+      const audioSrc = this.resolveAudioUrl(fileName);
 
       if (this.audio.getAttribute("data-current-src") !== fileName) {
         this.audio.setAttribute("data-current-src", fileName);
@@ -354,6 +351,48 @@ class SongAudioEngine {
     }
 
     this.broadcastHighlight(this.activeLineIndex);
+  }
+
+  findAudioFilePath(fileName) {
+    if (!fileName || typeof require !== "function") return null;
+    try {
+      const fs = require("fs");
+      const path = require("path");
+      const clean = String(fileName).trim();
+      if (!clean) return null;
+      if (path.isAbsolute(clean) && fs.existsSync(clean)) return clean;
+
+      const candidates = [];
+      if (typeof AppStorage !== "undefined") {
+        if (typeof AppStorage.resolveStoragePath === "function") {
+          candidates.push(AppStorage.resolveStoragePath("audio", clean));
+        }
+        if (typeof AppStorage.appDir === "function") {
+          candidates.push(path.join(AppStorage.appDir(), "storage", "audio", clean));
+          candidates.push(path.join(AppStorage.appDir(), "audio", clean));
+        }
+      }
+      candidates.push(path.join(process.cwd(), "storage", "audio", clean));
+      candidates.push(path.join(process.cwd(), "audio", clean));
+
+      for (let i = 0; i < candidates.length; i++) {
+        if (candidates[i] && fs.existsSync(candidates[i])) return candidates[i];
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  resolveAudioUrl(fileName) {
+    const clean = String(fileName || "").trim();
+    if (!clean) return "";
+    if (clean.startsWith("./") || clean.startsWith("/") || clean.startsWith("http:") || clean.startsWith("https:") || clean.startsWith("file:")) {
+      return clean;
+    }
+    const found = this.findAudioFilePath(clean);
+    if (found && typeof AppStorage !== "undefined" && typeof AppStorage.fileUrlFromPath === "function") {
+      return AppStorage.fileUrlFromPath(found);
+    }
+    return `./audio/${encodeURIComponent(clean)}`;
   }
 
   /**

@@ -20,6 +20,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,6 +38,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -50,7 +52,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Devices
 import androidx.compose.material.icons.outlined.Key
@@ -77,10 +81,14 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -569,11 +577,118 @@ fun ProjectionScreen(
             )
         }
 
-        // 7. Non-TV Pop-Out Side Panel for Custom Speaker Remote Buttons (`/api/buttons`)
+        // 7. Non-TV Pop-Out Side Panels for Program Items & Remote Chat
         if (!isTvDevice && isSpeakerRemote && isConnected && !uiState.showManualFallback) {
-            // Top-right hamburger menu trigger button
+            val chatToast = uiState.latestIncomingChatToast
+            LaunchedEffect(chatToast?.id) {
+                if (chatToast != null) {
+                    delay(4500L)
+                    viewModel.dismissChatToast()
+                }
+            }
+
+            // Incoming operator chat banner when chat panel is closed
             AnimatedVisibility(
-                visible = !isSidePanelOpen,
+                visible = chatToast != null && !uiState.isChatOpen,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 16.dp, start = 72.dp, end = 120.dp)
+            ) {
+                if (chatToast != null) {
+                    Surface(
+                        onClick = {
+                            isSidePanelOpen = false
+                            viewModel.setChatOpen(true)
+                        },
+                        shape = RoundedCornerShape(14.dp),
+                        color = ObsidianSurface.copy(alpha = 0.95f),
+                        border = BorderStroke(1.dp, PresenterCyan.copy(alpha = 0.7f)),
+                        tonalElevation = 8.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.ChatBubbleOutline,
+                                contentDescription = null,
+                                tint = PresenterCyan,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "${chatToast.senderName}: ${chatToast.text}",
+                                color = TextPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Top-left Chat trigger button
+            AnimatedVisibility(
+                visible = !isSidePanelOpen && !uiState.isChatOpen,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(16.dp)
+            ) {
+                Box {
+                    Surface(
+                        onClick = {
+                            isSidePanelOpen = false
+                            viewModel.setChatOpen(true)
+                        },
+                        shape = CircleShape,
+                        color = ObsidianSurface.copy(alpha = 0.88f),
+                        border = BorderStroke(
+                            1.dp,
+                            if (uiState.unreadChatCount > 0) PresenterCyan else PresenterCyan.copy(alpha = 0.55f)
+                        ),
+                        modifier = Modifier
+                            .size(42.dp)
+                            .testTag("remote_chat_handle")
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Outlined.ChatBubbleOutline,
+                                contentDescription = stringResource(R.string.remote_chat),
+                                tint = PresenterCyan,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+                    }
+                    if (uiState.unreadChatCount > 0) {
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0xFFE11D48),
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .size(18.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = if (uiState.unreadChatCount > 9) "9+" else uiState.unreadChatCount.toString(),
+                                    color = Color.White,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Top-right Program Items trigger button
+            AnimatedVisibility(
+                visible = !isSidePanelOpen && !uiState.isChatOpen,
                 enter = fadeIn(),
                 exit = fadeOut(),
                 modifier = Modifier
@@ -582,7 +697,7 @@ fun ProjectionScreen(
             ) {
                 Surface(
                     onClick = {
-                        viewModel.refreshCustomButtons()
+                        viewModel.refreshProgramItems()
                         isSidePanelOpen = true
                     },
                     shape = CircleShape,
@@ -590,12 +705,12 @@ fun ProjectionScreen(
                     border = BorderStroke(1.dp, PresenterCyan.copy(alpha = 0.55f)),
                     modifier = Modifier
                         .size(42.dp)
-                        .testTag("quick_buttons_handle")
+                        .testTag("program_items_handle")
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Filled.Menu,
-                            contentDescription = stringResource(R.string.quick_buttons),
+                            contentDescription = stringResource(R.string.program_items),
                             tint = PresenterCyan,
                             modifier = Modifier.size(20.dp)
                         )
@@ -603,8 +718,8 @@ fun ProjectionScreen(
                 }
             }
 
-            // Scrim to dismiss side panel when tapping outside
-            if (isSidePanelOpen) {
+            // Scrim to dismiss side panels when tapping outside
+            if (isSidePanelOpen || uiState.isChatOpen) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -612,32 +727,51 @@ fun ProjectionScreen(
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
-                            onClick = { isSidePanelOpen = false }
+                            onClick = {
+                                isSidePanelOpen = false
+                                viewModel.setChatOpen(false)
+                            }
                         )
                 )
             }
 
-            // Slide-out drawer panel on the right edge
+            // Slide-out drawer panel on the right edge (Program Items)
             AnimatedVisibility(
                 visible = isSidePanelOpen,
                 enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
                 exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(),
                 modifier = Modifier.align(Alignment.CenterEnd)
             ) {
-                QuickButtonsSidePanel(
-                    buttons = uiState.customButtons,
-                    isLoading = uiState.isLoadingButtons,
+                ProgramItemsSidePanel(
+                    items = uiState.programItems,
+                    isLoading = uiState.isLoadingProgramItems,
                     isNavigating = uiState.isNavigating,
-                    onButtonClick = { button ->
-                        viewModel.sendCustomButtonCommand(button)
+                    onItemClick = { item ->
+                        viewModel.presentProgramItem(item)
                         isSidePanelOpen = false
                     },
-                    onRefreshClick = { viewModel.refreshCustomButtons() },
+                    onRefreshClick = { viewModel.refreshProgramItems() },
                     onCloseClick = { isSidePanelOpen = false },
                     onSwitchModeClick = {
                         isSidePanelOpen = false
                         viewModel.openModeSelector()
                     }
+                )
+            }
+
+            // Slide-out drawer panel on the left edge (Remote Chat)
+            AnimatedVisibility(
+                visible = uiState.isChatOpen,
+                enter = slideInHorizontally(initialOffsetX = { -it }) + fadeIn(),
+                exit = slideOutHorizontally(targetOffsetX = { -it }) + fadeOut(),
+                modifier = Modifier.align(Alignment.CenterStart)
+            ) {
+                ChatSidePanel(
+                    messages = uiState.chatMessages,
+                    isSending = uiState.isSendingChat,
+                    onSendMessage = { text -> viewModel.sendChatMessage(text) },
+                    onRefreshClick = { viewModel.refreshChatMessages() },
+                    onCloseClick = { viewModel.setChatOpen(false) }
                 )
             }
         }
@@ -957,6 +1091,9 @@ private fun inject16x9PreviewState(
             } else if (typeof window.updateContent === 'function') {
               window.updateContent();
             }
+            if (typeof window.updateSongCountdown === 'function') {
+              window.updateSongCountdown(st.syncCountdown || { active: false });
+            }
           } catch (e) {
             console.error('[INJECT ERROR]', e);
           }
@@ -978,38 +1115,51 @@ private fun OffAirOverlay() {
             .testTag("off_air_overlay"),
         contentAlignment = Alignment.Center
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier
-                .background(
-                    color = ObsidianSurface.copy(alpha = 0.75f),
-                    shape = RoundedCornerShape(50)
-                )
-                .border(
-                    width = 1.dp,
-                    color = ObsidianBorder.copy(alpha = 0.8f),
-                    shape = RoundedCornerShape(50)
-                )
-                .padding(horizontal = 20.dp, vertical = 10.dp)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(24.dp)
         ) {
-            Box(
+            Image(
+                painter = painterResource(id = R.drawable.uecfi_logo),
+                contentDescription = stringResource(R.string.app_name),
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(140.dp)
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
-                    .size(8.dp)
-                    .background(color = TextMuted, shape = CircleShape)
-            )
-            Icon(
-                imageVector = Icons.Outlined.TvOff,
-                contentDescription = stringResource(R.string.off_air),
-                tint = TextMuted,
-                modifier = Modifier.size(16.dp)
-            )
+                    .background(
+                        color = ObsidianSurface.copy(alpha = 0.85f),
+                        shape = RoundedCornerShape(50)
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = Color(0xFF10B981).copy(alpha = 0.55f),
+                        shape = RoundedCornerShape(50)
+                    )
+                    .padding(horizontal = 18.dp, vertical = 8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .background(color = Color(0xFF10B981), shape = CircleShape)
+                )
+                Text(
+                    text = stringResource(R.string.off_air),
+                    color = Color(0xFF6EE7B7),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.8.sp
+                )
+            }
             Text(
-                text = stringResource(R.string.off_air),
-                color = TextMuted,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 2.sp
+                text = stringResource(R.string.waiting_for_presentation),
+                color = TextSecondary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center
             )
         }
     }
@@ -1508,11 +1658,11 @@ private fun VerseNavigationControls(
 }
 
 @Composable
-private fun QuickButtonsSidePanel(
-    buttons: List<CustomRemoteButton>,
+private fun ProgramItemsSidePanel(
+    items: List<ProgramRemoteItem>,
     isLoading: Boolean,
     isNavigating: Boolean,
-    onButtonClick: (CustomRemoteButton) -> Unit,
+    onItemClick: (ProgramRemoteItem) -> Unit,
     onRefreshClick: () -> Unit,
     onCloseClick: () -> Unit,
     onSwitchModeClick: () -> Unit = {}
@@ -1526,7 +1676,7 @@ private fun QuickButtonsSidePanel(
                 color = ObsidianBorder,
                 shape = RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp)
             )
-            .testTag("quick_buttons_panel"),
+            .testTag("program_items_panel"),
         shape = RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp),
         color = ObsidianSurface.copy(alpha = 0.96f),
         tonalElevation = 12.dp
@@ -1542,7 +1692,7 @@ private fun QuickButtonsSidePanel(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = stringResource(R.string.quick_buttons),
+                    text = stringResource(R.string.program_items),
                     color = TextPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -1593,7 +1743,7 @@ private fun QuickButtonsSidePanel(
                     .background(ObsidianBorder)
             )
 
-            if (buttons.isEmpty()) {
+            if (items.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1601,7 +1751,7 @@ private fun QuickButtonsSidePanel(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = stringResource(R.string.no_custom_buttons),
+                        text = stringResource(R.string.no_program_items),
                         color = TextMuted,
                         fontSize = 12.sp
                     )
@@ -1614,9 +1764,9 @@ private fun QuickButtonsSidePanel(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    buttons.forEach { button ->
+                    items.forEach { item ->
                         Surface(
-                            onClick = { onButtonClick(button) },
+                            onClick = { onItemClick(item) },
                             enabled = !isNavigating,
                             shape = RoundedCornerShape(12.dp),
                             color = ObsidianCard,
@@ -1626,15 +1776,29 @@ private fun QuickButtonsSidePanel(
                             ),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(
-                                text = button.label,
-                                color = if (isNavigating) TextMuted else TextPrimary,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
-                            )
+                            Column(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Text(
+                                    text = item.title,
+                                    color = if (isNavigating) TextMuted else TextPrimary,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (item.type.isNotBlank()) {
+                                    Text(
+                                        text = item.type.uppercase(),
+                                        color = if (isNavigating) TextMuted else PresenterCyan.copy(alpha = 0.85f),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -1662,6 +1826,246 @@ private fun QuickButtonsSidePanel(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChatSidePanel(
+    messages: List<ChatMessage>,
+    isSending: Boolean,
+    onSendMessage: (String) -> Unit,
+    onRefreshClick: () -> Unit,
+    onCloseClick: () -> Unit
+) {
+    var draftText by remember { mutableStateOf("") }
+    val scrollState = rememberScrollState()
+    val quickReplies = remember { listOf("Next slide", "Prev slide", "Ready", "Stand by") }
+
+    LaunchedEffect(messages.size, scrollState.maxValue) {
+        scrollState.animateScrollTo(scrollState.maxValue)
+    }
+
+    Surface(
+        modifier = Modifier
+            .width(310.dp)
+            .fillMaxHeight()
+            .border(
+                width = 1.dp,
+                color = ObsidianBorder,
+                shape = RoundedCornerShape(topEnd = 20.dp, bottomEnd = 20.dp)
+            )
+            .testTag("remote_chat_panel"),
+        shape = RoundedCornerShape(topEnd = 20.dp, bottomEnd = 20.dp),
+        color = ObsidianSurface.copy(alpha = 0.96f),
+        tonalElevation = 12.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding()
+                .padding(horizontal = 14.dp, vertical = 14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.ChatBubbleOutline,
+                        contentDescription = null,
+                        tint = PresenterCyan,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.remote_chat),
+                        color = TextPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = onRefreshClick,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Refresh,
+                            contentDescription = "Refresh",
+                            tint = PresenterCyan,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onCloseClick,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = "Close",
+                            tint = TextSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+                    .height(1.dp)
+                    .background(ObsidianBorder)
+            )
+
+            if (messages.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = stringResource(R.string.no_chat_messages),
+                        color = TextMuted,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(scrollState),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    messages.forEach { msg ->
+                        val isRemote = msg.sender == "remote"
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = if (isRemote) Alignment.End else Alignment.Start
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(
+                                    topStart = 14.dp,
+                                    topEnd = 14.dp,
+                                    bottomStart = if (isRemote) 14.dp else 4.dp,
+                                    bottomEnd = if (isRemote) 4.dp else 14.dp
+                                ),
+                                color = if (isRemote) PresenterCyan.copy(alpha = 0.22f) else ObsidianCard,
+                                border = BorderStroke(
+                                    1.dp,
+                                    if (isRemote) PresenterCyan.copy(alpha = 0.6f) else ObsidianBorder
+                                ),
+                                modifier = Modifier.widthIn(max = 240.dp)
+                            ) {
+                                Text(
+                                    text = msg.text,
+                                    color = TextPrimary,
+                                    fontSize = 13.sp,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                )
+                            }
+                            Text(
+                                text = msg.senderName,
+                                color = TextMuted,
+                                fontSize = 10.sp,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                quickReplies.forEach { reply ->
+                    Surface(
+                        onClick = { onSendMessage(reply) },
+                        enabled = !isSending,
+                        shape = RoundedCornerShape(16.dp),
+                        color = ObsidianCard,
+                        border = BorderStroke(1.dp, PresenterCyan.copy(alpha = 0.4f))
+                    ) {
+                        Text(
+                            text = reply,
+                            color = TextPrimary,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = draftText,
+                    onValueChange = { draftText = it },
+                    placeholder = { Text("Message operator…", color = TextMuted, fontSize = 12.sp) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(
+                        onSend = {
+                            val clean = draftText.trim()
+                            if (clean.isNotEmpty() && !isSending) {
+                                onSendMessage(clean)
+                                draftText = ""
+                            }
+                        }
+                    ),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = PresenterCyan,
+                        unfocusedBorderColor = ObsidianBorder,
+                        cursorColor = PresenterCyan
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
+                )
+                Surface(
+                    onClick = {
+                        val clean = draftText.trim()
+                        if (clean.isNotEmpty() && !isSending) {
+                            onSendMessage(clean)
+                            draftText = ""
+                        }
+                    },
+                    enabled = draftText.trim().isNotEmpty() && !isSending,
+                    shape = CircleShape,
+                    color = if (draftText.trim().isNotEmpty() && !isSending) PresenterCyan else ObsidianCard,
+                    modifier = Modifier.size(42.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "Send",
+                            tint = if (draftText.trim().isNotEmpty() && !isSending) PureBlack else TextMuted,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
             }
         }
     }

@@ -48,8 +48,7 @@ function readingPresentObj() {
 
     // Apply global theme
     if (typeof window !== "undefined" && window.themeManager && typeof window.themeManager.applyThemeToProjection === "function") {
-      // Use readings theme if defined, or fall back to clean songs theme
-      window.themeManager.applyThemeToProjection("songs");
+      window.themeManager.applyThemeToProjection("readings");
     }
     if (typeof setLiveProjectionType === "function") setLiveProjectionType("readings");
 
@@ -58,12 +57,14 @@ function readingPresentObj() {
       const liveIdx = (slideIndex == null) ? 0 : slideIndex;
       if (typeof window !== "undefined") {
         window.liveReadingState = {
+          id: activeReading.id != null ? activeReading.id : null,
           slides: (activeReading.slides || []).slice(),
           title: activeReading.name || "",
           notes: activeReading.notes || "",
           index: liveIdx
         };
         window.presentedReadingSlideIdx = liveIdx;
+        window.presentedReadingId = activeReading.id != null ? activeReading.id : null;
       }
     } catch (e) {}
 
@@ -73,10 +74,13 @@ function readingPresentObj() {
       try { updateProjectionControls(); } catch (e) {}
     }
 
-    // Highlight active slide card in Readings preview panel
+    // Highlight active slide card and list item in Readings panel
     try {
       if (typeof window !== "undefined" && typeof window.updateReadingSlideHighlight === "function") {
         window.updateReadingSlideHighlight();
+      }
+      if (typeof window !== "undefined" && typeof window.updateReadingListHighlight === "function") {
+        window.updateReadingListHighlight();
       }
     } catch (e) {}
 

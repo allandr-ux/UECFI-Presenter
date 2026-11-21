@@ -750,6 +750,16 @@ function formatProjectedVerseNumbers(rawHtml, titleStr, theme, hasText2) {
       .join("");
   }
 
+  const formatListBullet = (text) => {
+    const bulletColor = (theme && theme.bulletColor) || "#FBBF24";
+    const bulletSymbol = (theme && theme.bulletSymbol) || "•";
+    const bulletScale = (theme && typeof theme.bulletScale === "number") ? theme.bulletScale : 1.2;
+    const bulletMatch = text.match(/^\s*(?:([-*•▸◆✓★–])|(\d+[.)]|[a-zA-Z][.)]))\s+(.+)$/);
+    if (!bulletMatch) return text;
+    const marker = bulletMatch[1] ? bulletSymbol : bulletMatch[2];
+    return `<span class="proj-list-bullet" style="color:${bulletColor};font-weight:900;font-size:${bulletScale}em;margin-right:0.35em;display:inline-block;line-height:1;">${marker}</span>${bulletMatch[3]}`;
+  };
+
   if (theme && theme.alternateLineColorEnabled && !hasText2 && lines.length > 1) {
     const oddColor = theme.primaryColor || p_font_color || "#FFFFFF";
     const evenColor = theme.alternateLineColor || "#FDE68A";
@@ -758,7 +768,7 @@ function formatProjectedVerseNumbers(rawHtml, titleStr, theme, hasText2) {
       .map((line) => {
         const trimmed = line.trim();
         if (trimmed === "" || trimmed === ".") return "";
-        const cleanText = line.replace(/^\s*\[\s*\d{1,2}:\d{2}(?:[.:]\d{1,3})?\s*\]\s*/, "");
+        const cleanText = formatListBullet(line.replace(/^\s*\[\s*\d{1,2}:\d{2}(?:[.:]\d{1,3})?\s*\]\s*/, ""));
         const color = (lineIdx % 2 === 1) ? evenColor : oddColor;
         lineIdx++;
         return `<span style="color:${color};">${cleanText}</span>`;
@@ -769,7 +779,8 @@ function formatProjectedVerseNumbers(rawHtml, titleStr, theme, hasText2) {
     .map((line) => {
       const trimmed = line.trim();
       if (trimmed === ".") return "";
-      return line.replace(/^\s*\[\s*\d{1,2}:\d{2}(?:[.:]\d{1,3})?\s*\]\s*/, "");
+      const cleanText = line.replace(/^\s*\[\s*\d{1,2}:\d{2}(?:[.:]\d{1,3})?\s*\]\s*/, "");
+      return formatListBullet(cleanText);
     })
     .join("<BR>");
 }
@@ -1044,12 +1055,17 @@ function renderTeleprompter(lines, activeIdx, customFontSize) {
 
   let track = document.getElementById("teleprompterTrack");
   const existingLineCount = track ? track.querySelectorAll(".teleprompter-line").length : 0;
+  const isNewTrack = (!track || existingLineCount !== lines.length);
 
-  if (!track || existingLineCount !== lines.length) {
+  const justifyAlign = align === "left" ? "flex-start" : (align === "right" ? "flex-end" : "center");
+  const wrapLineHeight = isLowerThird ? 1.18 : 1.25;
+  const linePadV = Math.max(3, Math.round(fontSize * 0.14));
+
+  if (isNewTrack) {
     let trackHtml = `<div id="teleprompterTrack" style="width:100%; position:relative; will-change:transform; transition:transform 0.38s cubic-bezier(0.25, 1, 0.5, 1);">`;
     lines.forEach((line, idx) => {
       const text = line.cleanText || line.rawText || (typeof line === "string" ? line : "");
-      trackHtml += `<div class="teleprompter-line" data-line-index="${idx}" style="height:${lineHeight}px; line-height:${lineHeight}px; font-size:${fontSize}px; font-family:${fontFam}; text-align:${align}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:1px 0; box-sizing:border-box; transition: color 0.3s ease, opacity 0.3s ease, text-shadow 0.3s ease;">${text}</div>`;
+      trackHtml += `<div class="teleprompter-line" data-line-index="${idx}" style="min-height:${lineHeight}px; height:auto; line-height:${wrapLineHeight}; font-size:${fontSize}px; font-family:${fontFam}; text-align:${align}; display:flex; align-items:center; justify-content:${justifyAlign}; white-space:normal; text-wrap:balance; word-break:normal; overflow-wrap:break-word; padding:${linePadV}px 0; box-sizing:border-box; transition: color 0.3s ease, opacity 0.3s ease, text-shadow 0.3s ease;">${text}</div>`;
     });
     trackHtml += `</div>`;
     c1El.innerHTML = trackHtml;
@@ -1057,21 +1073,38 @@ function renderTeleprompter(lines, activeIdx, customFontSize) {
   } else {
     const lineEls = track.querySelectorAll(".teleprompter-line");
     lineEls.forEach((el) => {
-      el.style.height = `${lineHeight}px`;
-      el.style.lineHeight = `${lineHeight}px`;
+      el.style.minHeight = `${lineHeight}px`;
+      el.style.height = "auto";
+      el.style.lineHeight = String(wrapLineHeight);
       el.style.fontSize = `${fontSize}px`;
       el.style.fontFamily = fontFam;
       el.style.textAlign = align;
-      el.style.padding = "1px 0";
+      el.style.display = "flex";
+      el.style.alignItems = "center";
+      el.style.justifyContent = justifyAlign;
+      el.style.whiteSpace = "normal";
+      el.style.textWrap = "balance";
+      el.style.wordBreak = "normal";
+      el.style.overflowWrap = "break-word";
+      el.style.padding = `${linePadV}px 0`;
       el.style.boxSizing = "border-box";
     });
   }
 
   if (track) {
     track.dataset.lineHeight = String(lineHeight);
+    // Snap immediately on newly created track so initial layout doesn't slide down from y=0
+    if (isNewTrack) {
+      track.style.transition = "none";
+    }
   }
 
   updateTeleprompterActiveLine(activeIdx, lineHeight);
+
+  if (track && isNewTrack) {
+    void track.offsetHeight;
+    track.style.transition = "transform 0.38s cubic-bezier(0.25, 1, 0.5, 1)";
+  }
 
   const countdownEl = document.getElementById("songCountdownDots");
   if (countdownEl && countdownEl.style.display !== "none" && typeof positionSongCountdown === "function") {
@@ -1094,11 +1127,22 @@ function updateTeleprompterActiveLine(activeIdx, explicitLineHeight) {
   const targetIdx = isStarted ? activeIdx : 0;
   const stageLayout = getActiveStageLayout();
   const isLowerThird = (stageLayout === "lower-third");
+  const activeEl = lineEls[targetIdx] || lineEls[0];
+  const viewportEl = document.getElementById("content1");
+  const viewportH = viewportEl ? viewportEl.clientHeight : (isLowerThird ? lineHeight * 2 : lineHeight * 5);
 
-  // In 2-line lower third: targetIdx sits at slot 0 (top line), upcoming line sits at slot 1 (bottom line)
-  // In 5-line full screen: active line stays vertically centered at slot 2 (line 3 out of 5)
-  const targetY = isLowerThird ? (-targetIdx * lineHeight) : ((2 - targetIdx) * lineHeight);
-  track.style.transform = `translate3d(0, ${Math.round(targetY)}px, 0)`;
+  // Use measured offsetTop/offsetHeight so balanced multi-line wrapped lyrics stay accurately aligned.
+  let targetY;
+  if (isLowerThird) {
+    targetY = activeEl ? -activeEl.offsetTop : (-targetIdx * lineHeight);
+  } else if (activeEl && viewportH > 0) {
+    targetY = (viewportH / 2) - (activeEl.offsetTop + (activeEl.offsetHeight / 2));
+  } else {
+    targetY = (2 - targetIdx) * lineHeight;
+  }
+  const roundedTargetY = Math.round(targetY);
+  track.dataset.targetY = String(roundedTargetY);
+  track.style.transform = `translate3d(0, ${roundedTargetY}px, 0)`;
 
   const theme = window.activeThemeObj;
   const activeColor = (theme && theme.syncActiveColor) || (typeof p_sync_active_color !== "undefined" ? p_sync_active_color : "#F59E0B");
@@ -1254,46 +1298,58 @@ function positionSongCountdown(container, dotSize, isLowerThird) {
   const gap = isLowerThird ? 8 : 16;
   let targetTop = null;
 
-  // 1. Precise real-browser measurement via getBoundingClientRect()
+  // 1. Deterministic placement for teleprompter mode using resting targetY
+  // (avoids measuring mid-transition transform positions that push dots into the title)
+  const c1 = document.getElementById("content1");
   const track = document.getElementById("teleprompterTrack");
-  const firstLineEl = (track && track.querySelector(".teleprompter-line[data-line-index='0']")) ||
-                      (track && track.querySelector(".teleprompter-line")) ||
-                      document.querySelector("#content1 .song-line") ||
-                      document.getElementById("content1");
+  const trackLine0 = (track && track.querySelector(".teleprompter-line[data-line-index='0']")) ||
+                     (track && track.querySelector(".teleprompter-line"));
 
-  if (firstLineEl && typeof firstLineEl.getBoundingClientRect === "function" && typeof pContentID.getBoundingClientRect === "function") {
-    const lineRect = firstLineEl.getBoundingClientRect();
-    const parentRect = pContentID.getBoundingClientRect();
-    if (lineRect && parentRect && lineRect.height > 0 && parentRect.height > 0) {
-      // lineRect.top includes the translate3d transform on teleprompterTrack
-      targetTop = Math.round(lineRect.top - parentRect.top - dotSize - gap);
+  if (track && trackLine0 && c1 && track.dataset.targetY !== undefined) {
+    const restingY = Number(track.dataset.targetY) || 0;
+    // Use offsetTop (unscaled layout coordinates) so body CSS transform scale() on remotes doesn't distort c1Top
+    const c1Top = (typeof c1.offsetTop === "number") ? c1.offsetTop : 0;
+    const line0Top = trackLine0.offsetTop || 0;
+    targetTop = Math.round(c1Top + restingY + line0Top - dotSize - gap);
+  } else {
+    // 2. Real-browser measurement via getBoundingClientRect() for non-teleprompter songs
+    const firstLineEl = trackLine0 ||
+                        document.querySelector("#content1 .song-line") ||
+                        c1;
+
+    if (firstLineEl && typeof firstLineEl.getBoundingClientRect === "function" && typeof pContentID.getBoundingClientRect === "function") {
+      const lineRect = firstLineEl.getBoundingClientRect();
+      const parentRect = pContentID.getBoundingClientRect();
+      if (lineRect && parentRect && lineRect.height > 0 && parentRect.height > 0) {
+        targetTop = Math.round(lineRect.top - parentRect.top - dotSize - gap);
+      }
     }
   }
 
-  // 2. Analytical calculation fallback (for initial render frame, mock VMs, or zero rects)
+  // 3. Analytical calculation fallback (for initial render frame, mock VMs, or zero rects)
   if (targetTop === null || isNaN(targetTop)) {
-    const c1 = document.getElementById("content1");
     if (track && c1) {
       const lineHeight = Number(track.dataset.lineHeight) || 60;
       if (isLowerThird) {
-        // Lower third: Line 0 sits at slot 0 (top of content1)
         const c1Top = (typeof c1.offsetTop === "number") ? c1.offsetTop : 0;
-        targetTop = Math.max(0, Math.round(c1Top - dotSize - gap));
+        targetTop = Math.round(c1Top - dotSize - gap);
       } else {
-        // Full screen 5-line scrolling teleprompter: Line 0 sits at slot 2 (vertical center)
         const vh = parseInt(c1.style.height) || (lineHeight * 5);
         const pH = pContentID.clientHeight || parseInt(pContentID.style.height) || 600;
         const c1Top = Math.max(0, Math.round((pH - vh) / 2));
         const line0Top = c1Top + (2 * lineHeight);
-        targetTop = Math.max(0, Math.round(line0Top - dotSize - gap));
+        targetTop = Math.round(line0Top - dotSize - gap);
       }
     } else if (c1) {
       const c1Top = (typeof c1.offsetTop === "number") ? c1.offsetTop : 0;
-      targetTop = Math.max(0, Math.round(c1Top - dotSize - gap));
+      targetTop = Math.round(c1Top - dotSize - gap);
     } else {
       targetTop = 20;
     }
   }
+
+  // Never let dots rise above #p_contentID where they would overlap #presentationTitle
+  targetTop = Math.max(0, targetTop);
 
   container.style.top = `${targetTop}px`;
   container.style.bottom = "auto";
@@ -1615,6 +1671,8 @@ function updateContent2() { console.log('updateContent2 called, text:', window.p
   }
   const c2El = document.getElementById("content2");
   if (c2El) {
+    // Restore display in case a prior teleprompter-mode song hid #content2
+    c2El.style.display = "";
     c2El.style.textAlign = activeAlign;
     c2El.style.fontWeight = ((theme && theme.secondaryWeight) || PROJECTION_FALLBACK_STYLE.secondaryWeight);
     c2El.style.fontStyle = (theme && theme.secondaryItalic) ? "italic" : "normal";
@@ -1666,7 +1724,15 @@ function updateContent2() { console.log('updateContent2 called, text:', window.p
 
   const text2Val = hasText2 ? p_text2_arr[p_current_index] : "";
   const html1Val = formatProjectedVerseNumbers(text1Val, activeTitle, theme, hasText2);
-  const html2Val = hasText2 ? formatProjectedVerseNumbers(text2Val, activeTitle, theme, true) : "";
+  let html2Val = hasText2 ? formatProjectedVerseNumbers(text2Val, activeTitle, theme, true) : "";
+  if (hasText2 && html2Val.includes(";") && !/<[a-z]/i.test(html2Val)) {
+    const semiParts = html2Val.split(/\s*;\s*/).filter(Boolean);
+    if (semiParts.length > 1) {
+      html2Val = semiParts
+        .map((part, idx) => `<span style="white-space:nowrap;">${part}${idx < semiParts.length - 1 ? ";" : ""}</span>`)
+        .join(" ");
+    }
+  }
 
   let n;
   let availW;

@@ -5,8 +5,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.ConnectionPool
 import okhttp3.Dispatcher
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
@@ -23,12 +25,23 @@ data class ServerEndpoint(
 )
 
 /**
- * Custom speaker remote button configured in the desktop app (`GET /api/buttons`).
+ * Program item configured in the desktop app (`GET /api/program`).
  */
-data class CustomRemoteButton(
-    val label: String,
-    val command: String,
-    val value: String = ""
+data class ProgramRemoteItem(
+    val id: String,
+    val title: String,
+    val type: String = ""
+)
+
+/**
+ * Chat message exchanged between the desktop operator and Android speaker remote.
+ */
+data class ChatMessage(
+    val id: Int,
+    val sender: String,
+    val senderName: String,
+    val text: String,
+    val timestamp: Long
 )
 
 /**
@@ -55,6 +68,7 @@ data class PresenterState(
     val stageStreamId: String? = null,
     val stageSourceType: String? = null,
     val bibleDisplayMode: String = "dual",
+    val chatLatestId: Int = 0,
     val rawJson: String,
     val forced16x9Json: String
 )
@@ -336,6 +350,7 @@ class PresenterApiClient {
                 stageStreamId = stageStreamId,
                 stageSourceType = stageSourceType,
                 bibleDisplayMode = bibleDisplayMode,
+                chatLatestId = json.optInt("chatLatestId", 0),
                 rawJson = rawBody,
                 forced16x9Json = forced16x9Json
             )
@@ -382,14 +397,14 @@ class PresenterApiClient {
     ): Boolean = sendCommandInternal(host, port, command, value)
 
     /**
-     * Fetches the list of custom speaker remote buttons from `GET http://<host>:<port>/api/buttons`.
+     * Fetches the list of program items from `GET http://<host>:<port>/api/program`.
      */
-    suspend fun fetchCustomButtons(host: String, port: Int): List<CustomRemoteButton> = withContext(Dispatchers.IO) {
+    suspend fun fetchProgramItems(host: String, port: Int): List<ProgramRemoteItem> = withContext(Dispatchers.IO) {
         val cleanHost = host.trim()
         if (cleanHost.isEmpty() || port !in 1..65535) return@withContext emptyList()
 
         val request = Request.Builder()
-            .url("http://$cleanHost:$port/api/buttons")
+            .url("http://$cleanHost:$port/api/program")
             .header("Accept", "application/json")
             .header("Cache-Control", "no-cache")
             .get()
@@ -400,20 +415,113 @@ class PresenterApiClient {
                 if (!response.isSuccessful) return@withContext emptyList()
                 val body = response.body?.string() ?: return@withContext emptyList()
                 val arr = JSONArray(body)
-                val buttons = ArrayList<CustomRemoteButton>(arr.length())
+                val items = ArrayList<ProgramRemoteItem>(arr.length())
                 for (i in 0 until arr.length()) {
                     val obj = arr.optJSONObject(i) ?: continue
-                    val label = obj.optString("label", "").trim()
-                    val cmd = obj.optString("command", "").trim()
-                    val value = obj.optString("value", "")
-                    if (label.isNotEmpty() && cmd.isNotEmpty()) {
-                        buttons.add(CustomRemoteButton(label = label, command = cmd, value = value))
+                    val id = obj.optString("id", "").trim()
+                    val title = obj.optString("title", "").trim()
+                    val type = obj.optString("type", "").trim()
+                    if (id.isNotEmpty() && title.isNotEmpty()) {
+                        items.add(ProgramRemoteItem(id = id, title = title, type = type))
                     }
                 }
-                buttons
+                items
             }
         } catch (_: Exception) {
             emptyList()
+        }
+    }
+
+    /**
+     * Fetches chat messages from `GET http://<host>:<port>/api/chat`.
+     */
+    suspend fun fetchChatMessages(host: String, port: Int, sinceId: Int = 0): List<ChatMessage> = withContext(Dispatchers.IO) {
+        val cleanHost = host.trim()
+        if (cleanHost.isEmpty() || port !in 1..65535) return@withContext emptyList()
+
+        val url = if (sinceId > 0) {
+            "http://$cleanHost:$port/api/chat?since=$sinceId"
+        } else {
+            "http://$cleanHost:$port/api/chat"
+        }
+        val request = Request.Builder()
+            .url(url)
+            .header("Accept", "application/json")
+            .header("Cache-Control", "no-cache")
+            .get()
+            .build()
+
+        try {
+            pollClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext emptyList()
+                val body = response.body?.string() ?: return@withContext emptyList()
+                val obj = JSONObject(body)
+                val arr = obj.optJSONArray("messages") ?: return@withContext emptyList()
+                val list = ArrayList<ChatMessage>(arr.length())
+                for (i in 0 until arr.length()) {
+                    val m = arr.optJSONObject(i) ?: continue
+                    val id = m.optInt("id", 0)
+                    val text = m.optString("text", "").trim()
+                    if (id > 0 && text.isNotEmpty()) {
+                        list.add(
+                            ChatMessage(
+                                id = id,
+                                sender = m.optString("sender", "remote"),
+                                senderName = m.optString("senderName", "Operator"),
+                                text = text,
+                                timestamp = m.optLong("timestamp", System.currentTimeMillis())
+                            )
+                        )
+                    }
+                }
+                list
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    /**
+     * Sends a chat message to the desktop app via `POST http://<host>:<port>/api/chat`.
+     */
+    suspend fun sendChatMessage(
+        host: String,
+        port: Int,
+        text: String,
+        senderName: String = "Speaker"
+    ): ChatMessage? = withContext(Dispatchers.IO) {
+        val cleanHost = host.trim()
+        val cleanText = text.trim()
+        if (cleanHost.isEmpty() || port !in 1..65535 || cleanText.isEmpty()) return@withContext null
+
+        val payload = JSONObject().apply {
+            put("sender", "remote")
+            put("senderName", senderName)
+            put("text", cleanText.take(500))
+        }
+        val body = payload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+        val request = Request.Builder()
+            .url("http://$cleanHost:$port/api/chat")
+            .header("Accept", "application/json")
+            .post(body)
+            .build()
+
+        try {
+            pollClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                val respStr = response.body?.string() ?: return@withContext null
+                val respObj = JSONObject(respStr)
+                val m = respObj.optJSONObject("message") ?: return@withContext null
+                ChatMessage(
+                    id = m.optInt("id", 0),
+                    sender = m.optString("sender", "remote"),
+                    senderName = m.optString("senderName", senderName),
+                    text = m.optString("text", cleanText),
+                    timestamp = m.optLong("timestamp", System.currentTimeMillis())
+                )
+            }
+        } catch (_: Exception) {
+            null
         }
     }
 

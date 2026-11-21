@@ -150,6 +150,7 @@ function songPortXML() {
     var key = row.key || "";
     var copyright = row.copy != null ? row.copy : (row.copyright || "");
     var notes = row.notes || "";
+    var audio = row.audio != null ? String(row.audio).trim() : "";
     var rawLyrics = row.lyrics != null ? row.lyrics : (row.slides || "");
     var normalizedSlides = normalizeLyricsForStorage(rawLyrics);
     // Safe CDATA wrapping even if lyrics contain "]]>"
@@ -164,9 +165,36 @@ function songPortXML() {
     xml += "  <key>" + escapeXmlText(key) + "</key>\n";
     xml += "  <copyright>" + escapeXmlText(copyright) + "</copyright>\n";
     xml += "  <notes>" + escapeXmlText(notes) + "</notes>\n";
+    if (audio) {
+      xml += "  <audio>" + escapeXmlText(audio) + "</audio>\n";
+      var embeddedB64 = readAudioBase64ForExport(audio);
+      if (embeddedB64) {
+        xml += "  <audioData><![CDATA[" + embeddedB64 + "]]></audioData>\n";
+      }
+    }
     xml += "  <slide><![CDATA[" + safeCdata + "]]></slide>\n";
     xml += "</song>\n";
     return xml;
+  }
+
+  function readAudioBase64ForExport(audioFileName) {
+    if (!audioFileName || typeof require !== "function") return "";
+    try {
+      var fs = require("fs");
+      var foundPath = null;
+      if (typeof window !== "undefined" && window.songAudioEngine && typeof window.songAudioEngine.findAudioFilePath === "function") {
+        foundPath = window.songAudioEngine.findAudioFilePath(audioFileName);
+      } else if (typeof AppStorage !== "undefined" && typeof AppStorage.resolveStoragePath === "function") {
+        var p = AppStorage.resolveStoragePath("audio", audioFileName);
+        if (fs.existsSync(p)) foundPath = p;
+      }
+      if (!foundPath || !fs.existsSync(foundPath)) return "";
+      var stat = fs.statSync(foundPath);
+      if (!stat || stat.size <= 0 || stat.size > 30 * 1024 * 1024) return "";
+      return fs.readFileSync(foundPath).toString("base64");
+    } catch (e) {
+      return "";
+    }
   }
 
   function buildFullXMLDocument(rows) {
@@ -367,10 +395,13 @@ function songPortXML() {
   async function readXmlFileAndImport(filePath) {
     try {
       var xmlStr = null;
+      var sourceDir = "";
       if (typeof require === "function") {
         try {
           var fs = require("fs");
+          var path = require("path");
           var cleanPath = String(filePath).replace(/^file:\/+/i, "");
+          sourceDir = path.dirname(cleanPath);
           if (fs.existsSync(cleanPath)) {
             xmlStr = fs.readFileSync(cleanPath, "utf8");
           }
@@ -381,7 +412,7 @@ function songPortXML() {
       if ((xmlStr === null || xmlStr === "") && typeof AppStorage !== "undefined" && AppStorage.readFile) {
         xmlStr = await AppStorage.readFile(filePath);
       }
-      processXmlContent(xmlStr);
+      processXmlContent(xmlStr, sourceDir);
     } catch (err) {
       console.error("[SongPortXML] Error reading XML file:", err);
       alert("Error reading XML file: " + (err && err.message ? err.message : err));
@@ -464,6 +495,8 @@ function songPortXML() {
       var key = extractField(block, ["key"]).trim();
       var copy = extractField(block, ["copyright", "copy"]).trim();
       var notes = extractField(block, ["notes"]).trim();
+      var audio = extractField(block, ["audio"]).trim();
+      var audioData = extractField(block, ["audioData"]).trim();
       var slideRaw = extractField(block, ["slide", "slides", "lyrics"]);
       var lyrics = normalizeLyricsForStorage(slideRaw);
 
@@ -475,6 +508,8 @@ function songPortXML() {
         key: key,
         copy: copy,
         notes: notes,
+        audio: audio,
+        audioData: audioData,
         lyrics: lyrics
       });
     }
@@ -508,6 +543,8 @@ function songPortXML() {
             var key = getDirectTagText(node, ["key"]).trim();
             var copy = getDirectTagText(node, ["copyright", "copy"]).trim();
             var notes = getDirectTagText(node, ["notes"]).trim();
+            var audio = getDirectTagText(node, ["audio"]).trim();
+            var audioData = getDirectTagText(node, ["audioData"]).trim();
             var lyrics = extractSlidesFromDomNode(node);
 
             parsedSongs.push({
@@ -518,6 +555,8 @@ function songPortXML() {
               key: key,
               copy: copy,
               notes: notes,
+              audio: audio,
+              audioData: audioData,
               lyrics: lyrics
             });
           }
@@ -534,7 +573,57 @@ function songPortXML() {
     return parsedSongs;
   }
 
-  function processXmlContent(xmlStr) {
+  function materializeImportedAudio(song, sourceXmlDir) {
+    if (!song || !song.audio || typeof require !== "function") return;
+    try {
+      var fs = require("fs");
+      var path = require("path");
+      var safeName = path.basename(String(song.audio).trim());
+      if (!safeName) return;
+      song.audio = safeName;
+
+      var destDirs = [];
+      if (typeof AppStorage !== "undefined" && typeof AppStorage.resolveStoragePath === "function") {
+        destDirs.push(path.dirname(AppStorage.resolveStoragePath("audio", safeName)));
+      }
+      destDirs.push(path.join(process.cwd(), "audio"));
+      var uniqueDirs = Array.from(new Set(destDirs));
+
+      var buf = null;
+      if (song.audioData) {
+        buf = Buffer.from(song.audioData.replace(/\s+/g, ""), "base64");
+      } else if (sourceXmlDir) {
+        var siblingCandidates = [
+          path.join(sourceXmlDir, safeName),
+          path.join(sourceXmlDir, "audio", safeName)
+        ];
+        for (var i = 0; i < siblingCandidates.length; i++) {
+          if (fs.existsSync(siblingCandidates[i])) {
+            buf = fs.readFileSync(siblingCandidates[i]);
+            break;
+          }
+        }
+      }
+
+      if (buf && buf.length > 0) {
+        uniqueDirs.forEach(function (dir) {
+          try {
+            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+            var outPath = path.join(dir, safeName);
+            if (!fs.existsSync(outPath)) {
+              fs.writeFileSync(outPath, buf);
+            }
+          } catch (wErr) {}
+        });
+      }
+    } catch (e) {
+      console.warn("[SongPortXML] Could not materialize imported audio:", e);
+    } finally {
+      delete song.audioData;
+    }
+  }
+
+  function processXmlContent(xmlStr, sourceXmlDir) {
     var songs = [];
     try {
       songs = parseSongsFromXML(xmlStr);
@@ -546,6 +635,10 @@ function songPortXML() {
     if (!songs || songs.length === 0) {
       alert("Invalid database for UECFI Presenter Songs in XML format (no <song> records found).");
       return;
+    }
+
+    for (var i = 0; i < songs.length; i++) {
+      materializeImportedAudio(songs[i], sourceXmlDir);
     }
 
     console.log("[SongPortXML] Parsed songs from XML: " + songs.length);

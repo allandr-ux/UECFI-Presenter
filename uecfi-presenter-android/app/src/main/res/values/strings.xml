@@ -1,7 +1,8 @@
 <resources>
     <string name="app_name">UECFI Presenter</string>
     <string name="searching_presenter">Searching for UECFI Presenter…</string>
-    <string name="off_air">OFF AIR</string>
+    <string name="off_air">CONNECTED</string>
+    <string name="waiting_for_presentation">Waiting for presentation to start…</string>
     <string name="manual_connect_title">Connect to UECFI Presenter</string>
     <string name="manual_connect_subtitle">Auto-discovery is active on your local network, or enter the server address below.</string>
     <string name="ip_address_label">IP Address / Host</string>
@@ -18,8 +19,10 @@
     <string name="next_slide">Next Slide</string>
     <string name="prev_slide">Prev Slide</string>
     <string name="verse_navigation">Verse Navigation</string>
-    <string name="quick_buttons">Quick Buttons</string>
-    <string name="no_custom_buttons">No custom buttons configured on the presenter.</string>
+    <string name="program_items">Program Items</string>
+    <string name="no_program_items">No program items configured on the presenter.</string>
+    <string name="remote_chat">Chat</string>
+    <string name="no_chat_messages">No messages yet. Tap a quick reply or type a message to the operator.</string>
     <string name="tv_remote_hint">TV Remote: Left/Right switches slides • Menu opens connection settings</string>
     <string name="select_mode_title">Choose App Mode</string>
     <string name="select_mode_subtitle">Select how you want to use this device. You can change this anytime in Settings.</string>

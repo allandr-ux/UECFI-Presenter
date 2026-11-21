@@ -150,6 +150,9 @@ function readingEditClass() {
 
   function parseSlides(text) {
     if (!text || !text.trim()) return [];
+    if (typeof window !== "undefined" && typeof window.splitReadingSlides === "function") {
+      return window.splitReadingSlides(text).filter(function(s) { return s.length > 0; });
+    }
     return text
       .split(/\n\s*\n+/)
       .map(function(s) { return s.trim(); })

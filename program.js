@@ -53,17 +53,34 @@ class ProgramManager {
     this.bindEvents();
   }
 
+  // Shared helper: write directly to AppStorage.resolveStoragePath("program", fileName)
+  // so reads and writes always target the exact same userData/storage path.
+  _writeProgramStorageFile(fileName, relFallbackPath, content) {
+    const targetPath = (typeof AppStorage !== "undefined" && AppStorage.resolveStoragePath)
+      ? AppStorage.resolveStoragePath("program", fileName)
+      : relFallbackPath;
+    if (typeof require === "function") {
+      try {
+        const fs = require("fs");
+        const path = require("path");
+        fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+        fs.writeFileSync(targetPath, content, "utf8");
+      } catch (e) {
+        console.warn(`[PROGRAM] Direct fs write failed for ${fileName}:`, e);
+      }
+    }
+    try {
+      if (typeof AppStorage !== "undefined" && AppStorage.writeFile) {
+        AppStorage.writeFile(targetPath, content);
+      }
+    } catch (e) {}
+  }
+
   // Persist items to the writable storage file + localStorage mirror.
   // Never writes the shipped fallback (read-only on installed builds).
   saveProgramData() {
     const dataStr = JSON.stringify(this.items, null, 2);
-    try {
-      if (typeof AppStorage !== "undefined" && AppStorage.writeFile) {
-        AppStorage.writeFile(this.storagePath, dataStr);
-      }
-    } catch (e) {
-      console.warn("[PROGRAM] Error saving program data:", e);
-    }
+    this._writeProgramStorageFile("program.json", this.storagePath, dataStr);
     try {
       localStorage.setItem("uecfi_program_items", dataStr);
     } catch (e) {
@@ -227,6 +244,9 @@ class ProgramManager {
         case "song":
           typeBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200"><i class="fa-solid fa-music"></i> Song</span>';
           break;
+        case "reading":
+          typeBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-cyan-100 text-cyan-800 border border-cyan-200"><i class="fa-solid fa-book-open"></i> Reading</span>';
+          break;
         case "scripture":
           typeBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200"><i class="fa-solid fa-book-bible"></i> Scripture</span>';
           break;
@@ -258,7 +278,7 @@ class ProgramManager {
           : rawName;
         const fullPersonName = [pTitle, cleanName].filter(Boolean).join(" ");
         summaryText = fullPersonName ? `${fullPersonName}${item.data.centro ? ` (${item.data.centro})` : ""}` : (item.data.centro || "");
-      } else if (item.type === "song") {
+      } else if (item.type === "song" || item.type === "reading") {
         const slideCount = this.generateSlidesForItem(item).length;
         summaryText = `${slideCount} slide${slideCount !== 1 ? "s" : ""}`;
       } else if (item.type === "scripture") {
@@ -551,6 +571,52 @@ class ProgramManager {
         });
       }
 
+      case "reading": {
+        let rawContent = item.data.content || item.data.lyrics || "";
+        if (!rawContent && typeof readingManagerObj !== "undefined" && readingManagerObj) {
+          try {
+            let rObj = null;
+            if (item.data.id != null && typeof readingManagerObj.getReadingObjWithID === "function") {
+              rObj = readingManagerObj.getReadingObjWithID(item.data.id);
+            }
+            if (!rObj && item.title && typeof readingManagerObj.getAllReadings === "function") {
+              const res = readingManagerObj.getAllReadings();
+              const rows = (res && Array.isArray(res.data)) ? res.data : [];
+              rObj = rows.find(r => r && r.name && r.name.trim().toLowerCase() === String(item.title).trim().toLowerCase());
+            }
+            if (rObj) {
+              rawContent = rObj.lyrics || (Array.isArray(rObj.slides) ? rObj.slides.join("<slide>") : "");
+              if (rawContent) item.data.content = rawContent;
+            }
+          } catch (e) {}
+        }
+
+        let rawParts = [];
+        if (typeof window !== "undefined" && typeof window.splitReadingSlides === "function") {
+          rawParts = window.splitReadingSlides(rawContent).filter(p => p.length > 0);
+        } else if (rawContent.includes("<slide>")) {
+          rawParts = rawContent.split(/<slide>/gi).map(p => p.trim()).filter(p => p.length > 0);
+        } else {
+          rawParts = rawContent.split(/\n\s*\n/).map(p => p.trim()).filter(p => p.length > 0);
+        }
+
+        if (rawParts.length === 0) {
+          return [{ text1: item.title, text2: "" }];
+        }
+
+        return rawParts.map(p => {
+          const formattedText = p
+            .replace(/\r\n/g, "\n")
+            .replace(/\r/g, "\n")
+            .replace(/<br\s*\/?>/gi, "\n")
+            .trim()
+            .split("\n")
+            .map(line => line.trim())
+            .join("<BR>");
+          return { text1: formattedText, text2: "" };
+        });
+      }
+
       case "scripture": {
         const refs = item.data.references || [];
         const slides = [];
@@ -611,10 +677,11 @@ class ProgramManager {
             }).filter(Boolean).join("; ");
           }
         }
+        const cleanBatayan = batayanStr ? batayanStr.replace(/^\s*batayan\s*:\s*/i, "").trim() : "";
         return [
           {
             text1: temaText ? `"${temaText}"` : "(Tema)",
-            text2: batayanStr ? `Batayan: ${batayanStr}` : ""
+            text2: cleanBatayan
           }
         ];
       }
@@ -1150,7 +1217,7 @@ class ProgramManager {
           <!-- Item Type Selection -->
           <div>
             <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Item Type</label>
-            <div class="grid grid-cols-5 gap-2">
+            <div style="display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:8px;">
               <button type="button" onclick="programManager.switchModalType('person')" id="btnType_person" class="modal-type-btn p-2.5 rounded-xl border text-center transition flex flex-col items-center gap-1">
                 <i class="fa-solid fa-user-tie text-base"></i>
                 <span class="text-[11px] font-bold">Person</span>
@@ -1158,6 +1225,10 @@ class ProgramManager {
               <button type="button" onclick="programManager.switchModalType('song')" id="btnType_song" class="modal-type-btn p-2.5 rounded-xl border text-center transition flex flex-col items-center gap-1">
                 <i class="fa-solid fa-music text-base"></i>
                 <span class="text-[11px] font-bold">Song</span>
+              </button>
+              <button type="button" onclick="programManager.switchModalType('reading')" id="btnType_reading" class="modal-type-btn p-2.5 rounded-xl border text-center transition flex flex-col items-center gap-1">
+                <i class="fa-solid fa-book-open text-base"></i>
+                <span class="text-[11px] font-bold">Reading</span>
               </button>
               <button type="button" onclick="programManager.switchModalType('scripture')" id="btnType_scripture" class="modal-type-btn p-2.5 rounded-xl border text-center transition flex flex-col items-center gap-1">
                 <i class="fa-solid fa-book-bible text-base"></i>
@@ -1206,7 +1277,7 @@ class ProgramManager {
     this.currentModalType = type;
 
     // Update type button styling
-    const types = ["person", "song", "scripture", "tema", "general"];
+    const types = ["person", "song", "reading", "scripture", "tema", "general"];
     types.forEach(t => {
       const btn = document.getElementById(`btnType_${t}`);
       if (btn) {
@@ -1331,6 +1402,35 @@ class ProgramManager {
           <div id="progSongAudioDisplay" class="text-xs ${this.currentModalData.audio ? 'text-purple-900 font-semibold' : 'text-slate-400'}">
             ${this.currentModalData.audio ? ('Attached: ' + this.currentModalData.audio) : 'No audio attached.'}
           </div>
+        </div>
+      `;
+    } else if (type === "reading") {
+      const readingList = this.getAllReadings();
+      let readingOptions = '<option value="">-- Choose from Readings Database (Optional) --</option>';
+      readingList.forEach((r, rIdx) => {
+        readingOptions += `<option value="${rIdx}">${r.name}</option>`;
+      });
+
+      fieldsContainer.innerHTML = `
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Reading Picker</label>
+          <select id="selectReadingPicker" onchange="programManager.onReadingPicked(this.value)"
+                  class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-brand-500">
+            ${readingOptions}
+          </select>
+          <p class="text-[10px] text-slate-400 mt-1">Selecting a reading will automatically populate Title and Slides below (${readingList.length} readings available).</p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Title</label>
+          <input id="inputItemTitle" type="text" value="${this.currentModalTitle || ""}" placeholder="Reading Title"
+                 class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:border-brand-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Reading Content (Separate slides with empty lines)</label>
+          <textarea id="inputReadingContent" rows="8" placeholder="Enter reading text here. Leave a blank line between slides..."
+                    class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-slate-800 focus:outline-none focus:border-brand-500 custom-scrollbar">${this.formatLyricsForTextarea(this.currentModalData.content || this.currentModalData.lyrics || "")}</textarea>
         </div>
       `;
     } else if (type === "scripture") {
@@ -1592,6 +1692,51 @@ class ProgramManager {
     }
   }
 
+  getAllReadings() {
+    if (typeof readingManagerObj !== "undefined" && readingManagerObj && typeof readingManagerObj.getAllReadings === "function") {
+      const res = readingManagerObj.getAllReadings();
+      if (res && Array.isArray(res.data)) {
+        return res.data;
+      }
+    }
+    return [];
+  }
+
+  onReadingPicked(readingIdx) {
+    if (readingIdx === "" || readingIdx === null || typeof readingIdx === "undefined") return;
+    const readingList = this.getAllReadings();
+    let reading = readingList[parseInt(readingIdx)];
+    if (!reading) return;
+
+    if ((!reading.lyrics || !reading.slides) && reading.id != null && typeof readingManagerObj !== "undefined" && readingManagerObj && typeof readingManagerObj.getReadingObjWithID === "function") {
+      const fullObj = readingManagerObj.getReadingObjWithID(reading.id);
+      if (fullObj) {
+        reading = Object.assign({}, reading, fullObj);
+      }
+    }
+
+    if (!this.currentModalData) this.currentModalData = {};
+    if (reading.id != null) this.currentModalData.id = reading.id;
+    if (reading.notes) this.currentModalData.notes = reading.notes;
+
+    const titleInput = document.getElementById("inputItemTitle");
+    if (titleInput) titleInput.value = reading.name || "";
+
+    const contentInput = document.getElementById("inputReadingContent");
+    if (contentInput) {
+      let text = "";
+      if (reading.lyrics) {
+        text = this.formatLyricsForTextarea(reading.lyrics);
+      } else if (Array.isArray(reading.slides) && reading.slides.length > 0) {
+        text = reading.slides
+          .map(part => String(part).replace(/<br\s*\/?>/gi, "\n").trim())
+          .filter(part => part.length > 0)
+          .join("\n\n");
+      }
+      contentInput.value = text;
+    }
+  }
+
   handleSongAudioUpload(event) {
     try {
       const input = event ? event.target : null;
@@ -1826,6 +1971,23 @@ class ProgramManager {
         data.audio = audioInput.value.trim();
       } else if (this.currentModalData && this.currentModalData.audio) {
         data.audio = this.currentModalData.audio;
+      }
+    } else if (type === "reading") {
+      let contentVal = document.getElementById("inputReadingContent") ? document.getElementById("inputReadingContent").value.trim() : "";
+      if (!contentVal && title && typeof readingManagerObj !== "undefined" && readingManagerObj && typeof readingManagerObj.getAllReadings === "function") {
+        const res = readingManagerObj.getAllReadings();
+        const rows = (res && Array.isArray(res.data)) ? res.data : [];
+        const matched = rows.find(r => r && r.name && r.name.trim().toLowerCase() === title.trim().toLowerCase());
+        if (matched && matched.lyrics) {
+          contentVal = this.formatLyricsForTextarea(matched.lyrics);
+        }
+      }
+      data.content = contentVal;
+      if (this.currentModalData && this.currentModalData.id != null) {
+        data.id = this.currentModalData.id;
+      }
+      if (this.currentModalData && this.currentModalData.notes) {
+        data.notes = this.currentModalData.notes;
       }
     } else if (type === "scripture") {
       data.references = [];
@@ -2253,7 +2415,7 @@ class ProgramManager {
       return;
     }
 
-    const validTypes = ["person", "song", "scripture", "tema", "general"];
+    const validTypes = ["person", "song", "reading", "scripture", "tema", "general"];
     const validItems = [];
 
     candidateItems.forEach((raw, idx) => {
@@ -2269,6 +2431,7 @@ class ProgramManager {
         else if (type === "tema") title = "Tema";
         else if (type === "scripture") title = "Scripture";
         else if (type === "song") title = "Song";
+        else if (type === "reading") title = "Reading";
         else title = `Program Item ${idx + 1}`;
       }
 
@@ -3306,6 +3469,13 @@ class ProgramManager {
       if (!this.playlists.some((p) => p.id === this.activePlaylistId)) {
         this.activePlaylistId = this.playlists[0].id;
       }
+      // If program.json was empty/missing on relaunch, restore items from the active playlist
+      if ((!Array.isArray(this.items) || this.items.length === 0)) {
+        const activePl = this.playlists.find((p) => p && p.id === this.activePlaylistId);
+        if (activePl && Array.isArray(activePl.items) && activePl.items.length > 0) {
+          this.items = this._cloneItems(activePl.items);
+        }
+      }
     } else {
       // First run: seed a default playlist containing whatever items are currently loaded
       const defaultId = "pl_default";
@@ -3328,13 +3498,7 @@ class ProgramManager {
       playlists: this.playlists
     };
     const jsonStr = JSON.stringify(payload, null, 2);
-    try {
-      if (typeof AppStorage !== "undefined" && AppStorage.writeFile) {
-        AppStorage.writeFile(this.playlistsStoragePath, jsonStr);
-      }
-    } catch (e) {
-      console.warn("[PROGRAM] Error saving playlists file:", e);
-    }
+    this._writeProgramStorageFile("playlists.json", this.playlistsStoragePath, jsonStr);
     try {
       localStorage.setItem("uecfi_program_playlists", jsonStr);
       if (this.activePlaylistId) {
