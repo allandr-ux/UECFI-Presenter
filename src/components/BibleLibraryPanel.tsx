@@ -71,21 +71,27 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
-    loadImportedBibles().then((stored) => {
-      setBibles(stored);
+    const syncBibles = () => {
+      loadImportedBibles().then((stored) => {
+        setBibles(stored);
 
-      const savedPrimary = localStorage.getItem(PRIMARY_BIBLE_KEY);
-      if (savedPrimary && stored.some((b) => b.id === savedPrimary)) {
-        setPrimaryId(savedPrimary);
-      } else if (stored.length > 0) {
-        setPrimaryId(stored[0].id);
-      }
+        const savedPrimary = localStorage.getItem(PRIMARY_BIBLE_KEY);
+        if (savedPrimary && stored.some((b) => b.id === savedPrimary)) {
+          setPrimaryId(savedPrimary);
+        } else if (stored.length > 0) {
+          setPrimaryId(stored[0].id);
+        }
 
-      const savedSecondary = localStorage.getItem(SECONDARY_BIBLE_KEY);
-      if (savedSecondary !== null) {
-        setSecondaryId(stored.some((b) => b.id === savedSecondary) ? savedSecondary : '');
-      }
-    });
+        const savedSecondary = localStorage.getItem(SECONDARY_BIBLE_KEY);
+        if (savedSecondary !== null) {
+          setSecondaryId(stored.some((b) => b.id === savedSecondary) ? savedSecondary : '');
+        }
+      });
+    };
+
+    syncBibles();
+    window.addEventListener('uecfi:bibles-updated', syncBibles);
+    return () => window.removeEventListener('uecfi:bibles-updated', syncBibles);
   }, []);
 
   useEffect(() => {

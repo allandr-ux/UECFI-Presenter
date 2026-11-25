@@ -104,7 +104,12 @@ import {
   flattenSongTimedLines,
   formatTimestamp
 } from '../utils/timedLyrics';
+import { loadImportedBibles, saveImportedBible } from '../utils/bibleStorage';
+import { parseBibleXml } from '../utils/bibleXmlParser';
+import { readTextFileWithEncoding } from '../utils/textEncoding';
 import uecfiLogoTiny from '../assets/uecfi-logo-tiny.png';
+
+const BIBLE_IMPORT_PROMPT_DISMISSED_KEY = 'uecfi_bible_import_prompt_dismissed_v1';
 
 function getTypeIcon(type: ContentType) {
   switch (type) {
@@ -421,6 +426,13 @@ export const OperatorConsole: React.FC = () => {
   } | null>(null);
   const switchLiveDialogRef = useRef<HTMLDialogElement>(null);
   const switchLiveTitleId = React.useId();
+  const [bibleImportPromptStep, setBibleImportPromptStep] = useState<'closed' | 'prompt' | 'later'>('closed');
+  const [dontShowBiblePromptAgain, setDontShowBiblePromptAgain] = useState(false);
+  const [bibleStartupImporting, setBibleStartupImporting] = useState(false);
+  const [bibleStartupImportError, setBibleStartupImportError] = useState<string | null>(null);
+  const bibleImportPromptRef = useRef<HTMLDialogElement>(null);
+  const bibleImportPromptTitleId = React.useId();
+  const bibleStartupFileInputRef = useRef<HTMLInputElement>(null);
   const [pickerFilter, setPickerFilter] = useState<'all' | 'song' | 'programItem'>('all');
   const [pickerQuery, setPickerQuery] = useState('');
   const [draggedProgramIdx, setDraggedProgramIdx] = useState<number | null>(null);
@@ -455,6 +467,62 @@ export const OperatorConsole: React.FC = () => {
       dialog.close();
     }
   }, [pendingLiveSwitch]);
+
+  useEffect(() => {
+    if (localStorage.getItem(BIBLE_IMPORT_PROMPT_DISMISSED_KEY) === 'true') return;
+    let cancelled = false;
+    loadImportedBibles().then((stored) => {
+      if (!cancelled && stored.length === 0) {
+        setDontShowBiblePromptAgain(false);
+        setBibleImportPromptStep('prompt');
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const dialog = bibleImportPromptRef.current;
+    if (!dialog) return;
+    if (bibleImportPromptStep !== 'closed' && !dialog.open) {
+      dialog.showModal();
+    } else if (bibleImportPromptStep === 'closed' && dialog.open) {
+      dialog.close();
+    }
+  }, [bibleImportPromptStep]);
+
+  const handleDeferBibleImport = () => {
+    if (dontShowBiblePromptAgain) {
+      localStorage.setItem(BIBLE_IMPORT_PROMPT_DISMISSED_KEY, 'true');
+    }
+    setBibleStartupImportError(null);
+    setBibleImportPromptStep('later');
+  };
+
+  const handleStartupBibleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    setBibleStartupImportError(null);
+    setBibleStartupImporting(true);
+    try {
+      for (const file of files) {
+        const text = await readTextFileWithEncoding(file, { checkXmlProlog: true });
+        const parsed = parseBibleXml(text, file.name);
+        await saveImportedBible(parsed);
+      }
+      window.dispatchEvent(new Event('uecfi:bibles-updated'));
+      setLibraryTab('verses');
+      setBibleImportPromptStep('closed');
+    } catch (err) {
+      setBibleStartupImportError(
+        err instanceof Error ? err.message : 'Failed to import XML Bible.'
+      );
+    } finally {
+      setBibleStartupImporting(false);
+      e.target.value = '';
+    }
+  };
 
   useEffect(() => {
     const dialog = programPickerRef.current;
@@ -3205,7 +3273,7 @@ export const OperatorConsole: React.FC = () => {
         }}
       >
         {/* Left Column: Program + Library */}
-        <aside style={{ display: 'flex', flexDirection: 'column', minHeight: 0, background: 'var(--bg-panel)' }}>
+        <aside style={{ display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0, overflow: 'hidden', background: 'var(--bg-panel)' }}>
           {/* Program Section */}
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
             <div style={panelHeaderStyle}>
@@ -4177,7 +4245,7 @@ export const OperatorConsole: React.FC = () => {
         />
 
         {/* Center Column: Content Grid or Smart Bible Search */}
-        <main style={{ display: 'flex', flexDirection: 'column', minHeight: 0, background: 'var(--bg-app)' }}>
+        <main style={{ display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0, overflow: 'hidden', background: 'var(--bg-app)' }}>
           <div
             style={{
               display: centerMode === 'search' ? 'flex' : 'none',
@@ -4202,14 +4270,22 @@ export const OperatorConsole: React.FC = () => {
               display: centerMode === 'grid' ? 'flex' : 'none',
               flexDirection: 'column',
               flex: 1,
-              minHeight: 0
+              minHeight: 0,
+              minWidth: 0
             }}
           >
-              <div style={panelHeaderStyle}>
-                <span>
+              <div style={{ ...panelHeaderStyle, gap: '8px' }}>
+                <span
+                  style={{
+                    minWidth: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
                   {t.workspace.contentGrid} {selectedItem ? `— ${selectedItem.title}` : ''}
                 </span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', flexShrink: 0 }}>
                   Click any card to project ({t.workspace.directToLive})
                 </span>
               </div>
@@ -4218,14 +4294,16 @@ export const OperatorConsole: React.FC = () => {
                 ref={contentGridRef}
                 style={{
                   flex: 1,
+                  minWidth: 0,
                   overflowY: 'auto',
+                  overflowX: 'hidden',
                   padding: '16px',
                   display: selectedItem?.type === 'verse' ? 'flex' : 'grid',
                   flexDirection: selectedItem?.type === 'verse' ? 'column' : undefined,
                   gridTemplateColumns:
                     selectedItem?.type === 'verse'
                       ? undefined
-                      : 'repeat(auto-fill, minmax(230px, 1fr))',
+                      : 'repeat(auto-fill, minmax(min(200px, 100%), 1fr))',
                   gap: selectedItem?.type === 'verse' ? '8px' : '12px',
                   alignContent: 'start'
                 }}
@@ -4355,18 +4433,23 @@ export const OperatorConsole: React.FC = () => {
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '8px',
-                    minHeight: '132px',
+                    minWidth: 0,
+                    width: '100%',
                     boxShadow: isLive ? '0 0 0 2px rgba(239,68,68,0.25)' : 'none'
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px', minWidth: 0, width: '100%' }}>
                     <span
                       style={{
                         fontSize: '0.72rem',
                         fontWeight: 700,
                         textTransform: 'uppercase',
                         letterSpacing: '0.06em',
-                        color: isLive ? '#f87171' : '#60a5fa'
+                        color: isLive ? '#f87171' : '#60a5fa',
+                        minWidth: 0,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
                       }}
                     >
                       {block.label || `Slide ${index + 1}`}
@@ -4379,7 +4462,8 @@ export const OperatorConsole: React.FC = () => {
                           background: 'var(--live-red)',
                           color: '#fff',
                           padding: '2px 6px',
-                          borderRadius: '4px'
+                          borderRadius: '4px',
+                          flexShrink: 0
                         }}
                       >
                         {t.controls.live}
@@ -6944,6 +7028,185 @@ export const OperatorConsole: React.FC = () => {
               Switch Item
             </button>
           </form>
+        </div>
+      </dialog>
+
+      {/* First-Launch No Bibles Imported Prompt */}
+      <dialog
+        ref={bibleImportPromptRef}
+        aria-labelledby={bibleImportPromptTitleId}
+        style={{ maxWidth: '450px', width: 'min(92vw, 450px)' }}
+        onCancel={(e) => {
+          if (bibleImportPromptStep === 'prompt') {
+            e.preventDefault();
+            handleDeferBibleImport();
+          }
+        }}
+        onClose={() => {
+          if (bibleImportPromptRef.current) {
+            bibleImportPromptRef.current.returnValue = '';
+          }
+          setBibleStartupImportError(null);
+          setBibleImportPromptStep('closed');
+        }}
+      >
+        <div style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <input
+            ref={bibleStartupFileInputRef}
+            type="file"
+            accept=".xml,text/xml,application/xml"
+            multiple
+            onChange={handleStartupBibleFileChange}
+            style={{ display: 'none' }}
+          />
+          {bibleImportPromptStep === 'prompt' ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    background: 'rgba(59, 130, 246, 0.16)',
+                    border: '1px solid rgba(59, 130, 246, 0.35)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#60a5fa',
+                    flexShrink: 0
+                  }}
+                >
+                  <BookOpen size={18} />
+                </div>
+                <h2 id={bibleImportPromptTitleId} style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>
+                  No Bibles Imported Yet
+                </h2>
+              </div>
+              <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                You don&apos;t have any Bible XML files imported yet. Would you like to start importing a Bible now?
+              </p>
+              {bibleStartupImportError && (
+                <div
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    background: 'rgba(220, 38, 38, 0.14)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    color: '#fca5a5',
+                    fontSize: '0.78rem'
+                  }}
+                >
+                  {bibleStartupImportError}
+                </div>
+              )}
+              <label
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '0.82rem',
+                  color: 'var(--text-secondary)',
+                  userSelect: 'none'
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={dontShowBiblePromptAgain}
+                  onChange={(e) => setDontShowBiblePromptAgain(e.target.checked)}
+                />
+                <span>Don&apos;t show this again</span>
+              </label>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
+                <button
+                  type="button"
+                  disabled={bibleStartupImporting}
+                  onClick={handleDeferBibleImport}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-subtle)',
+                    background: 'var(--bg-panel-elevated)',
+                    fontSize: '0.82rem',
+                    fontWeight: 600
+                  }}
+                >
+                  Remind Me Later
+                </button>
+                <button
+                  type="button"
+                  autoFocus
+                  disabled={bibleStartupImporting}
+                  onClick={() => bibleStartupFileInputRef.current?.click()}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: 'var(--accent)',
+                    color: '#fff',
+                    fontSize: '0.82rem',
+                    fontWeight: 700
+                  }}
+                >
+                  <Upload size={14} />
+                  {bibleStartupImporting ? 'Importing…' : 'Start Importing'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    background: 'rgba(34, 197, 94, 0.14)',
+                    border: '1px solid rgba(34, 197, 94, 0.35)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#4ade80',
+                    flexShrink: 0
+                  }}
+                >
+                  <Settings2 size={18} />
+                </div>
+                <h2 id={bibleImportPromptTitleId} style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>
+                  Import Anytime Later
+                </h2>
+              </div>
+              <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                No problem! Whenever you&apos;re ready, open the <strong>{t.workspace.bible}</strong> tab in the left panel, click the{' '}
+                <strong>Settings</strong> (gear) button, and choose <strong>{t.bible.importXml}</strong>.
+              </p>
+              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                {dontShowBiblePromptAgain
+                  ? "We won't show this reminder again on startup."
+                  : "We'll remind you again next time you launch the app."}
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+                <button
+                  type="button"
+                  autoFocus
+                  onClick={() => setBibleImportPromptStep('closed')}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: 'var(--accent)',
+                    color: '#fff',
+                    fontSize: '0.82rem',
+                    fontWeight: 700
+                  }}
+                >
+                  Got It
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </dialog>
       <LyricsSyncModal
