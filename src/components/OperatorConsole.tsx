@@ -428,10 +428,11 @@ export const OperatorConsole: React.FC = () => {
   } | null>(null);
   const switchLiveDialogRef = useRef<HTMLDialogElement>(null);
   const switchLiveTitleId = React.useId();
-  const [bibleImportPromptStep, setBibleImportPromptStep] = useState<'closed' | 'prompt' | 'later'>('closed');
+  const [bibleImportPromptStep, setBibleImportPromptStep] = useState<'closed' | 'prompt' | 'later' | 'success'>('closed');
   const [dontShowBiblePromptAgain, setDontShowBiblePromptAgain] = useState(false);
   const [bibleStartupImporting, setBibleStartupImporting] = useState(false);
   const [bibleStartupImportError, setBibleStartupImportError] = useState<string | null>(null);
+  const [bibleStartupImportedTitles, setBibleStartupImportedTitles] = useState<string[]>([]);
   const bibleImportPromptRef = useRef<HTMLDialogElement>(null);
   const bibleImportPromptTitleId = React.useId();
   const bibleStartupFileInputRef = useRef<HTMLInputElement>(null);
@@ -508,14 +509,17 @@ export const OperatorConsole: React.FC = () => {
     setBibleStartupImportError(null);
     setBibleStartupImporting(true);
     try {
+      const importedTitles: string[] = [];
       for (const file of files) {
         const text = await readTextFileWithEncoding(file, { checkXmlProlog: true });
         const parsed = parseBibleXml(text, file.name);
         await saveImportedBible(parsed);
+        importedTitles.push(parsed.title);
       }
       window.dispatchEvent(new Event('uecfi:bibles-updated'));
       setLibraryTab('verses');
-      setBibleImportPromptStep('closed');
+      setBibleStartupImportedTitles(importedTitles);
+      setBibleImportPromptStep('success');
     } catch (err) {
       setBibleStartupImportError(
         err instanceof Error ? err.message : 'Failed to import XML Bible.'
@@ -4500,6 +4504,12 @@ export const OperatorConsole: React.FC = () => {
                           activeBlockIndex: index,
                           override: 'none',
                           lyricsMode: selectedItem.lyricsMode ?? 'slide',
+                          audioCurrentTimeSec:
+                            selectedItem.type === 'song' && selectedItem.lyricsMode === 'timed'
+                              ? isLive
+                                ? audioTime
+                                : block.startTimeSec
+                              : undefined,
                           bibleLayout: selectedItem.bibleLayout ?? 'stacked',
                           verseMaxFontSize: selectedItem.verseMaxFontSize ?? 72
                         }}
@@ -4718,7 +4728,15 @@ export const OperatorConsole: React.FC = () => {
               }}
             >
               <ScaledMainScreenPreview
-                liveState={liveMonitorTarget === 'overflow' ? buildOverflowLiveState(liveState) : liveState}
+                liveState={(() => {
+                  const previewState: LiveState =
+                    liveItem?.type === 'song' && liveItem?.lyricsMode === 'timed'
+                      ? { ...liveState, audioCurrentTimeSec: audioTime }
+                      : liveState;
+                  return liveMonitorTarget === 'overflow'
+                    ? buildOverflowLiveState(previewState)
+                    : previewState;
+                })()}
                 participantStreams={
                   liveMonitorTarget === 'overflow' && mainRoomPreviewStream
                     ? new Map([...participantStreams, [MAIN_ROOM_CAMERA_ID, mainRoomPreviewStream]])
@@ -7145,6 +7163,71 @@ export const OperatorConsole: React.FC = () => {
                 >
                   <Upload size={14} />
                   {bibleStartupImporting ? 'Importing…' : 'Start Importing'}
+                </button>
+              </div>
+            </>
+          ) : bibleImportPromptStep === 'success' ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    background: 'rgba(34, 197, 94, 0.14)',
+                    border: '1px solid rgba(34, 197, 94, 0.35)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#4ade80',
+                    flexShrink: 0
+                  }}
+                >
+                  <Check size={18} />
+                </div>
+                <h2 id={bibleImportPromptTitleId} style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>
+                  Bible Imported Successfully
+                </h2>
+              </div>
+              <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                Imported{' '}
+                <strong>{bibleStartupImportedTitles.join(', ')}</strong>. You can start browsing verses right away or import another Bible XML.
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
+                <button
+                  type="button"
+                  disabled={bibleStartupImporting}
+                  onClick={() => bibleStartupFileInputRef.current?.click()}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-subtle)',
+                    background: 'var(--bg-panel-elevated)',
+                    fontSize: '0.82rem',
+                    fontWeight: 600
+                  }}
+                >
+                  <Upload size={14} />
+                  Import Another
+                </button>
+                <button
+                  type="button"
+                  autoFocus
+                  onClick={() => setBibleImportPromptStep('closed')}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: 'var(--accent)',
+                    color: '#fff',
+                    fontSize: '0.82rem',
+                    fontWeight: 700
+                  }}
+                >
+                  Done
                 </button>
               </div>
             </>

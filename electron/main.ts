@@ -195,6 +195,7 @@ function createOperatorWindow() {
     }
   });
 
+  operatorWindow.maximize();
   hardenWindow(operatorWindow);
   loadRendererView(operatorWindow, 'operator');
 

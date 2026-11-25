@@ -70,6 +70,7 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
   const [activeVerseNum, setActiveVerseNum] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess, setImportSuccess] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
@@ -169,15 +170,19 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
     setImportError(null);
+    setImportSuccess(null);
     try {
       const text = await readTextFileWithEncoding(file, { checkXmlProlog: true });
       const parsed = parseBibleXml(text, file.name);
       await saveImportedBible(parsed);
-      setBibles((prev) => [...prev, parsed]);
-      setPrimaryId(parsed.id);
-      setBookIndex(0);
-      setChapterNum(parsed.books[0]?.chapters[0]?.number ?? 1);
-      setActiveVerseNum(null);
+      setBibles((prev) => [...prev.filter((b) => b.id !== parsed.id), parsed]);
+      if (!primaryId) {
+        setPrimaryId(parsed.id);
+        setBookIndex(0);
+        setChapterNum(parsed.books[0]?.chapters[0]?.number ?? 1);
+        setActiveVerseNum(null);
+      }
+      setImportSuccess(`Imported "${parsed.title}" (${parsed.books.length} books).`);
     } catch (err) {
       setImportError(err instanceof Error ? err.message : 'Failed to import XML Bible.');
     } finally {
@@ -459,6 +464,8 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
         style={{ maxWidth: '460px', width: 'min(92vw, 460px)' }}
         onClose={() => {
           if (modalRef.current) modalRef.current.returnValue = '';
+          setImportError(null);
+          setImportSuccess(null);
           setSettingsOpen(false);
         }}
       >
@@ -516,6 +523,11 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
             {importError && (
               <div style={{ fontSize: '0.76rem', color: '#f87171', marginTop: '6px' }}>
                 {importError}
+              </div>
+            )}
+            {importSuccess && (
+              <div style={{ fontSize: '0.76rem', color: '#4ade80', marginTop: '6px' }}>
+                {importSuccess}
               </div>
             )}
           </div>
