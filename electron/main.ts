@@ -1,6 +1,7 @@
-import { app, BrowserWindow, ipcMain, Menu, net, powerSaveBlocker, protocol, safeStorage, screen, session, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, powerSaveBlocker, protocol, safeStorage, screen, session, shell } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
+import { Readable } from 'node:stream';
 import { pathToFileURL } from 'node:url';
 import type {
   DisplayInfo,
@@ -9,7 +10,7 @@ import type {
   RemoteConnectionInfo,
   WhitelistedDevice
 } from '../shared/types';
-import { LocalRemoteServer } from './server';
+import { LocalRemoteServer, MIME_TYPES } from './server';
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -631,16 +632,59 @@ app.whenReady().then(async () => {
       const reqUrl = new URL(request.url);
       const safeFile = path.basename(reqUrl.pathname);
       const targetPath = path.join(mediaDir, safeFile);
-      if (!safeFile || !fs.existsSync(targetPath) || fs.statSync(targetPath).isDirectory()) {
+      if (!safeFile || !fs.existsSync(targetPath)) {
         return new Response('Not Found', { status: 404 });
       }
-      const res = await net.fetch(pathToFileURL(targetPath).toString());
-      const headers = new Headers(res.headers);
-      headers.set('Access-Control-Allow-Origin', '*');
-      return new Response(res.body, {
-        status: res.status,
-        statusText: res.statusText,
-        headers
+      const stat = fs.statSync(targetPath);
+      if (stat.isDirectory()) {
+        return new Response('Not Found', { status: 404 });
+      }
+
+      const ext = path.extname(targetPath).toLowerCase();
+      const contentType = MIME_TYPES[ext] ?? 'application/octet-stream';
+      const rangeHeader = request.headers.get('range');
+
+      if (rangeHeader) {
+        const match = /^bytes=(\d+)-(\d*)$/.exec(rangeHeader);
+        if (match) {
+          const start = Number(match[1]);
+          const end = match[2] ? Math.min(Number(match[2]), stat.size - 1) : stat.size - 1;
+          if (start >= stat.size || start > end) {
+            return new Response(null, {
+              status: 416,
+              headers: {
+                'Content-Range': `bytes */${stat.size}`,
+                'Accept-Ranges': 'bytes',
+                'Access-Control-Allow-Origin': '*'
+              }
+            });
+          }
+          const chunkSize = end - start + 1;
+          const webStream = Readable.toWeb(
+            fs.createReadStream(targetPath, { start, end })
+          ) as ReadableStream;
+          return new Response(webStream, {
+            status: 206,
+            headers: {
+              'Content-Type': contentType,
+              'Content-Length': String(chunkSize),
+              'Content-Range': `bytes ${start}-${end}/${stat.size}`,
+              'Accept-Ranges': 'bytes',
+              'Access-Control-Allow-Origin': '*'
+            }
+          });
+        }
+      }
+
+      const webStream = Readable.toWeb(fs.createReadStream(targetPath)) as ReadableStream;
+      return new Response(webStream, {
+        status: 200,
+        headers: {
+          'Content-Type': contentType,
+          'Content-Length': String(stat.size),
+          'Accept-Ranges': 'bytes',
+          'Access-Control-Allow-Origin': '*'
+        }
       });
     } catch {
       return new Response('Bad Request', { status: 400 });

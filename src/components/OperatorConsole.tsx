@@ -443,6 +443,7 @@ export const OperatorConsole: React.FC = () => {
   const [editorOpen, setEditorOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const pendingAutoPlayRef = useRef(false);
+  const scrubberSeekingRef = useRef(false);
   const inspectorAudioUploadRef = useRef<HTMLInputElement>(null);
   const inspectorBgImageUploadRef = useRef<HTMLInputElement>(null);
   const [audioPlaying, setAudioPlaying] = useState(false);
@@ -2258,7 +2259,7 @@ export const OperatorConsole: React.FC = () => {
     if (!audioPlaying || !liveTimedAudioItem) return;
     const timer = window.setInterval(() => {
       const audio = audioRef.current;
-      if (!audio || audio.paused) return;
+      if (!audio || audio.paused || scrubberSeekingRef.current) return;
       const current = audio.currentTime;
       setAudioTime(current);
       const idx = findBlockIndexForTime(liveTimedAudioItem.blocks, current);
@@ -2986,6 +2987,7 @@ export const OperatorConsole: React.FC = () => {
           onEnded={() => setAudioPlaying(false)}
           onLoadedMetadata={(e) => setAudioDuration(e.currentTarget.duration || 0)}
           onTimeUpdate={(e) => {
+            if (scrubberSeekingRef.current) return;
             const current = e.currentTarget.currentTime;
             setAudioTime(current);
             if (!e.currentTarget.paused) {
@@ -5463,6 +5465,15 @@ export const OperatorConsole: React.FC = () => {
                     max={Math.max(1, audioDuration)}
                     step={0.1}
                     value={audioTime}
+                    onPointerDown={() => {
+                      scrubberSeekingRef.current = true;
+                    }}
+                    onPointerUp={() => {
+                      scrubberSeekingRef.current = false;
+                    }}
+                    onBlur={() => {
+                      scrubberSeekingRef.current = false;
+                    }}
                     onChange={(e) => {
                       const next = Number(e.target.value);
                       setAudioTime(next);
@@ -5621,6 +5632,15 @@ export const OperatorConsole: React.FC = () => {
                                   step={0.1}
                                   disabled={!isLiveSelected}
                                   value={displayedTime}
+                                  onPointerDown={() => {
+                                    if (isLiveSelected) scrubberSeekingRef.current = true;
+                                  }}
+                                  onPointerUp={() => {
+                                    scrubberSeekingRef.current = false;
+                                  }}
+                                  onBlur={() => {
+                                    scrubberSeekingRef.current = false;
+                                  }}
                                   onChange={(e) => {
                                     if (!isLiveSelected) return;
                                     const next = Number(e.target.value);
