@@ -1,0 +1,11 @@
+# Render.com Blueprint Specification for UECFI Signaling & Guest Portal
+services:
+  - type: web
+    name: uecfi-signaling
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production

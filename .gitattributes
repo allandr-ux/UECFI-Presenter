@@ -1,0 +1,20 @@
+# Ensure consistent line endings across macOS, Linux, and Windows checkouts
+* text=auto
+
+# Keep shell scripts and Gradle wrapper as LF so they execute cleanly in WSL / Git Bash / macOS
+*.sh text eol=lf
+gradlew text eol=lf
+
+# Keep Windows batch scripts and NSIS installer scripts as CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.nsh text eol=crlf
+
+# Mark binary assets explicitly
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.icns binary
+*.woff2 binary
+*.ttf binary

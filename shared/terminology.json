@@ -1,0 +1,88 @@
+{
+  "appName": "UECFI Presenter",
+  "screens": {
+    "mainScreen": "Main Screen",
+    "stageView": "Stage View",
+    "displaySetup": "Display Setup",
+    "openMainScreen": "Open Main Screen",
+    "closeMainScreen": "Close Main Screen",
+    "identifyScreens": "Identify"
+  },
+  "workspace": {
+    "program": "Program",
+    "programItems": "Program Items",
+    "library": "Library",
+    "bible": "Bible",
+    "contentGrid": "Content Grid",
+    "liveMonitor": "Live Monitor",
+    "inspector": "Quick Settings",
+    "directToLive": "Direct-to-Live"
+  },
+  "contentTypes": {
+    "song": "Songs",
+    "verse": "Verses",
+    "slide": "Slides",
+    "programItem": "Docs",
+    "media": "Media"
+  },
+  "bible": {
+    "importXml": "Import Bible",
+    "primaryBible": "Primary Bible",
+    "secondaryBible": "Secondary Bible",
+    "none": "None (Single Bible)",
+    "verseLayout": "Verse Layout",
+    "primary": "Primary",
+    "secondary": "Secondary",
+    "stacked": "Stacked",
+    "book": "Book",
+    "chapter": "Chapter",
+    "addToProgram": "Add to Program",
+    "searchPlaceholder": "Search books..."
+  },
+  "editor": {
+    "newSong": "New Song",
+    "newSlide": "New Slide",
+    "newProgramItem": "New Doc",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "addBlock": "Add Section / Slide",
+    "title": "Title",
+    "subtitle": "Subtitle",
+    "theme": "Background Theme",
+    "sectionLabel": "Section Label"
+  },
+  "lyricsModes": {
+    "slideMode": "Slide Mode",
+    "timedMode": "Audio-Synced",
+    "currentLine": "Current Line",
+    "nextLine": "Next Line",
+    "sections": {
+      "verse": "Verse",
+      "chorus": "Chorus",
+      "preChorus": "Pre-Chorus",
+      "bridge": "Bridge",
+      "tag": "Tag",
+      "intro": "Intro",
+      "outro": "Outro"
+    }
+  },
+  "controls": {
+    "clearText": "Clear Text",
+    "blackout": "Blackout",
+    "showLogo": "Show Logo",
+    "next": "Next",
+    "previous": "Previous",
+    "live": "LIVE"
+  },
+  "remote": {
+    "title": "Remote Viewer",
+    "localNetwork": "Local Network",
+    "online": "Online",
+    "sessionCode": "Session Code",
+    "pin": "PIN",
+    "viewMode": "View Mode",
+    "connectedDevices": "Connected Devices"
+  }
+}

@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>UECFI Presenter - Remote Speaker Portal</title>
+  <!-- Tailwind CSS CDN for instant styling with zero build overhead -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans select-none">
+
+  <!-- Header -->
+  <header class="bg-slate-900/90 border-b border-slate-800 px-4 py-3 flex items-center justify-between sticky top-0 z-40 backdrop-blur">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/20">
+        U
+      </div>
+      <div>
+        <h1 class="text-sm font-bold tracking-tight text-white leading-none">UECFI Presenter</h1>
+        <p class="text-[11px] text-slate-400 font-medium">Remote Speaker Portal</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <div id="signalBadge" class="hidden items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+        <span id="signalDot" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+        <span id="signalText">Signal: Good</span>
+      </div>
+      <div id="connectionBadge" class="hidden items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="connectionText">Connected</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Landscape Framing Tip (Shown on portrait phones) -->
+  <div id="landscapeTip" class="hidden bg-blue-950/90 border-b border-blue-800/60 px-4 py-2 text-xs text-blue-200 flex items-center justify-between gap-3">
+    <span>📱 Tip: Rotate your phone sideways (landscape) for the best widescreen framing.</span>
+    <button id="btnDismissLandscape" type="button" class="text-blue-300 hover:text-white font-bold px-1.5 py-0.5 rounded">×</button>
+  </div>
+
+  <!-- Main Container -->
+  <main class="flex-1 flex flex-col p-4 max-w-4xl w-full mx-auto justify-center">
+
+    <!-- STEP 1: JOIN & DEVICE SETUP SCREEN -->
+    <div id="joinCard" class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl max-w-md w-full mx-auto">
+      <div class="text-center mb-6">
+        <h2 class="text-xl font-bold text-white mb-1">Speaker Green Room</h2>
+        <p class="text-xs text-slate-400">Join the live centro session from your phone or computer.</p>
+      </div>
+
+      <!-- Live Media Preview -->
+      <div class="relative w-full aspect-video bg-black rounded-xl overflow-hidden mb-4 border border-slate-800 shadow-inner group">
+        <video id="previewVideo" autoplay playsinline muted class="w-full h-full object-cover -scale-x-100"></video>
+        
+        <!-- Media Permission Prompt Overlay (Shown when camera/mic not yet authorized) -->
+        <div id="mediaPermissionPrompt" class="absolute inset-0 bg-slate-950/85 backdrop-blur-xs flex flex-col items-center justify-center p-4 text-center z-10">
+          <div class="w-11 h-11 rounded-full bg-blue-600/20 text-blue-400 flex items-center justify-center mb-2 shadow-inner">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h3 class="text-xs font-bold text-white mb-1">Camera &amp; Microphone Required</h3>
+          <p class="text-[11px] text-slate-400 max-w-xs mb-3">Allow access so the centro operator and congregation can see and hear you.</p>
+          <button id="btnRequestPermission" type="button" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-xl text-xs shadow-lg shadow-blue-600/30 active:scale-95 transition flex items-center gap-1.5 cursor-pointer">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Enable Camera &amp; Mic</span>
+          </button>
+        </div>
+
+        <!-- Mic Level Indicator Bar -->
+        <div class="absolute bottom-2 left-2 right-2 flex items-center gap-2 bg-slate-950/80 backdrop-blur px-2.5 py-1.5 rounded-lg border border-slate-800">
+          <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 02-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+          </svg>
+          <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+            <div id="micMeter" class="h-full bg-emerald-500 transition-all duration-75 w-0"></div>
+          </div>
+        </div>
+
+        <!-- Flip Camera Button (Useful for mobile) -->
+        <button id="btnFlipCamera" type="button" class="absolute top-2 right-2 bg-slate-900/80 backdrop-blur p-2 rounded-lg border border-slate-700 text-slate-300 hover:text-white transition cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Camera & Mic Device Selectors -->
+      <div id="joinDeviceSelectors" class="hidden grid grid-cols-2 gap-2 mb-4">
+        <select id="selectCamera" aria-label="Camera" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-200 focus:outline-none focus:border-blue-500"></select>
+        <select id="selectMic" aria-label="Microphone" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-200 focus:outline-none focus:border-blue-500"></select>
+      </div>
+
+      <!-- Join Form -->
+      <form id="joinForm" class="space-y-3.5" autocomplete="off">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Your Full Name</label>
+          <input type="text" id="inputName" name="guest_display_name" required placeholder="e.g. Pastor John / Sis. Maria"
+            autocomplete="name"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Centro / Position</label>
+          <input type="text" id="inputCentro" name="guest_centro_position" required placeholder="e.g. Bunduc Ning Bie / Elder"
+            autocomplete="organization-title"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Room ID</label>
+            <!-- 
+              Autofill Prevention:
+              Browsers aggressively treat fields near passwords as username logins.
+              Explicitly disable autocomplete, spellcheck, autocorrect, and password-manager hooks.
+            -->
+            <input type="text" id="inputRoomId" name="room_code_no_autofill" required placeholder="e.g. uecfi-main"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="characters"
+              spellcheck="false"
+              data-lpignore="true"
+              data-1p-ignore="true"
+              data-form-type="other"
+              class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 uppercase transition">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Secret PIN</label>
+            <!-- 
+              Password-Manager Bypass:
+              Using type="text" with inputmode="numeric" and CSS text-security masking
+              prevents browsers (Chrome, Safari, Keychain, 1Password) from detecting
+              this as a password field and triggering the "Save Password?" dialog.
+            -->
+            <input type="text" id="inputSecretKey" name="room_access_code" required placeholder="PIN Code"
+              inputmode="numeric"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
+              data-lpignore="true"
+              data-1p-ignore="true"
+              data-form-type="other"
+              style="-webkit-text-security: disc; text-security: disc; letter-spacing: 0.15em;"
+              class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 font-mono transition">
+          </div>
+        </div>
+
+        <div id="joinError" class="hidden text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-2 rounded-lg text-center"></div>
+
+        <button type="submit" id="btnJoin"
+          class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition shadow-lg shadow-blue-600/30 active:scale-[0.98]">
+          Enter Green Room
+        </button>
+      </form>
+    </div>
+
+    <!-- STEP 2: GREEN ROOM / LIVE STAGE ACTIVE SCREEN -->
+    <div id="roomView" class="hidden flex-col gap-4 max-w-4xl w-full mx-auto">
+      
+      <!-- BROADCAST TALLY BANNER -->
+      <div id="tallyBanner" class="tally-backstage rounded-2xl p-4 flex items-center justify-between shadow-xl transition-all duration-300">
+        <div class="flex items-center gap-3">
+          <div id="tallyDot" class="w-3.5 h-3.5 rounded-full bg-amber-400 animate-pulse"></div>
+          <div>
+            <h2 id="tallyTitle" class="text-sm md:text-base font-extrabold uppercase tracking-wide text-amber-300">
+              Backstage in Green Room
+            </h2>
+            <p id="tallySubtitle" class="text-xs text-amber-200/80">
+              The operator can see and talk with you. The congregation cannot see or hear you yet.
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <span id="liveTimer" class="hidden font-mono text-xs font-bold text-rose-200 bg-rose-950/70 border border-rose-500/40 px-2.5 py-1 rounded-full">00:00</span>
+          <div id="tallyBadge" class="px-3 py-1 bg-amber-400/20 text-amber-300 font-bold rounded-full text-xs uppercase tracking-wider border border-amber-400/30">
+            Standby
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Video Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        
+        <!-- Left 2 Cols: Self Camera Feed -->
+        <div class="md:col-span-2 flex flex-col gap-3">
+          <div id="videoContainer" class="relative aspect-video bg-black rounded-2xl overflow-hidden border-2 border-slate-800 shadow-2xl transition-all duration-300">
+            <video id="liveVideo" autoplay playsinline muted class="w-full h-full object-cover -scale-x-100"></video>
+
+            <!-- Operator Moderation Status Overlay -->
+            <div id="operatorModBanner" class="hidden absolute top-3 left-3 right-3 z-20 flex justify-center pointer-events-none">
+              <div id="operatorModText" class="px-3.5 py-1.5 rounded-full bg-amber-950/90 border border-amber-500/50 text-amber-200 text-xs font-bold shadow-lg backdrop-blur"></div>
+            </div>
+
+            <!-- Bottom Floating Media Bar -->
+            <div class="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-slate-950/85 backdrop-blur px-4 py-2 rounded-full border border-slate-700/60 shadow-xl z-20">
+              <!-- Mic Mute Toggle -->
+              <button id="btnToggleAudio" type="button" class="w-10 h-10 rounded-full bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center transition active:scale-95" title="Mute/Unmute Mic">
+                <svg id="iconMicOn" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 02-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                </svg>
+                <svg id="iconMicOff" class="w-5 h-5 text-rose-500 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                </svg>
+              </button>
+
+              <!-- Video Mute Toggle -->
+              <button id="btnToggleVideo" type="button" class="w-10 h-10 rounded-full bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center transition active:scale-95" title="Enable/Disable Video">
+                <svg id="iconVideoOn" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                <svg id="iconVideoOff" class="w-5 h-5 text-rose-500 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                </svg>
+              </button>
+
+              <!-- Device Settings Toggle -->
+              <button id="btnToggleDevices" type="button" class="w-10 h-10 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center transition active:scale-95" title="Switch Camera / Mic">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+
+              <!-- Leave Room -->
+              <button id="btnLeave" type="button" class="w-10 h-10 rounded-full bg-rose-600/80 hover:bg-rose-600 text-white flex items-center justify-center transition active:scale-95" title="Leave Session">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- In-Room Camera & Mic Switcher Bar -->
+          <div id="roomDeviceBar" class="hidden bg-slate-900 border border-slate-800 rounded-xl p-2.5 grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <select id="roomSelectCamera" aria-label="Active Camera" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500"></select>
+            <select id="roomSelectMic" aria-label="Active Microphone" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500"></select>
+          </div>
+
+          <!-- Alert Operator Button (Triggers a persistent visual toast on Operator Console) -->
+          <button id="btnAlertOperator" type="button" class="w-full py-2.5 px-4 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/50 text-amber-200 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition active:scale-[0.99] cursor-pointer shadow-md">
+            <svg class="w-4 h-4 shrink-0 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            <span id="btnAlertOperatorText">Alert Operator (Need to Talk)</span>
+          </button>
+
+          <!-- Main Room Return Feed (Camera + Sanctuary Audio sent from Desktop Operator) -->
+          <div id="returnFeedCard" class="hidden bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
+            <div class="flex items-center justify-between gap-2 px-3 py-2 border-b border-slate-800 bg-slate-950/60">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse shrink-0"></span>
+                <span class="text-xs font-bold text-slate-200 uppercase tracking-wide truncate">Main Room Feed</span>
+              </div>
+              <button id="btnToggleReturnAudio" type="button" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition cursor-pointer shrink-0">
+                Mute Room Audio
+              </button>
+            </div>
+            <div id="returnVideoWrapper" class="hidden relative aspect-video max-h-56 w-full bg-black">
+              <video id="returnVideo" autoplay playsinline muted class="w-full h-full object-contain"></video>
+            </div>
+          </div>
+
+          <!-- Live Verse / Slide Teleprompter Preview -->
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-3.5 flex flex-col gap-1.5">
+            <div class="flex items-center justify-between gap-2">
+              <span id="currentSlideDisplay" class="text-xs font-bold text-blue-300 uppercase tracking-wide truncate">
+                Live on Screen
+              </span>
+              <span class="text-[11px] text-slate-500 shrink-0">Auto-synced</span>
+            </div>
+            <div id="slideBodyDisplay" class="text-sm md:text-base text-slate-100 font-medium leading-relaxed whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar">
+              (Awaiting live slide or verse)
+            </div>
+          </div>
+
+          <!-- Mobile Intercom Toggle (Shown when LIVE in distraction-free mode) -->
+          <button id="btnShowIntercomMobile" type="button" class="hidden md:hidden w-full py-2 px-3 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white">
+            Show Operator Intercom
+          </button>
+        </div>
+
+        <!-- Right 1 Col: Intercom & Private Chat with Operator -->
+        <div id="intercomPanel" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col h-[420px] md:h-full md:max-h-[520px] min-h-0 shadow-xl overflow-hidden">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
+            <div class="flex items-center gap-2">
+              <div class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
+              <h3 class="text-xs font-bold text-slate-200 uppercase tracking-wider">Operator Intercom</h3>
+            </div>
+            <span class="text-[10px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded">Private</span>
+          </div>
+
+          <!-- Chat History (Strictly scrollable, bounded by min-h-0 and flex-1) -->
+          <div id="chatMessages" class="flex-1 min-h-0 overflow-y-auto space-y-2 py-3 text-xs custom-scrollbar">
+            <div class="bg-slate-800/60 text-slate-300 p-2.5 rounded-xl border border-slate-800">
+              <span class="font-bold text-blue-400 block mb-0.5">System</span>
+              You are connected to the Green Room. Use this box to speak directly with the tech team before your turn.
+            </div>
+          </div>
+
+          <!-- Quick Canned Message Chips -->
+          <div class="flex gap-1.5 overflow-x-auto py-1 mb-2 no-scrollbar shrink-0">
+            <button type="button" class="quick-chip bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] px-2 py-1 rounded-lg shrink-0">
+              I'm ready!
+            </button>
+            <button type="button" class="quick-chip bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] px-2 py-1 rounded-lg shrink-0">
+              Can you hear me?
+            </button>
+            <button type="button" class="quick-chip bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] px-2 py-1 rounded-lg shrink-0">
+              Need 1 minute
+            </button>
+          </div>
+
+          <!-- Chat Input -->
+          <form id="chatForm" class="flex items-center gap-2 pt-2 border-t border-slate-800 shrink-0">
+            <input type="text" id="chatInput" placeholder="Message operator..."
+              class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg text-xs transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Incoming Operator Voice Audio Element (Plays in speaker's headphones/device) -->
+  <audio id="operatorAudio" autoplay></audio>
+
+  <script src="guest.js?v=3"></script>
+</body>
+</html>
