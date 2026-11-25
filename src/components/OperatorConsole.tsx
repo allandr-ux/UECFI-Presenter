@@ -6,6 +6,7 @@ import {
   BookOpen,
   Camera,
   CameraOff,
+  Cast,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -39,6 +40,7 @@ import {
   Search,
   Settings2,
   Sliders,
+  Square,
   Trash2,
   Tv,
   Unlink,
@@ -3025,29 +3027,35 @@ export const OperatorConsole: React.FC = () => {
           </div>
           <button
             type="button"
-            onClick={() => setCenterMode((prev) => (prev === 'search' ? 'grid' : 'search'))}
-            title="Search all Bible XMLs (Ctrl/Cmd + K)"
-            style={toolbarBtnStyle(centerMode === 'search', '#3b82f6')}
+            onClick={handleToggleMainScreen}
+            title={mainScreenOpen ? t.screens.closeMainScreen : t.screens.openMainScreen}
+            aria-label={mainScreenOpen ? t.screens.closeMainScreen : t.screens.openMainScreen}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '7px 10px',
+              borderRadius: '8px',
+              border: 'none',
+              background: mainScreenOpen ? '#dc2626' : '#2563eb',
+              color: '#ffffff'
+            }}
           >
-            <Search size={14} />
-            Search Bibles
+            {mainScreenOpen ? <Square size={15} fill="currentColor" /> : <Cast size={16} />}
           </button>
-        </div>
-
-        {/* Live Output Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={handlePrevious}
             disabled={!liveItem || activeBlockIndex <= 0}
             style={{
               ...toolbarBtnStyle(false),
+              padding: '7px 9px',
               opacity: !liveItem || activeBlockIndex <= 0 ? 0.45 : 1
             }}
             title={t.controls.previous}
+            aria-label={t.controls.previous}
           >
-            <ChevronLeft size={15} />
-            {t.controls.previous}
+            <ChevronLeft size={16} />
           </button>
           <button
             type="button"
@@ -3055,16 +3063,18 @@ export const OperatorConsole: React.FC = () => {
             disabled={!liveItem || activeBlockIndex + 1 >= liveItem.blocks.length}
             style={{
               ...toolbarBtnStyle(false),
+              padding: '7px 9px',
               opacity: !liveItem || activeBlockIndex + 1 >= liveItem.blocks.length ? 0.45 : 1
             }}
             title={t.controls.next}
+            aria-label={t.controls.next}
           >
-            {t.controls.next}
-            <ChevronRight size={15} />
+            <ChevronRight size={16} />
           </button>
+        </div>
 
-          <div style={{ width: '1px', height: '22px', background: 'var(--border-subtle)', margin: '0 2px' }} />
-
+        {/* Live Output Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={() => toggleOverride('clearText')}
@@ -3216,26 +3226,6 @@ export const OperatorConsole: React.FC = () => {
           >
             <Monitor size={14} />
             {overflowScreenOpen ? 'Close Overflow' : 'Overflow'}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleToggleMainScreen}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '7px 14px',
-              borderRadius: '8px',
-              border: 'none',
-              background: mainScreenOpen ? '#dc2626' : '#2563eb',
-              color: '#ffffff',
-              fontWeight: 700,
-              fontSize: '0.82rem'
-            }}
-          >
-            <Monitor size={15} />
-            {mainScreenOpen ? t.screens.closeMainScreen : t.screens.openMainScreen}
           </button>
         </div>
       </header>
@@ -3528,13 +3518,13 @@ export const OperatorConsole: React.FC = () => {
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '4px',
-                      padding: '3px 8px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--accent)',
-                      background: 'rgba(59,130,246,0.16)',
-                      color: '#93c5fd',
+                      padding: '4px 9px',
+                      borderRadius: '5px',
+                      border: 'none',
+                      background: '#2563eb',
+                      color: '#ffffff',
                       fontSize: '0.72rem',
-                      fontWeight: 700
+                      fontWeight: 600
                     }}
                   >
                     <Plus size={12} /> Add
@@ -3902,7 +3892,8 @@ export const OperatorConsole: React.FC = () => {
                 <BibleLibraryPanel
                   onProjectVerseItem={handleProjectVerseItem}
                   onSelectVerseChapter={handleSelectVerseChapter}
-                  onAddVerseToProgram={handleAddVerseToProgram}
+                  onOpenAiSearch={() => setCenterMode((prev) => (prev === 'search' ? 'grid' : 'search'))}
+                  aiSearchOpen={centerMode === 'search'}
                   liveVerseLabel={
                     liveItem?.type === 'verse' && override === 'none'
                       ? liveItem.blocks[activeBlockIndex]?.label
@@ -3936,9 +3927,9 @@ export const OperatorConsole: React.FC = () => {
                         onClick={() => setLibraryFilter((prev) => (prev === f.id ? 'all' : f.id))}
                         style={{
                           ...createBtnStyle,
-                          borderColor: active ? 'var(--accent)' : 'var(--border-subtle)',
-                          background: active ? 'rgba(59,130,246,0.2)' : 'var(--bg-panel-elevated)',
-                          color: active ? '#93c5fd' : 'var(--text-primary)'
+                          borderColor: active ? 'var(--live-green)' : 'var(--border-subtle)',
+                          background: active ? 'rgba(34, 197, 94, 0.2)' : 'var(--bg-panel-elevated)',
+                          color: active ? '#86efac' : 'var(--text-primary)'
                         }}
                       >
                         {f.label}
@@ -3953,10 +3944,12 @@ export const OperatorConsole: React.FC = () => {
                       style={{
                         ...createBtnStyle,
                         flex: 'none',
-                        padding: '5px 9px',
-                        borderColor: 'var(--accent)',
-                        background: 'rgba(59,130,246,0.16)',
-                        color: '#93c5fd'
+                        padding: '5px 10px',
+                        borderRadius: '5px',
+                        border: 'none',
+                        background: '#2563eb',
+                        color: '#ffffff',
+                        fontWeight: 600
                       }}
                     >
                       <Plus size={12} /> Add

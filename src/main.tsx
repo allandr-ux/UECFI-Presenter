@@ -4,6 +4,7 @@ import type { LiveState } from '../shared/types';
 import { OperatorConsole } from './components/OperatorConsole';
 import { RemoteViewer } from './components/RemoteViewer';
 import { FittedMainScreenFrame } from './components/ScaledMainScreenPreview';
+import { HtmlTooltipLayer } from './components/HtmlTooltipLayer';
 import { ScreenStreamReceiver, buildIceServers } from './utils/webrtcRoom';
 import { MAIN_ROOM_CAMERA_ID, buildOverflowLiveState } from './utils/overflowState';
 import appIconAbout from './assets/app-icon-about.png';
@@ -291,9 +292,15 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     ) : view === 'about' ? (
       <AboutWindowApp version={appVersionParam} />
     ) : view === 'operator' ? (
-      <OperatorConsole />
+      <>
+        <OperatorConsole />
+        <HtmlTooltipLayer />
+      </>
     ) : (
-      <RemoteViewer />
+      <>
+        <RemoteViewer />
+        <HtmlTooltipLayer />
+      </>
     )}
   </React.StrictMode>
 );

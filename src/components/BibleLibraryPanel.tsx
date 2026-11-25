@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Plus, Search, Settings2, Upload, X } from 'lucide-react';
+import { Search, Settings2, Sparkles, Upload, X } from 'lucide-react';
 import type { BibleLayoutMode, BibleVersion, ProgramItem, SlideBlock } from '../../shared/types';
 import { useTerminology } from '../hooks/useTerminology';
 import { parseBibleXml } from '../utils/bibleXmlParser';
@@ -10,7 +10,8 @@ import { loadImportedBibles, saveImportedBible } from '../utils/bibleStorage';
 interface BibleLibraryPanelProps {
   onProjectVerseItem: (item: ProgramItem, startBlockIndex: number) => void;
   onSelectVerseChapter?: (item: ProgramItem) => void;
-  onAddVerseToProgram: (item: ProgramItem) => void;
+  onOpenAiSearch?: () => void;
+  aiSearchOpen?: boolean;
   liveVerseLabel?: string;
 }
 
@@ -38,7 +39,8 @@ const BIBLE_LAYOUT_KEY = 'uecfi_bible_layout';
 export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
   onProjectVerseItem,
   onSelectVerseChapter,
-  onAddVerseToProgram,
+  onOpenAiSearch,
+  aiSearchOpen = false,
   liveVerseLabel
 }) => {
   const t = useTerminology();
@@ -238,12 +240,6 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
     onProjectVerseItem(item, verseIdx);
   };
 
-  const handleAddChapter = () => {
-    const item = buildChapterItem();
-    if (!item) return;
-    onAddVerseToProgram(item);
-  };
-
   const filteredBooks = useMemo(
     () => smartSearchBooks(books, searchQuery, bibles),
     [books, searchQuery, bibles]
@@ -325,18 +321,25 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
 
         <button
           type="button"
-          onClick={handleAddChapter}
-          title={t.bible.addToProgram}
+          onClick={() => onOpenAiSearch?.()}
+          title="AI Bible Search (Ctrl/Cmd + K)"
           style={{
-            padding: '5px 7px',
+            padding: '5px 8px',
             borderRadius: '6px',
-            border: '1px solid var(--border-subtle)',
-            background: 'var(--bg-panel-elevated)',
+            border: `1px solid ${aiSearchOpen ? '#f59e0b' : 'rgba(245, 158, 11, 0.45)'}`,
+            background: aiSearchOpen ? 'rgba(245, 158, 11, 0.28)' : 'rgba(245, 158, 11, 0.14)',
+            color: aiSearchOpen ? '#fef3c7' : '#fcd34d',
             display: 'inline-flex',
-            alignItems: 'center'
+            alignItems: 'center',
+            gap: '4px',
+            fontSize: '0.73rem',
+            fontWeight: 600,
+            flexShrink: 0,
+            whiteSpace: 'nowrap'
           }}
         >
-          <Plus size={14} />
+          <Sparkles size={13} />
+          AI Search
         </button>
       </div>
 
