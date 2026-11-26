@@ -112,13 +112,13 @@
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">Room ID</label>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Centro Code</label>
             <!-- 
               Autofill Prevention:
               Browsers aggressively treat fields near passwords as username logins.
               Explicitly disable autocomplete, spellcheck, autocorrect, and password-manager hooks.
             -->
-            <input type="text" id="inputRoomId" name="room_code_no_autofill" required placeholder="e.g. uecfi-main"
+            <input type="text" id="inputRoomId" name="room_code_no_autofill" required placeholder="e.g. UECFI-ABCDE"
               autocomplete="off"
               autocorrect="off"
               autocapitalize="characters"
@@ -129,14 +129,14 @@
               class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 uppercase transition">
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">Secret PIN</label>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Access Code</label>
             <!-- 
               Password-Manager Bypass:
               Using type="text" with inputmode="numeric" and CSS text-security masking
               prevents browsers (Chrome, Safari, Keychain, 1Password) from detecting
               this as a password field and triggering the "Save Password?" dialog.
             -->
-            <input type="text" id="inputSecretKey" name="room_access_code" required placeholder="PIN Code"
+            <input type="text" id="inputSecretKey" name="room_access_code" required placeholder="1905"
               inputmode="numeric"
               autocomplete="off"
               autocorrect="off"

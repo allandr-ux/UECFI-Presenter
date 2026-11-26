@@ -38,6 +38,7 @@ import {
   Radio,
   RotateCcw,
   Search,
+  Settings,
   Settings2,
   Sliders,
   Square,
@@ -107,6 +108,7 @@ import {
   formatTimestamp
 } from '../utils/timedLyrics';
 import { loadImportedBibles, saveImportedBible } from '../utils/bibleStorage';
+import { resolveVerseItemWithActiveBibles } from '../utils/bibleVerseResolver';
 import { parseBibleXml } from '../utils/bibleXmlParser';
 import { readTextFileWithEncoding } from '../utils/textEncoding';
 import uecfiLogoTiny from '../assets/uecfi-logo-tiny.png';
@@ -175,6 +177,15 @@ const ParticipantMonitorAudio: React.FC<{
   return <audio ref={audioRef} autoPlay playsInline muted={muted} style={{ display: 'none' }} />;
 };
 
+function generateCentroCode(): string {
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  let suffix = '';
+  for (let i = 0; i < 5; i++) {
+    suffix += letters[Math.floor(Math.random() * letters.length)];
+  }
+  return `UECFI-${suffix}`;
+}
+
 export const OperatorConsole: React.FC = () => {
   const t = useTerminology();
   const [programs, setPrograms] = useState<PersistedProgramRef[]>(() => [
@@ -213,6 +224,7 @@ export const OperatorConsole: React.FC = () => {
   // Browsing state (shown in Content Grid without affecting live output)
   const [browsingItemId, setBrowsingItemId] = useState<string>(INITIAL_PROGRAM.items[0]?.id ?? '');
   const [browsingAdHocItem, setBrowsingAdHocItem] = useState<ProgramItem | null>(null);
+  const [highlightedVerseBlockIndex, setHighlightedVerseBlockIndex] = useState<number | null>(null);
   // Live state (actually projected on Main Screen, Live Monitor, Stage View, and Remote Viewer)
   // Start in standby (no item projected) until the operator selects a slide/item to present.
   const [liveItemId, setLiveItemId] = useState<string>('');
@@ -375,7 +387,7 @@ export const OperatorConsole: React.FC = () => {
   const [participantSettings, setParticipantSettings] = useState<ParticipantNetworkSettings>({
     signalingRelayUrl: 'wss://remote.uecfi.net/ws',
     onlineSessionCode: '',
-    onlinePin: '',
+    onlinePin: '1905',
     stunUrl: 'stun:stun.l.google.com:19302',
     turnUrl: '',
     turnUsername: '',
@@ -530,6 +542,50 @@ export const OperatorConsole: React.FC = () => {
       e.target.value = '';
     }
   };
+
+  // Re-resolve Program & ad-hoc verse items whenever imported Bibles or active Bible settings change
+  useEffect(() => {
+    let cancelled = false;
+    const syncProgramVerses = () => {
+      loadImportedBibles()
+        .then((stored) => {
+          if (cancelled || stored.length === 0) return;
+          setPrograms((prev) => {
+            let anyProgramChanged = false;
+            const next = prev.map((prog) => {
+              let anyEntryChanged = false;
+              const nextEntries = prog.entries.map((entry) => {
+                if (entry.kind !== 'verse') return entry;
+                const resolved = resolveVerseItemWithActiveBibles(entry.item, stored);
+                if (resolved === entry.item) return entry;
+                anyEntryChanged = true;
+                return { ...entry, item: resolved };
+              });
+              if (!anyEntryChanged) return prog;
+              anyProgramChanged = true;
+              return { ...prog, entries: nextEntries };
+            });
+            return anyProgramChanged ? next : prev;
+          });
+          setBrowsingAdHocItem((prev) =>
+            prev ? resolveVerseItemWithActiveBibles(prev, stored) : prev
+          );
+          setLiveAdHocItem((prev) =>
+            prev ? resolveVerseItemWithActiveBibles(prev, stored) : prev
+          );
+        })
+        .catch(() => {});
+    };
+
+    syncProgramVerses();
+    window.addEventListener('uecfi:bibles-updated', syncProgramVerses);
+    window.addEventListener('uecfi:bible-settings-changed', syncProgramVerses);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('uecfi:bibles-updated', syncProgramVerses);
+      window.removeEventListener('uecfi:bible-settings-changed', syncProgramVerses);
+    };
+  }, []);
 
   useEffect(() => {
     const dialog = programPickerRef.current;
@@ -850,15 +906,31 @@ export const OperatorConsole: React.FC = () => {
   }, [liveState]);
 
   // Load persisted participant network settings (Internet Relay + STUN/TURN)
+  // Auto-generate a permanent UECFI-XXXXX Centro Code and default Access Code (1905) if not set.
   useEffect(() => {
     window.presenterAPI?.getSecret('participant_network_settings').then((raw) => {
-      if (!raw) return;
-      try {
-        const parsed = JSON.parse(raw) as Partial<ParticipantNetworkSettings>;
-        setParticipantSettings((prev) => ({ ...prev, ...parsed }));
-      } catch {
-        // Ignore malformed saved settings
+      let parsed: Partial<ParticipantNetworkSettings> = {};
+      if (raw) {
+        try {
+          parsed = JSON.parse(raw) as Partial<ParticipantNetworkSettings>;
+        } catch {
+          // Ignore malformed saved settings
+        }
       }
+      setParticipantSettings((prev) => {
+        const merged: ParticipantNetworkSettings = {
+          ...prev,
+          ...parsed,
+          onlineSessionCode: parsed.onlineSessionCode?.trim()
+            ? parsed.onlineSessionCode.trim().toUpperCase()
+            : generateCentroCode(),
+          onlinePin: parsed.onlinePin?.trim() ? parsed.onlinePin.trim() : '1905'
+        };
+        if (!parsed.onlineSessionCode?.trim() || !parsed.onlinePin?.trim()) {
+          window.presenterAPI?.setSecret('participant_network_settings', JSON.stringify(merged));
+        }
+        return merged;
+      });
     });
   }, []);
 
@@ -1754,6 +1826,38 @@ export const OperatorConsole: React.FC = () => {
     setCenterMode('grid');
   };
 
+  // Double-clicking a program item selects it, pushes it Live, and autoplays attached song audio.
+  const handlePresentProgramItem = (item: ProgramItem) => {
+    guardLiveSwitch(item.id, item.title, () => {
+      const isTimedSongWithAudio =
+        item.type === 'song' && item.lyricsMode === 'timed' && Boolean(item.audioUrl);
+      const startIdx = isTimedSongWithAudio
+        ? (findBlockIndexForTime(item.blocks, 0) ?? 0)
+        : 0;
+
+      if (isTimedSongWithAudio) {
+        if (liveTimedAudioItem?.id === item.id && audioRef.current) {
+          audioRef.current.currentTime = 0;
+          setAudioTime(0);
+          audioRef.current.play().catch(() => {});
+        } else {
+          pendingAutoPlayRef.current = true;
+        }
+      } else {
+        pendingAutoPlayRef.current = false;
+      }
+
+      setBrowsingAdHocItem(null);
+      setBrowsingItemId(item.id);
+      setCenterMode('grid');
+      setLiveAdHocItem(null);
+      setLiveItemId(item.id);
+      setActiveBlockIndex(startIdx);
+      setOverride('none');
+      autoSwitchFullToStudio();
+    });
+  };
+
   // Guard switching Live to a different item while a song's audio is actively playing.
   const guardLiveSwitch = (targetItemId: string, targetTitle: string, action: () => void) => {
     if (audioPlaying && liveTimedAudioItem && liveTimedAudioItem.id !== targetItemId) {
@@ -1833,6 +1937,9 @@ export const OperatorConsole: React.FC = () => {
 
   const handleSelectBlock = (index: number) => {
     if (!selectedItem) return;
+    if (selectedItem.type === 'verse') {
+      setHighlightedVerseBlockIndex(index);
+    }
     guardLiveSwitch(selectedItem.id, selectedItem.title, () => {
       if (browsingAdHocItem && browsingAdHocItem.id === selectedItem.id) {
         setLiveAdHocItem(browsingAdHocItem);
@@ -2481,11 +2588,23 @@ export const OperatorConsole: React.FC = () => {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  // Clicking a chapter in the Verses tab populates the Content Grid without changing Live output
-  const handleSelectVerseChapter = (item: ProgramItem) => {
+  // Clicking a chapter or verse in the Verses tab populates the Content Grid without changing Live output
+  const handleSelectVerseChapter = (item: ProgramItem, highlightBlockIndex?: number) => {
     setBrowsingAdHocItem(applySavedVerseStyle(item));
+    setHighlightedVerseBlockIndex(
+      typeof highlightBlockIndex === 'number' ? highlightBlockIndex : null
+    );
     setCenterMode('grid');
   };
+
+  useEffect(() => {
+    if (highlightedVerseBlockIndex === null) return;
+    const raf = window.requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>('[data-highlighted-block="true"]');
+      el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [highlightedVerseBlockIndex, browsingAdHocItem?.id]);
 
   // Clicking a Library item loads it into Content Grid WITHOUT changing Live output
   const handleSelectLibraryItem = (item: ProgramItem) => {
@@ -3194,10 +3313,12 @@ export const OperatorConsole: React.FC = () => {
               refreshDisplaysAndRemote();
               setSetupModalOpen(true);
             }}
+            title="Settings (Displays, Local Remote, Online Relay)"
+            aria-label="Settings"
             style={toolbarBtnStyle(false)}
           >
-            <Settings2 size={14} />
-            {t.screens.displaySetup}
+            <Settings size={15} />
+            <span>Settings</span>
             {remoteInfo && remoteInfo.connectedClients > 0 && (
               <span
                 style={{
@@ -3757,6 +3878,8 @@ export const OperatorConsole: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleSelectProgramItem(item)}
+                      onDoubleClick={() => handlePresentProgramItem(item)}
+                      title="Click to preview · Double-click to present"
                       style={{
                         flex: 1,
                         minWidth: 0,
@@ -3903,7 +4026,9 @@ export const OperatorConsole: React.FC = () => {
                   liveVerseLabel={
                     liveItem?.type === 'verse' && override === 'none'
                       ? liveItem.blocks[activeBlockIndex]?.label
-                      : undefined
+                      : selectedItem?.type === 'verse' && highlightedVerseBlockIndex !== null
+                        ? selectedItem.blocks[highlightedVerseBlockIndex]?.label
+                        : undefined
                   }
                 />
               </div>
@@ -4316,6 +4441,7 @@ export const OperatorConsole: React.FC = () => {
               const hasSecondary = Boolean(block.secondaryLines && block.secondaryLines.length > 0);
 
               if (isVerse) {
+                const isPreviewHighlighted = !isLive && highlightedVerseBlockIndex === index;
                 const verseNumMatch = block.label?.match(/:(\d+)/);
                 const verseBadge = verseNumMatch ? verseNumMatch[1] : String(index + 1);
                 const deriveHeader = (b?: typeof block) =>
@@ -4347,18 +4473,29 @@ export const OperatorConsole: React.FC = () => {
                     <button
                       type="button"
                       data-live-block={isLive ? 'true' : undefined}
+                      data-highlighted-block={isPreviewHighlighted ? 'true' : undefined}
                       onClick={() => handleSelectBlock(index)}
                       style={{
                         textAlign: 'left',
                         borderRadius: '10px',
                         border: '2px solid',
-                        borderColor: isLive ? 'var(--live-red)' : 'var(--border-subtle)',
-                        background: 'var(--bg-panel)',
+                        borderColor: isLive
+                          ? 'var(--live-red)'
+                          : isPreviewHighlighted
+                            ? 'var(--accent)'
+                            : 'var(--border-subtle)',
+                        background: isPreviewHighlighted
+                          ? 'rgba(59, 130, 246, 0.12)'
+                          : 'var(--bg-panel)',
                         padding: '12px 14px',
                         display: 'flex',
                         alignItems: 'flex-start',
                         gap: '14px',
-                        boxShadow: isLive ? '0 0 0 2px rgba(239,68,68,0.25)' : 'none'
+                        boxShadow: isLive
+                          ? '0 0 0 2px rgba(239,68,68,0.25)'
+                          : isPreviewHighlighted
+                            ? '0 0 0 2px rgba(59,130,246,0.22)'
+                            : 'none'
                       }}
                     >
                       <span
@@ -4366,8 +4503,12 @@ export const OperatorConsole: React.FC = () => {
                           width: '26px',
                           height: '26px',
                           borderRadius: '999px',
-                          background: isLive ? 'var(--live-red)' : 'var(--bg-panel-elevated)',
-                          color: isLive ? '#fff' : 'var(--text-secondary)',
+                          background: isLive
+                            ? 'var(--live-red)'
+                            : isPreviewHighlighted
+                              ? 'var(--accent)'
+                              : 'var(--bg-panel-elevated)',
+                          color: isLive || isPreviewHighlighted ? '#fff' : 'var(--text-secondary)',
                           display: 'inline-flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -6286,6 +6427,10 @@ export const OperatorConsole: React.FC = () => {
         }}
         onSelectMainDisplay={async (displayId) => {
           await window.presenterAPI?.openMainScreen(displayId);
+          await refreshDisplaysAndRemote();
+        }}
+        onSelectOverflowDisplay={async (displayId) => {
+          await window.presenterAPI?.openOverflowScreen(displayId);
           await refreshDisplaysAndRemote();
         }}
       />

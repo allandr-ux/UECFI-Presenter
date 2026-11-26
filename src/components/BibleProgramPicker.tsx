@@ -214,7 +214,12 @@ export const BibleProgramPicker: React.FC<BibleProgramPickerProps> = ({
               secVerse && secondaryBible
                 ? `${secBook?.name ?? book.name} ${chap.number}:${v.number} (${secondaryBible.title})`
                 : undefined,
-            secondaryLines: secVerse ? [secVerse.text] : undefined
+            secondaryLines: secVerse ? [secVerse.text] : undefined,
+            verseRef: {
+              bookIndex: row.bookIdx,
+              chapterNum: chap.number,
+              verseNum: v.number
+            }
           });
         }
       }
@@ -232,6 +237,7 @@ export const BibleProgramPicker: React.FC<BibleProgramPickerProps> = ({
         : primaryBible.title,
       type: 'verse',
       bibleLayout: initialItem?.bibleLayout ?? (secondaryBible ? layout : 'primary'),
+      followActiveBible: initialItem?.followActiveBible ?? true,
       verseMaxFontSize: initialItem?.verseMaxFontSize,
       themeBackground,
       blocks

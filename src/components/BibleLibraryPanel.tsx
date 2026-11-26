@@ -6,10 +6,11 @@ import { parseBibleXml } from '../utils/bibleXmlParser';
 import { readTextFileWithEncoding } from '../utils/textEncoding';
 import { smartSearchBooks } from '../utils/bookSearch';
 import { loadImportedBibles, saveImportedBible } from '../utils/bibleStorage';
+import { notifyBibleSettingsChanged } from '../utils/bibleVerseResolver';
 
 interface BibleLibraryPanelProps {
   onProjectVerseItem: (item: ProgramItem, startBlockIndex: number) => void;
-  onSelectVerseChapter?: (item: ProgramItem) => void;
+  onSelectVerseChapter?: (item: ProgramItem, highlightBlockIndex?: number) => void;
   onOpenAiSearch?: () => void;
   aiSearchOpen?: boolean;
   liveVerseLabel?: string;
@@ -99,14 +100,17 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
 
   useEffect(() => {
     localStorage.setItem(PRIMARY_BIBLE_KEY, primaryId);
+    notifyBibleSettingsChanged();
   }, [primaryId]);
 
   useEffect(() => {
     localStorage.setItem(SECONDARY_BIBLE_KEY, secondaryId);
+    notifyBibleSettingsChanged();
   }, [secondaryId]);
 
   useEffect(() => {
     localStorage.setItem(BIBLE_LAYOUT_KEY, layout);
+    notifyBibleSettingsChanged();
   }, [layout]);
 
   useEffect(() => {
@@ -221,7 +225,12 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
           secVerse && secondaryBible
             ? `${secBook?.name ?? targetBook.name} ${targetChapter.number}:${v.number} (${secondaryBible.title})`
             : undefined,
-        secondaryLines: secVerse ? [secVerse.text] : undefined
+        secondaryLines: secVerse ? [secVerse.text] : undefined,
+        verseRef: {
+          bookIndex: targetBookIdx,
+          chapterNum: targetChapter.number,
+          verseNum: v.number
+        }
       };
     });
 
@@ -233,9 +242,16 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
         : primaryBible.title,
       type: 'verse',
       bibleLayout: effectiveLayout,
+      followActiveBible: true,
       themeBackground: 'linear-gradient(135deg, #0f172a 0%, #064e3b 100%)',
       blocks
     };
+  };
+
+  const handlePreviewVerse = (verseIdx: number, verseNumber: number) => {
+    setActiveVerseNum(verseNumber);
+    const item = buildChapterItem();
+    if (item) onSelectVerseChapter?.(item, verseIdx);
   };
 
   const handleProjectVerse = (verseIdx: number, verseNumber: number) => {
@@ -428,7 +444,9 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
                   key={v.number}
                   type="button"
                   data-selected={selected ? 'true' : undefined}
-                  onClick={() => handleProjectVerse(idx, v.number)}
+                  onClick={() => handlePreviewVerse(idx, v.number)}
+                  onDoubleClick={() => handleProjectVerse(idx, v.number)}
+                  title="Click to preview chapter · Double-click to present"
                   style={{
                     ...colItemBtnStyle(selected),
                     display: 'flex',

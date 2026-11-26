@@ -159,7 +159,7 @@ wss.on('connection', (ws, req) => {
       // -------------------------------------------------------------------
       case 'join-host': {
         if (!cleanRoomId || !secretKey) {
-          return safeSend(ws, { type: 'error', message: 'Room ID and Secret Key are required.' });
+          return safeSend(ws, { type: 'error', message: 'Centro Code and Access Code are required.' });
         }
 
         let room = rooms.get(cleanRoomId);
@@ -176,7 +176,7 @@ wss.on('connection', (ws, req) => {
         } else {
           // Verify Secret Key if room already exists
           if (room.secretKey !== String(secretKey).trim()) {
-            return safeSend(ws, { type: 'error', message: 'Incorrect Secret Key for this Room.' });
+            return safeSend(ws, { type: 'error', message: 'Incorrect Access Code for this Centro.' });
           }
         }
 
@@ -224,7 +224,7 @@ wss.on('connection', (ws, req) => {
         const centroOrPosition = String(msg.centroOrPosition || '').trim();
 
         if (!cleanRoomId || !secretKey) {
-          return safeSend(ws, { type: 'error', message: 'Room ID and Secret Key are required.' });
+          return safeSend(ws, { type: 'error', message: 'Centro Code and Access Code are required.' });
         }
 
         const room = rooms.get(cleanRoomId);

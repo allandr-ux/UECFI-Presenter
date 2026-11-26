@@ -19,8 +19,10 @@ const DISCOVERY_PORT = 4851;
 const DISCOVERY_REQUEST = 'UECFI_PRESENTER_DISCOVER';
 const MAX_MEDIA_FILE_BYTES = 50 * 1024 * 1024; // 50 MB
 const IMAGE_MEDIA_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.jfif', '.webp', '.gif', '.bmp']);
+const MODEL_MEDIA_EXTENSIONS = new Set(['.glb']);
 const ALLOWED_MEDIA_EXTENSIONS = new Set([
   ...IMAGE_MEDIA_EXTENSIONS,
+  ...MODEL_MEDIA_EXTENSIONS,
   '.mp3',
   '.wav',
   '.m4a',
@@ -41,6 +43,7 @@ export const MIME_TYPES: Record<string, string> = {
   '.webp': 'image/webp',
   '.gif': 'image/gif',
   '.bmp': 'image/bmp',
+  '.glb': 'model/gltf-binary',
   '.ico': 'image/x-icon',
   '.mp3': 'audio/mpeg',
   '.wav': 'audio/wav',
@@ -859,7 +862,8 @@ export class LocalRemoteServer {
           ? {
               canvasElements: block.canvasElements.map((el) => ({
                 ...el,
-                imageSrc: this.rewriteLocalMediaUrl(el.imageSrc)
+                imageSrc: this.rewriteLocalMediaUrl(el.imageSrc),
+                modelSrc: this.rewriteLocalMediaUrl(el.modelSrc)
               }))
             }
           : {})
@@ -931,7 +935,8 @@ export class LocalRemoteServer {
             studioBackground: this.rewriteLocalMediaUrl(state.participants.studioBackground),
             studioElements: state.participants.studioElements?.map((el) => ({
               ...el,
-              imageSrc: this.rewriteLocalMediaUrl(el.imageSrc)
+              imageSrc: this.rewriteLocalMediaUrl(el.imageSrc),
+              modelSrc: this.rewriteLocalMediaUrl(el.modelSrc)
             }))
           }
         : undefined,
@@ -941,7 +946,8 @@ export class LocalRemoteServer {
             studioBackground: this.rewriteLocalMediaUrl(state.overflow.studioBackground),
             studioElements: state.overflow.studioElements?.map((el) => ({
               ...el,
-              imageSrc: this.rewriteLocalMediaUrl(el.imageSrc)
+              imageSrc: this.rewriteLocalMediaUrl(el.imageSrc),
+              modelSrc: this.rewriteLocalMediaUrl(el.modelSrc)
             }))
           }
         : undefined

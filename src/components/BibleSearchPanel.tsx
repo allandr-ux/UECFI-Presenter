@@ -344,7 +344,12 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
           secVerse && partnerBible
             ? `${partnerBook?.name ?? book.name} ${chap.number}:${v.number} (${partnerBible.title})`
             : undefined,
-        secondaryLines: secVerse ? [secVerse.text] : undefined
+        secondaryLines: secVerse ? [secVerse.text] : undefined,
+        verseRef: {
+          bookIndex: res.bookIdx,
+          chapterNum: chap.number,
+          verseNum: v.number
+        }
       };
     });
 
@@ -357,6 +362,7 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
         subtitle: partnerBible ? `${res.bible.title} + ${partnerBible.title}` : res.bible.title,
         type: 'verse',
         bibleLayout: partnerBible ? preferredLayout : 'primary',
+        followActiveBible: true,
         themeBackground: 'linear-gradient(135deg, #0f172a 0%, #064e3b 100%)',
         blocks
       }

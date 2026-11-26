@@ -35,10 +35,17 @@ import type {
   CanvasThreeDAnimation,
   CanvasThreeDMaterial,
   FrameVariant,
+  ParticipantStageConfig,
   ProgramItem,
   ShapeVariant,
-  SlideBlock
+  SlideBlock,
+  StudioBoxRect
 } from '../../shared/types';
+import {
+  DEFAULT_PARTICIPANT_BOX,
+  DEFAULT_PRESENTATION_BOX,
+  DEFAULT_STUDIO_BACKGROUND
+} from './ParticipantOverlay';
 import { useTerminology } from '../hooks/useTerminology';
 import { LOCAL_FONTS } from '../fonts';
 import {
@@ -58,6 +65,7 @@ import {
   getFrameCoverDimensions
 } from './CanvasFrameGraphic';
 import { CanvasShapeGraphic, SHAPE_OPTIONS } from './CanvasShapeGraphic';
+import { CanvasThreeDModel } from './CanvasThreeDModel';
 import { CanvasThreeDObject, DEFAULT_THREE_D_CONFIG } from './CanvasThreeDObject';
 
 interface SlideBuilderModalProps {
@@ -65,6 +73,10 @@ interface SlideBuilderModalProps {
   initialItem: ProgramItem | null;
   onClose: () => void;
   onSave: (item: ProgramItem) => void;
+  studioMode?: {
+    stageConfig: ParticipantStageConfig;
+    onSaveStudio: (next: Partial<ParticipantStageConfig>) => void;
+  };
 }
 
 const THEME_PRESETS = [
@@ -154,17 +166,24 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
   open,
   initialItem,
   onClose,
-  onSave
+  onSave,
+  studioMode
 }) => {
   const t = useTerminology();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const bgFileRef = useRef<HTMLInputElement>(null);
   const imgFileRef = useRef<HTMLInputElement>(null);
+  const glbFileRef = useRef<HTMLInputElement>(null);
   const titleId = useId();
 
   const [title, setTitle] = useState('');
   const [themeBackground, setThemeBackground] = useState(THEME_PRESETS[0].value);
+  const [presBox, setPresBox] = useState<StudioBoxRect>(DEFAULT_PRESENTATION_BOX);
+  const [partBox, setPartBox] = useState<StudioBoxRect>(DEFAULT_PARTICIPANT_BOX);
+  const [selectedStudioBox, setSelectedStudioBox] = useState<'presentation' | 'participant' | null>(
+    null
+  );
   const [slides, setSlides] = useState<SlideBlock[]>([]);
   const [activeSlideIdx, setActiveSlideIdx] = useState(0);
   const [selectedElIds, setSelectedElIds] = useState<string[]>([]);
@@ -281,10 +300,36 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
     }
   }, [open]);
 
+  const wasOpenRef = useRef(false);
   useEffect(() => {
+    const wasOpen = wasOpenRef.current;
+    wasOpenRef.current = open;
     if (!open) return;
+    if (studioMode && wasOpen) return;
     draftIdRef.current = initialItem?.id ?? `slide-${Date.now()}`;
     setJustSaved(false);
+    setSelectedStudioBox(null);
+    if (studioMode) {
+      const cfg = studioMode.stageConfig;
+      const bg = cfg.studioBackground || DEFAULT_STUDIO_BACKGROUND;
+      const studioEls = (cfg.studioElements ?? []).map((el) => ({ ...el }));
+      const studioSlide: SlideBlock = {
+        id: 'studio-layout',
+        label: 'Studio Layout',
+        lines: [],
+        canvasElements: studioEls
+      };
+      setTitle('Studio Layout');
+      setThemeBackground(bg);
+      setPresBox(cfg.studioPresentationBox ?? DEFAULT_PRESENTATION_BOX);
+      setPartBox(cfg.studioParticipantBox ?? DEFAULT_PARTICIPANT_BOX);
+      setSlides([studioSlide]);
+      setActiveSlideIdx(0);
+      setSelectedElIds([]);
+      setHistory([{ slides: JSON.parse(JSON.stringify([studioSlide])) as SlideBlock[], themeBackground: bg }]);
+      setHistoryIdx(0);
+      return;
+    }
     if (initialItem) {
       const bg = initialItem.themeBackground ?? THEME_PRESETS[0].value;
       const converted = initialItem.blocks.map((b) => ({
@@ -313,7 +358,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
       setHistory([{ slides: JSON.parse(JSON.stringify([first])) as SlideBlock[], themeBackground: bg }]);
       setHistoryIdx(0);
     }
-  }, [open, initialItem]);
+  }, [open, initialItem, studioMode]);
 
   useEffect(() => {
     const stage = stageRef.current;
@@ -641,6 +686,83 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
     setEditingTextId(null);
   };
 
+  const handleAddParticipantWidget = () => {
+    const newEl: CanvasElement = {
+      id: `el-${Date.now()}`,
+      name: 'Speaker Name / Title',
+      kind: 'participantWidget',
+      x: 5,
+      y: 78,
+      width: 34,
+      height: 15,
+      zIndex: elements.length + 1,
+      backgroundColor: 'rgba(15, 23, 42, 0.72)',
+      borderRadius: 12,
+      opacity: 1,
+      widgetTitleColor: '#fbbf24',
+      widgetTitleSize: 18,
+      widgetNameColor: '#ffffff',
+      widgetNameSize: 24,
+      widgetCentroColor: '#94a3b8',
+      widgetCentroSize: 16,
+      widgetAccentColor: '#fbbf24'
+    };
+    updateActiveElements((prev) => [...prev, newEl]);
+    setSelectedStudioBox(null);
+    setSelectedElId(newEl.id);
+    setEditingTextId(null);
+  };
+
+  const startStudioBoxDrag = (
+    e: React.PointerEvent,
+    target: 'presentation' | 'participant',
+    mode: 'move' | 'resize'
+  ) => {
+    e.stopPropagation();
+    const stage = stageRef.current;
+    if (!stage) return;
+    setSelectedElIds([]);
+    setSelectedStudioBox(target);
+
+    const rect = stage.getBoundingClientRect();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const orig = target === 'presentation' ? { ...presBox } : { ...partBox };
+    const setter = target === 'presentation' ? setPresBox : setPartBox;
+
+    const onMove = (ev: PointerEvent) => {
+      const dxPct = ((ev.clientX - startX) / rect.width) * 100;
+      const dyPct = ((ev.clientY - startY) / rect.height) * 100;
+      if (mode === 'move') {
+        setter({
+          ...orig,
+          x: Number(Math.max(0, Math.min(100 - orig.width, orig.x + dxPct)).toFixed(1)),
+          y: Number(Math.max(0, Math.min(100 - orig.height, orig.y + dyPct)).toFixed(1))
+        });
+      } else {
+        let nextW = Math.max(12, Math.min(100 - orig.x, orig.width + dxPct));
+        let nextH = Math.max(12, Math.min(100 - orig.y, orig.height + dyPct));
+        if (target === 'presentation' && !ev.shiftKey) {
+          nextH = Math.max(12, Math.min(100 - orig.y, nextW));
+          nextW = nextH;
+        }
+        setter({
+          ...orig,
+          width: Number(nextW.toFixed(1)),
+          height: Number(nextH.toFixed(1))
+        });
+      }
+    };
+
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
   const handleAddDivider = () => {
     const newEl: CanvasElement = {
       id: `el-${Date.now()}`,
@@ -699,6 +821,28 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
     void refreshUploadedImages();
     const cleanFileName = file.name.replace(/\.[^.]+$/, '').trim();
     addImageUrlToSlide(mediaUrl, cleanFileName || 'Image');
+  };
+
+  const handleGlbUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const mediaUrl = await saveUserMediaFile(file);
+    const cleanFileName = file.name.replace(/\.[^.]+$/, '').trim();
+    const el: CanvasElement = {
+      id: `el-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+      name: cleanFileName || '3D Model',
+      kind: 'model3d',
+      x: 32,
+      y: 22,
+      width: 36,
+      height: 50,
+      zIndex: elements.length + 1,
+      modelSrc: mediaUrl,
+      threeD: { ...DEFAULT_THREE_D_CONFIG }
+    };
+    updateActiveElements((prev) => [...prev, el]);
+    setSelectedElIds([el.id]);
   };
 
   const handleBackgroundImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1393,6 +1537,19 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
 
   const handleSaveDeck = (e: React.FormEvent) => {
     e.preventDefault();
+    if (studioMode) {
+      studioMode.onSaveStudio({
+        layout: 'custom',
+        studioBackground: themeBackground,
+        studioPresentationBox: presBox,
+        studioParticipantBox: partBox,
+        studioElements: slides[0]?.canvasElements ?? []
+      });
+      setJustSaved(true);
+      if (savedTimerRef.current) window.clearTimeout(savedTimerRef.current);
+      savedTimerRef.current = window.setTimeout(() => setJustSaved(false), 1800);
+      return;
+    }
     const id = draftIdRef.current || initialItem?.id || `slide-${Date.now()}`;
     draftIdRef.current = id;
     onSave({
@@ -1462,7 +1619,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
             >
               <Sparkles size={14} />
               <h2 id={titleId} style={{ margin: 0, fontSize: '0.88rem', fontWeight: 800 }}>
-                Canvas
+                {studioMode ? 'Studio Canvas' : 'Canvas'}
               </h2>
             </div>
 
@@ -1501,22 +1658,44 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
               </button>
             </div>
 
-            <input
-              type="text"
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Untitled Design..."
-              style={{
-                ...inputStyle,
-                maxWidth: '300px',
-                padding: '6px 10px',
-                background: 'rgba(15, 23, 42, 0.55)',
-                borderColor: 'rgba(255,255,255,0.18)',
-                color: '#fff',
-                fontWeight: 600
-              }}
-            />
+            {studioMode ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setThemeBackground(DEFAULT_STUDIO_BACKGROUND);
+                  setPresBox(DEFAULT_PRESENTATION_BOX);
+                  setPartBox(DEFAULT_PARTICIPANT_BOX);
+                }}
+                style={{
+                  ...btnStyle,
+                  padding: '6px 10px',
+                  background: 'rgba(255,255,255,0.08)',
+                  borderColor: 'rgba(255,255,255,0.14)',
+                  color: '#e2e8f0',
+                  fontSize: '0.76rem'
+                }}
+                title="Reset Presentation & Speaker boxes to default positions"
+              >
+                Reset Studio Boxes
+              </button>
+            ) : (
+              <input
+                type="text"
+                required
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Untitled Design..."
+                style={{
+                  ...inputStyle,
+                  maxWidth: '300px',
+                  padding: '6px 10px',
+                  background: 'rgba(15, 23, 42, 0.55)',
+                  borderColor: 'rgba(255,255,255,0.18)',
+                  color: '#fff',
+                  fontWeight: 600
+                }}
+              />
+            )}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
@@ -1559,6 +1738,15 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
           type="file"
           accept="image/*"
           onChange={handleImageUpload}
+          style={{ display: 'none' }}
+        />
+
+        {/* Hidden local 3D model (.glb) upload input */}
+        <input
+          ref={glbFileRef}
+          type="file"
+          accept=".glb,model/gltf-binary"
+          onChange={handleGlbUpload}
           style={{ display: 'none' }}
         />
 
@@ -1816,6 +2004,26 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                     >
                       Add a heading
                     </button>
+                    {studioMode && (
+                      <button
+                        type="button"
+                        onClick={handleAddParticipantWidget}
+                        style={{
+                          width: '100%',
+                          textAlign: 'left',
+                          padding: '10px 12px',
+                          borderRadius: '10px',
+                          border: '1px solid rgba(251, 191, 36, 0.45)',
+                          background: 'rgba(251, 191, 36, 0.12)',
+                          color: '#fde68a',
+                          fontSize: '0.84rem',
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        + Speaker Name / Title
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleAddText('subheading')}
@@ -1880,6 +2088,20 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                       }}
                     >
                       <Upload size={15} /> Upload Image File
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => glbFileRef.current?.click()}
+                      style={{
+                        ...btnStyle,
+                        width: '100%',
+                        padding: '10px',
+                        borderColor: 'rgba(167, 139, 250, 0.45)',
+                        color: '#ddd6fe'
+                      }}
+                      title="Import a binary glTF (.glb) 3D model"
+                    >
+                      <Box size={14} /> Upload 3D Model (.glb)
                     </button>
                     <button
                       type="button"
@@ -2039,18 +2261,20 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                         .map((el, visualIdx, arr) => {
                           const isSel = selectedElIds.includes(el.id);
                           const label =
-                            el.kind === 'text'
-                              ? el.text?.split('\n')[0]?.slice(0, 22) || 'Text'
-                              : el.kind === 'image'
-                                ? el.name || 'Image'
-                                : el.kind === 'frame'
-                                  ? el.name || 'Frame'
-                                  : el.kind === 'divider'
-                                    ? el.name || 'Divider'
-                                    : el.name ||
-                                      (el.shapeType
-                                        ? el.shapeType.charAt(0).toUpperCase() + el.shapeType.slice(1)
-                                        : 'Shape');
+                              el.kind === 'text'
+                                ? el.text?.split('\n')[0]?.slice(0, 22) || 'Text'
+                                : el.kind === 'image'
+                                  ? el.name || 'Image'
+                                  : el.kind === 'model3d'
+                                    ? el.name || '3D Model'
+                                    : el.kind === 'frame'
+                                      ? el.name || 'Frame'
+                                      : el.kind === 'divider'
+                                        ? el.name || 'Divider'
+                                        : el.name ||
+                                          (el.shapeType
+                                            ? el.shapeType.charAt(0).toUpperCase() + el.shapeType.slice(1)
+                                            : 'Shape');
                           return (
                             <div
                               key={el.id}
@@ -2554,12 +2778,12 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                     </>
                   )}
 
-                  {/* IMAGE / ICON / STICKER CONTEXTUAL CONTROLS */}
-                  {selectedEl.kind === 'image' && (
+                  {/* IMAGE / ICON / STICKER / 3D MODEL CONTEXTUAL CONTROLS */}
+                  {(selectedEl.kind === 'image' || selectedEl.kind === 'model3d') && (
                     <button
                       type="button"
                       onClick={() => {
-                        if (!selectedEl.threeD?.enabled && activePopover !== '3d') {
+                        if (selectedEl.kind === 'image' && !selectedEl.threeD?.enabled && activePopover !== '3d') {
                           updateSelectedEl({
                             threeD: selectedEl.threeD
                               ? { ...selectedEl.threeD, enabled: true }
@@ -2572,14 +2796,25 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                         ...btnStyle,
                         padding: '5px 10px',
                         background:
-                          activePopover === '3d' || selectedEl.threeD?.enabled
+                          activePopover === '3d' ||
+                          selectedEl.kind === 'model3d' ||
+                          selectedEl.threeD?.enabled
                             ? 'rgba(124,58,237,0.3)'
                             : 'transparent',
                         borderColor:
-                          selectedEl.threeD?.enabled ? '#a78bfa' : 'var(--border-subtle)',
-                        color: selectedEl.threeD?.enabled ? '#ddd6fe' : 'var(--text-primary)'
+                          selectedEl.kind === 'model3d' || selectedEl.threeD?.enabled
+                            ? '#a78bfa'
+                            : 'var(--border-subtle)',
+                        color:
+                          selectedEl.kind === 'model3d' || selectedEl.threeD?.enabled
+                            ? '#ddd6fe'
+                            : 'var(--text-primary)'
                       }}
-                      title="Convert PNG to 3D object with effects & animations"
+                      title={
+                        selectedEl.kind === 'model3d'
+                          ? '3D Model motion & angle controls'
+                          : 'Convert PNG to 3D object with effects & animations'
+                      }
                     >
                       <Box size={13} /> 3D
                     </button>
@@ -2887,6 +3122,36 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                 </>
               )}
 
+              {studioMode && !selectedEl && selectedStudioBox && (() => {
+                const box = selectedStudioBox === 'presentation' ? presBox : partBox;
+                const setBox = selectedStudioBox === 'presentation' ? setPresBox : setPartBox;
+                const boxLabel =
+                  selectedStudioBox === 'presentation' ? 'Presentation Box' : 'Speaker / Camera Box';
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#ddd6fe' }}>
+                      {boxLabel}
+                    </span>
+                    <div style={{ width: '1px', height: '18px', background: 'var(--border-subtle)' }} />
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                      <span>Radius ({box.borderRadius ?? 16}px)</span>
+                      <input
+                        type="range"
+                        min={0}
+                        max={48}
+                        step={2}
+                        value={box.borderRadius ?? 16}
+                        onChange={(e) => setBox({ ...box, borderRadius: Number(e.target.value) })}
+                        style={{ width: '80px' }}
+                      />
+                    </label>
+                    <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                      X {Math.round(box.x)}% · Y {Math.round(box.y)}% · {Math.round(box.width)}% × {Math.round(box.height)}%
+                    </span>
+                  </div>
+                );
+              })()}
+
               {/* FLOATING POPOVERS BELOW CONTEXTUAL TOOLBAR */}
               {selectedEl && activePopover === 'effects' && selectedEl.kind === 'text' && (
                 <div
@@ -3166,8 +3431,9 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                 </div>
               )}
 
-              {selectedEl && activePopover === '3d' && selectedEl.kind === 'image' && (() => {
+              {selectedEl && activePopover === '3d' && (selectedEl.kind === 'image' || selectedEl.kind === 'model3d') && (() => {
                 const td = selectedEl.threeD ?? DEFAULT_THREE_D_CONFIG;
+                const isGlbModel = selectedEl.kind === 'model3d';
                 const patch3D = (patch: Partial<typeof td>) =>
                   updateSelectedEl({ threeD: { ...td, ...patch } });
                 return (
@@ -3190,22 +3456,26 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={sectionTitleStyle}>3D Object</span>
-                      <button
-                        type="button"
-                        onClick={() => patch3D({ enabled: !td.enabled })}
-                        style={{
-                          ...btnStyle,
-                          padding: '4px 10px',
-                          background: td.enabled ? '#7c3aed' : 'transparent',
-                          borderColor: td.enabled ? '#a78bfa' : 'var(--border-subtle)',
-                          color: td.enabled ? '#ffffff' : 'var(--text-secondary)',
-                          fontWeight: 700
-                        }}
-                      >
-                        <Box size={12} /> {td.enabled ? '3D On' : '3D Off'}
-                      </button>
+                      <span style={sectionTitleStyle}>{isGlbModel ? '3D Model (.glb)' : '3D Object'}</span>
+                      {!isGlbModel && (
+                        <button
+                          type="button"
+                          onClick={() => patch3D({ enabled: !td.enabled })}
+                          style={{
+                            ...btnStyle,
+                            padding: '4px 10px',
+                            background: td.enabled ? '#7c3aed' : 'transparent',
+                            borderColor: td.enabled ? '#a78bfa' : 'var(--border-subtle)',
+                            color: td.enabled ? '#ffffff' : 'var(--text-secondary)',
+                            fontWeight: 700
+                          }}
+                        >
+                          <Box size={12} /> {td.enabled ? '3D On' : '3D Off'}
+                        </button>
+                      )}
                     </div>
+                    {!isGlbModel && (
+                      <>
                     <label style={fieldLabelStyle}>
                       <span>Depth ({td.depth.toFixed(2)})</span>
                       <input
@@ -3273,6 +3543,8 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                         />
                       </label>
                     </div>
+                      </>
+                    )}
                     <label style={fieldLabelStyle}>
                       <span>3D Animation</span>
                       <select
@@ -3709,6 +3981,61 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                           </div>
                         )
                       )}
+
+                      {el.kind === 'model3d' && el.modelSrc && (
+                        <CanvasThreeDModel
+                          modelSrc={el.modelSrc}
+                          config={el.threeD}
+                          flipX={el.flipX}
+                          flipY={el.flipY}
+                        />
+                      )}
+
+                      {el.kind === 'participantWidget' && (
+                        <div
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            padding: `${Math.max(4, 12 * scale)}px ${Math.max(6, 16 * scale)}px`,
+                            boxSizing: 'border-box',
+                            pointerEvents: 'none',
+                            overflow: 'hidden'
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: `${Math.max(8, (el.widgetTitleSize ?? 18) * scale)}px`,
+                              fontWeight: 700,
+                              color: el.widgetTitleColor ?? '#fbbf24',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.06em'
+                            }}
+                          >
+                            SPEAKER
+                          </div>
+                          <div
+                            style={{
+                              fontSize: `${Math.max(10, (el.widgetNameSize ?? 24) * scale)}px`,
+                              fontWeight: 800,
+                              color: el.widgetNameColor ?? '#ffffff',
+                              lineHeight: 1.15
+                            }}
+                          >
+                            Participant Name
+                          </div>
+                          <div
+                            style={{
+                              fontSize: `${Math.max(8, (el.widgetCentroSize ?? 16) * scale)}px`,
+                              color: el.widgetCentroColor ?? '#94a3b8'
+                            }}
+                          >
+                            Centro / Location
+                          </div>
+                        </div>
+                      )}
                       </div>
 
                       {/* Inner Image Crop/Scale/Rotate Controls (when double-clicking a filled Frame) */}
@@ -4023,6 +4350,120 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                   );
                 })()}
 
+              {studioMode && (
+                <>
+                  {/* Draggable & Resizable Presentation Frame */}
+                  <div
+                    onPointerDown={(e) => startStudioBoxDrag(e, 'presentation', 'move')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedElIds([]);
+                      setSelectedStudioBox('presentation');
+                    }}
+                    style={{
+                      position: 'absolute',
+                      left: `${presBox.x}%`,
+                      top: `${presBox.y}%`,
+                      width: `${presBox.width}%`,
+                      height: `${presBox.height}%`,
+                      borderRadius: `${(presBox.borderRadius ?? 16) * scale}px`,
+                      background: 'rgba(15, 23, 42, 0.85)',
+                      border:
+                        selectedStudioBox === 'presentation'
+                          ? '2px solid #8b5cf6'
+                          : '1.5px solid rgba(148, 163, 184, 0.55)',
+                      boxShadow: '0 12px 32px rgba(0,0,0,0.45)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'move',
+                      zIndex: 4,
+                      userSelect: 'none'
+                    }}
+                  >
+                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#e2e8f0' }}>
+                      Presentation Slide
+                    </span>
+                    <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                      {Math.round(presBox.width)}% × {Math.round(presBox.height)}%
+                    </span>
+                    {selectedStudioBox === 'presentation' && (
+                      <div
+                        onPointerDown={(e) => startStudioBoxDrag(e, 'presentation', 'resize')}
+                        title="Drag to resize Presentation box (hold Shift for free aspect)"
+                        style={{
+                          position: 'absolute',
+                          right: '-6px',
+                          bottom: '-6px',
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '3px',
+                          background: '#8b5cf6',
+                          border: '1px solid #fff',
+                          cursor: 'nwse-resize'
+                        }}
+                      />
+                    )}
+                  </div>
+
+                  {/* Draggable & Resizable Participant Camera Frame */}
+                  <div
+                    onPointerDown={(e) => startStudioBoxDrag(e, 'participant', 'move')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedElIds([]);
+                      setSelectedStudioBox('participant');
+                    }}
+                    style={{
+                      position: 'absolute',
+                      left: `${partBox.x}%`,
+                      top: `${partBox.y}%`,
+                      width: `${partBox.width}%`,
+                      height: `${partBox.height}%`,
+                      borderRadius: `${(partBox.borderRadius ?? 16) * scale}px`,
+                      background: 'rgba(6, 78, 59, 0.55)',
+                      border:
+                        selectedStudioBox === 'participant'
+                          ? '2px solid #10b981'
+                          : '1.5px solid rgba(16, 185, 129, 0.55)',
+                      boxShadow: '0 12px 32px rgba(0,0,0,0.45)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'move',
+                      zIndex: 5,
+                      userSelect: 'none'
+                    }}
+                  >
+                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#d1fae5' }}>
+                      Speaker / Camera
+                    </span>
+                    <span style={{ fontSize: '0.68rem', color: '#6ee7b7' }}>
+                      {Math.round(partBox.width)}% × {Math.round(partBox.height)}%
+                    </span>
+                    {selectedStudioBox === 'participant' && (
+                      <div
+                        onPointerDown={(e) => startStudioBoxDrag(e, 'participant', 'resize')}
+                        title="Drag to resize Speaker / Camera box"
+                        style={{
+                          position: 'absolute',
+                          right: '-6px',
+                          bottom: '-6px',
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '3px',
+                          background: '#10b981',
+                          border: '1px solid #fff',
+                          cursor: 'nwse-resize'
+                        }}
+                      />
+                    )}
+                  </div>
+                </>
+              )}
+
               {marqueeRect && (
                 <div
                   aria-hidden="true"
@@ -4042,7 +4483,8 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
             </div>
           </main>
 
-            {/* Canva-Style Bottom Slide Filmstrip Bar */}
+            {/* Canva-Style Bottom Slide Filmstrip Bar (hidden in Studio mode) */}
+            {!studioMode && (
             <div
               onClick={(e) => e.stopPropagation()}
               style={{
@@ -4273,6 +4715,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                 <Plus size={14} /> Add Slide
               </button>
             </div>
+            )}
           </div>
         </div>
       </form>

@@ -114,7 +114,7 @@ export interface CanvasThreeDConfig {
 export interface CanvasElement {
   id: string;
   name?: string; // Optional human-readable layer name (e.g. icon name, stock tags, or image filename)
-  kind: 'text' | 'shape' | 'image' | 'divider' | 'participantWidget' | 'frame';
+  kind: 'text' | 'shape' | 'image' | 'divider' | 'participantWidget' | 'frame' | 'model3d';
   groupId?: string;
   shapeType?: ShapeVariant;
   frameShape?: FrameVariant;
@@ -141,6 +141,7 @@ export interface CanvasElement {
   opacity?: number;
   thickness?: number; // Line thickness in 1080p px for divider elements
   imageSrc?: string;
+  modelSrc?: string; // Local media URL (.glb) for imported 3D model elements
   cropTop?: number; // Non-destructive top trim fraction (0..1) for image elements
   cropRight?: number; // Non-destructive right trim fraction (0..1) for image elements
   cropBottom?: number; // Non-destructive bottom trim fraction (0..1) for image elements
@@ -179,6 +180,11 @@ export interface SlideBlock {
   startTimeSec?: number; // Audio-synced start timestamp in seconds
   lineTimingsSec?: (number | undefined)[]; // Per-line audio timestamps in seconds
   notes?: string;
+  verseRef?: {
+    bookIndex: number;
+    chapterNum: number;
+    verseNum: number;
+  };
 }
 
 export interface ProgramItem {
@@ -198,6 +204,7 @@ export interface ProgramItem {
   audioUrl?: string; // Attached audio track (Data URL) for timed lyrics
   audioFileName?: string; // Display name for attached audio track
   bibleLayout?: BibleLayoutMode; // Applicable for verses
+  followActiveBible?: boolean; // When true, re-resolves verseRef blocks if active Bible version changes in Settings
   verseMaxFontSize?: number; // Max font size in px for auto-scaling verses
   verseTextColor?: string;
   verseRefColor?: string;

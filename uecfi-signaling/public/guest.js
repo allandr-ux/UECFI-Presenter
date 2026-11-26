@@ -190,9 +190,10 @@ async function initPreview() {
     }
   }
 
-  // 2. Room ID
-  if (urlParams.get('room')) {
-    el.inputRoomId.value = urlParams.get('room');
+  // 2. Centro Code
+  const urlRoom = urlParams.get('centro') || urlParams.get('room');
+  if (urlRoom) {
+    el.inputRoomId.value = urlRoom;
   } else {
     try {
       const savedRoom = localStorage.getItem(STORAGE_KEY_ROOM);
@@ -200,14 +201,17 @@ async function initPreview() {
     } catch (e) {}
   }
 
-  // 3. Secret PIN
-  if (urlParams.get('key')) {
-    el.inputSecretKey.value = urlParams.get('key');
+  // 3. Access Code
+  const urlAccess = urlParams.get('code') || urlParams.get('key');
+  if (urlAccess) {
+    el.inputSecretKey.value = urlAccess;
   } else {
     try {
       const savedPin = localStorage.getItem(STORAGE_KEY_PIN);
-      if (savedPin) el.inputSecretKey.value = savedPin;
-    } catch (e) {}
+      el.inputSecretKey.value = savedPin || '1905';
+    } catch (e) {
+      el.inputSecretKey.value = '1905';
+    }
   }
 
   // Check Secure Context requirement: Camera & Mic are blocked by browsers on plain HTTP

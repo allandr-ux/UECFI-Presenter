@@ -3,6 +3,7 @@ import type { CanvasElement } from '../../shared/types';
 import { getElementAnimationStyle } from '../utils/canvasAnimations';
 import { CanvasFrameGraphic, getCroppedImageStyle } from './CanvasFrameGraphic';
 import { CanvasShapeGraphic } from './CanvasShapeGraphic';
+import { CanvasThreeDModel } from './CanvasThreeDModel';
 import { CanvasThreeDObject } from './CanvasThreeDObject';
 
 interface CanvasSlideStageProps {
@@ -298,6 +299,15 @@ export const CanvasSlideStage: React.FC<CanvasSlideStageProps> = ({
                   <img src={item.imageSrc} alt="" style={getCroppedImageStyle(item)} />
                 </div>
               )
+            )}
+
+            {item.kind === 'model3d' && item.modelSrc && (
+              <CanvasThreeDModel
+                modelSrc={item.modelSrc}
+                config={item.threeD}
+                flipX={item.flipX}
+                flipY={item.flipY}
+              />
             )}
             </div>
           </div>
