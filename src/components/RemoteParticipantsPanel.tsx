@@ -6,11 +6,13 @@ import {
   ChevronDown,
   ChevronUp,
   Copy,
+  HelpCircle,
   LayoutTemplate,
   Maximize2,
   Megaphone,
   Mic,
   MicOff,
+  Minus,
   Monitor,
   Radio,
   Settings2,
@@ -123,6 +125,8 @@ interface RemoteParticipantsPanelProps {
   onSelectOverflowAngle?: (angleId: string) => void;
   onUpdateOverflowAngles?: (angles: OverflowCameraAngle[]) => void;
   onUpdateOverflowConfig?: (next: Partial<OverflowStageConfig>) => void;
+  previewCamerasOn?: boolean;
+  onTogglePreviewCameras?: () => void;
   onOpenOverflowStudioEditor?: () => void;
   onCopyParticipantsStudioToOverflow?: () => void;
   displays?: DisplayInfo[];
@@ -166,6 +170,8 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
   onSelectOverflowAngle,
   onUpdateOverflowAngles,
   onUpdateOverflowConfig,
+  previewCamerasOn = false,
+  onTogglePreviewCameras,
   onOpenOverflowStudioEditor,
   onCopyParticipantsStudioToOverflow,
   displays = [],
@@ -189,7 +195,8 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
   const titleId = useId();
   const [activeTab, setActiveTab] = useState<'guests' | 'overflow'>('guests');
   const [overflowQrDataUrl, setOverflowQrDataUrl] = useState('');
-  const [overflowStudioCopied, setOverflowStudioCopied] = useState(false);
+  const [activeReturnFeedHelp, setActiveReturnFeedHelp] = useState<string | null>(null);
+  const [minimized, setMinimized] = useState(false);
 
   const overflowUrl = remoteInfo?.localUrl
     ? `${remoteInfo.localUrl}&viewMode=overflow`
@@ -428,6 +435,10 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
   };
 
   const handleToggle = () => {
+    if (minimized) {
+      setMinimized(false);
+      return;
+    }
     if (onToggleOpen) {
       onToggleOpen();
     } else if (open) {
@@ -469,55 +480,88 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
           <h2 id={titleId} style={{ margin: 0, fontSize: '0.84rem', fontWeight: 700 }}>
             Video Feeds
           </h2>
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginLeft: '6px' }}
-          >
-            <button
-              type="button"
-              onClick={() => selectTabOnly('guests')}
-              style={{
-                padding: '4px 10px',
-                borderRadius: '7px',
-                border: '1px solid var(--border-subtle)',
-                background:
-                  activeTab === 'guests' ? '#2563eb' : 'var(--bg-panel-elevated)',
-                color: activeTab === 'guests' ? '#fff' : 'var(--text-primary)',
-                fontSize: '0.76rem',
-                fontWeight: 600,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px'
-              }}
+          {open && (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginLeft: '6px' }}
             >
-              <Users size={12} /> Green Room ({participants.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => selectTabOnly('overflow')}
-              style={{
-                padding: '4px 10px',
-                borderRadius: '7px',
-                border: '1px solid var(--border-subtle)',
-                background:
-                  activeTab === 'overflow' ? '#059669' : 'var(--bg-panel-elevated)',
-                color: activeTab === 'overflow' ? '#fff' : 'var(--text-primary)',
-                fontSize: '0.76rem',
-                fontWeight: 600,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px'
-              }}
-            >
-              <Camera size={12} /> Centro Cam {overflowConfig?.enabled ? '• ON' : ''}
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={() => selectTabOnly('guests')}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '7px',
+                  border: '1px solid var(--border-subtle)',
+                  background:
+                    activeTab === 'guests' ? '#2563eb' : 'var(--bg-panel-elevated)',
+                  color: activeTab === 'guests' ? '#fff' : 'var(--text-primary)',
+                  fontSize: '0.76rem',
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}
+              >
+                <Users size={12} /> Green Room ({participants.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => selectTabOnly('overflow')}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '7px',
+                  border: '1px solid var(--border-subtle)',
+                  background:
+                    activeTab === 'overflow' ? '#059669' : 'var(--bg-panel-elevated)',
+                  color: activeTab === 'overflow' ? '#fff' : 'var(--text-primary)',
+                  fontSize: '0.76rem',
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}
+              >
+                <Camera size={12} /> Centro Cam {overflowConfig?.enabled ? '• ON' : ''}
+              </button>
+            </div>
+          )}
         </div>
 
         <div
           onClick={(e) => e.stopPropagation()}
           style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
         >
+          {(overflowAngles.length > 0 || overflowCameras.length > 0) &&
+            onTogglePreviewCameras && (
+              <button
+                type="button"
+                onClick={onTogglePreviewCameras}
+                style={{
+                  padding: '4px 9px',
+                  borderRadius: '7px',
+                  border: '1px solid',
+                  borderColor: previewCamerasOn
+                    ? 'rgba(56, 189, 248, 0.55)'
+                    : 'var(--border-subtle)',
+                  background: previewCamerasOn
+                    ? 'rgba(14, 165, 233, 0.2)'
+                    : 'var(--bg-panel-elevated)',
+                  color: previewCamerasOn ? '#7dd3fc' : 'var(--text-primary)',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}
+                title={
+                  previewCamerasOn
+                    ? 'Stop local camera previews (when no camera is live)'
+                    : 'Turn on all camera previews without going live'
+                }
+              >
+                <Camera size={12} /> Preview Cams
+              </button>
+            )}
           <button
             type="button"
             onClick={onOpenSetup}
@@ -552,10 +596,37 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
           >
             {open ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (minimized) {
+                setMinimized(false);
+              } else {
+                setMinimized(true);
+                if (open) onClose();
+              }
+            }}
+            aria-label={minimized ? 'Restore Video Feeds' : 'Minimize Video Feeds'}
+            title={minimized ? 'Show Video Feeds' : 'Minimize Video Feeds (top bar only)'}
+            style={{
+              background: minimized ? 'rgba(56, 189, 248, 0.18)' : 'var(--bg-panel-elevated)',
+              border: '1px solid',
+              borderColor: minimized ? 'rgba(56, 189, 248, 0.5)' : 'var(--border-subtle)',
+              color: minimized ? '#7dd3fc' : 'var(--text-primary)',
+              borderRadius: '7px',
+              padding: '4px 7px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            {minimized ? <Maximize2 size={15} /> : <Minus size={15} />}
+          </button>
         </div>
       </div>
 
-      {!open &&
+      {!minimized &&
+        !open &&
         (participants.length > 0 || overflowAngles.length > 0 || overflowCameras.length > 0) && (
           <div
             style={{
@@ -635,6 +706,10 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                   ? cam.id === activeOverflowAngleId
                   : overflowCameras[0]?.deviceId === cam.deviceId;
               const isLive = Boolean(overflowConfig?.enabled && isSelected);
+              const isStandbyForLiveGuest =
+                isLive &&
+                liveParticipants.length > 0 &&
+                (overflowConfig?.feedSource ?? 'auto') !== 'camera';
               const streamKey = cam.deviceId || '__default__';
               const camStream =
                 overflowCameraStreams?.get(streamKey) ??
@@ -687,11 +762,15 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                         borderRadius: '4px',
                         fontSize: '0.62rem',
                         fontWeight: 700,
-                        background: isLive ? '#059669' : 'rgba(15, 23, 42, 0.85)',
+                        background: isStandbyForLiveGuest
+                          ? 'rgba(217, 119, 6, 0.9)'
+                          : isLive
+                            ? '#059669'
+                            : 'rgba(15, 23, 42, 0.85)',
                         color: '#fff'
                       }}
                     >
-                      {isLive ? 'ACTIVE' : 'OFF'}
+                      {isStandbyForLiveGuest ? 'STANDBY' : isLive ? 'ACTIVE' : 'OFF'}
                     </span>
                   </div>
                   <div
@@ -716,6 +795,27 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                     >
                       {cam.label || 'Camera'}
                     </span>
+                    {isStandbyForLiveGuest && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdateOverflowConfig?.({ enabled: true, feedSource: 'camera' })
+                        }
+                        title="Switch Overflow back to this Centro Cam"
+                        style={{
+                          padding: '2px 6px',
+                          borderRadius: '5px',
+                          border: 'none',
+                          background: '#2563eb',
+                          color: '#fff',
+                          fontSize: '0.68rem',
+                          fontWeight: 700,
+                          flexShrink: 0
+                        }}
+                      >
+                        Show
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={handleToggleCam}
@@ -919,6 +1019,25 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                     >
                       {p.name}
                     </span>
+                    {isLive && overflowConfig?.feedSource === 'camera' && onUpdateOverflowConfig && (
+                      <button
+                        type="button"
+                        onClick={() => onUpdateOverflowConfig({ feedSource: 'auto' })}
+                        title="Switch Overflow back to this guest's camera without turning off Centro Cam"
+                        style={{
+                          padding: '2px 6px',
+                          borderRadius: '5px',
+                          border: 'none',
+                          background: '#2563eb',
+                          color: '#fff',
+                          fontSize: '0.68rem',
+                          fontWeight: 700,
+                          flexShrink: 0
+                        }}
+                      >
+                        Show
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() =>
@@ -944,7 +1063,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
           </div>
         )}
 
-      {open && (
+      {!minimized && open && (
         <div
           style={{
             padding: '14px 16px',
@@ -1026,29 +1145,27 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
             </label>
           )}
 
-          {stageConfig.layout === 'custom' && (
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onOpenStudioEditor();
-              }}
-              style={{
-                padding: '5px 10px',
-                borderRadius: '7px',
-                border: '1px solid rgba(56, 189, 248, 0.5)',
-                background: 'rgba(56, 189, 248, 0.14)',
-                color: '#7dd3fc',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px'
-              }}
-            >
-              <Sliders size={13} /> Customize Studio
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onOpenStudioEditor();
+            }}
+            style={{
+              padding: '5px 10px',
+              borderRadius: '7px',
+              border: '1px solid rgba(56, 189, 248, 0.5)',
+              background: 'rgba(56, 189, 248, 0.14)',
+              color: '#7dd3fc',
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px'
+            }}
+          >
+            <Sliders size={13} /> Customize Studio
+          </button>
 
           {liveParticipants.length > 0 && (
             <button
@@ -1088,178 +1205,291 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
         </section>
 
         {/* Return Feed to Remote Speakers (Main Room Camera + Audio) */}
-        {onUpdateReturnFeedConfig && (
-          <section
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px',
-              padding: '10px 12px',
-              borderRadius: '10px',
-              background: 'var(--bg-panel-elevated)',
-              border: '1px solid var(--border-subtle)'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Centro Cam Return Feed (Sent to Remote Speakers)
-              </span>
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={returnFeedConfig.sendVideo}
-                  onChange={(e) => onUpdateReturnFeedConfig({ sendVideo: e.target.checked })}
-                />
-                Send Centro Cam
-              </label>
-            </div>
+        {onUpdateReturnFeedConfig &&
+          (() => {
+            const RETURN_FEED_HELP: Record<string, { title: string; text: string }> = {
+              sendVideo: {
+                title: 'Send Centro Cam',
+                text: 'Streams the active Centro Cam video feed to remote speakers so they can see the congregation or pulpit.'
+              },
+              returnAudio: {
+                title: 'Return Audio',
+                text: 'Selects the Centro audio input (e.g. soundboard or USB interface) sent to remote speakers so they can hear the room.'
+              },
+              autoMute: {
+                title: 'Auto-mute when speaker is LIVE',
+                text: 'Automatically mutes Centro Return Audio while a remote speaker is LIVE to prevent echo/feedback. Can be overridden with the Megaphone button or Android pulpit mic.'
+              },
+              whisperInput: {
+                title: 'Whisper Input (Mic)',
+                text: 'Operator headset microphone used for private 2-way backstage Whisper conversations with a selected Green Room guest.'
+              },
+              whisperOutput: {
+                title: 'Whisper Output',
+                text: 'Audio output (e.g. operator headphones) where you hear a guest’s private 2-way Whisper audio without sending it to the House PA.'
+              }
+            };
 
-            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                Return Audio:
-                <select
-                  value={returnFeedConfig.audioDeviceId}
-                  onChange={(e) => onUpdateReturnFeedConfig({ audioDeviceId: e.target.value })}
+            const renderHelpBtn = (key: keyof typeof RETURN_FEED_HELP) => {
+              const info = RETURN_FEED_HELP[key];
+              const isOpen = activeReturnFeedHelp === key;
+              return (
+                <button
+                  type="button"
+                  title={info.text}
+                  aria-label={`Help: ${info.title}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setActiveReturnFeedHelp((prev) => (prev === key ? null : key));
+                  }}
                   style={{
-                    padding: '4px 8px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.76rem'
+                    padding: 0,
+                    width: '16px',
+                    height: '16px',
+                    borderRadius: '999px',
+                    border: 'none',
+                    background: isOpen ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
+                    color: isOpen ? '#38bdf8' : 'var(--text-muted)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    flexShrink: 0
                   }}
                 >
-                  <option value="">Off (Muted)</option>
-                  <option value="default">Default Microphone</option>
-                  {returnAudioDevices.map((mic) => (
-                    <option key={mic.deviceId} value={mic.deviceId}>
-                      {mic.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  <HelpCircle size={13} />
+                </button>
+              );
+            };
 
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={returnFeedConfig.autoMuteWhenLive}
-                  onChange={(e) => onUpdateReturnFeedConfig({ autoMuteWhenLive: e.target.checked })}
-                />
-                Auto-mute when speaker is LIVE
-              </label>
-
-              {liveParticipants.length > 0 &&
-                returnFeedConfig.audioDeviceId &&
-                returnFeedConfig.autoMuteWhenLive &&
-                onToggleReturnAudioManualUnmute && (
-                  <button
-                    type="button"
-                    onClick={onToggleReturnAudioManualUnmute}
-                    style={{
-                      padding: '4px 10px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--border-subtle)',
-                      background: returnAudioManualUnmute
-                        ? 'rgba(5, 150, 105, 0.22)'
-                        : 'rgba(245, 158, 11, 0.18)',
-                      color: returnAudioManualUnmute ? '#6ee7b7' : '#fcd34d',
-                      fontSize: '0.74rem',
-                      fontWeight: 700,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {returnAudioManualUnmute
-                      ? 'Return Audio: Live (Re-mute)'
-                      : 'Return Audio: Auto-Muted (Unmute)'}
-                  </button>
-                )}
-            </div>
-
-            {(onSelectMonitorOutputDevice || onSelectWhisperInputDevice) && (
-              <div
+            return (
+              <section
                 style={{
                   display: 'flex',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '10px',
-                  paddingTop: '6px',
-                  borderTop: '1px solid var(--border-subtle)'
+                  flexDirection: 'column',
+                  gap: '8px',
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  background: 'var(--bg-panel-elevated)',
+                  border: '1px solid var(--border-subtle)'
                 }}
               >
-                {onSelectWhisperInputDevice && (
-                  <label
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    Centro Cam Return Feed (Sent to Remote Speakers)
+                  </span>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={returnFeedConfig.sendVideo}
+                        onChange={(e) => onUpdateReturnFeedConfig({ sendVideo: e.target.checked })}
+                      />
+                      Send Centro Cam
+                    </label>
+                    {renderHelpBtn('sendVideo')}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      Return Audio:
+                      <select
+                        value={returnFeedConfig.audioDeviceId}
+                        onChange={(e) => onUpdateReturnFeedConfig({ audioDeviceId: e.target.value })}
+                        style={{
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid var(--border-subtle)',
+                          background: 'var(--bg-app)',
+                          color: 'var(--text-primary)',
+                          fontSize: '0.76rem'
+                        }}
+                      >
+                        <option value="">Off (Muted)</option>
+                        <option value="default">Default Microphone</option>
+                        {returnAudioDevices.map((mic) => (
+                          <option key={mic.deviceId} value={mic.deviceId}>
+                            {mic.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {renderHelpBtn('returnAudio')}
+                  </div>
+
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={returnFeedConfig.autoMuteWhenLive}
+                        onChange={(e) => onUpdateReturnFeedConfig({ autoMuteWhenLive: e.target.checked })}
+                      />
+                      Auto-mute when speaker is LIVE
+                    </label>
+                    {renderHelpBtn('autoMute')}
+                  </div>
+
+                  {liveParticipants.length > 0 &&
+                    returnFeedConfig.audioDeviceId &&
+                    returnFeedConfig.autoMuteWhenLive &&
+                    onToggleReturnAudioManualUnmute && (
+                      <button
+                        type="button"
+                        onClick={onToggleReturnAudioManualUnmute}
+                        style={{
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          border: '1px solid var(--border-subtle)',
+                          background: returnAudioManualUnmute
+                            ? 'rgba(5, 150, 105, 0.22)'
+                            : 'rgba(245, 158, 11, 0.18)',
+                          color: returnAudioManualUnmute ? '#6ee7b7' : '#fcd34d',
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {returnAudioManualUnmute
+                          ? 'Return Audio: Live (Re-mute)'
+                          : 'Return Audio: Auto-Muted (Unmute)'}
+                      </button>
+                    )}
+                </div>
+
+                {(onSelectMonitorOutputDevice || onSelectWhisperInputDevice) && (
+                  <div
                     style={{
-                      display: 'inline-flex',
+                      display: 'flex',
                       alignItems: 'center',
-                      gap: '6px',
-                      fontSize: '0.75rem',
-                      color: 'var(--text-secondary)'
+                      flexWrap: 'wrap',
+                      gap: '10px',
+                      paddingTop: '6px',
+                      borderTop: '1px solid var(--border-subtle)'
                     }}
                   >
-                    Whisper Input (Mic):
-                    <select
-                      value={whisperInputDeviceId}
-                      onChange={(e) => onSelectWhisperInputDevice(e.target.value)}
-                      style={{
-                        padding: '4px 8px',
-                        borderRadius: '6px',
-                        border: '1px solid var(--border-subtle)',
-                        background: 'var(--bg-app)',
-                        color: 'var(--text-primary)',
-                        fontSize: '0.76rem'
-                      }}
-                    >
-                      <option value="">Off (Listen Only)</option>
-                      <option value="default">Default Microphone</option>
-                      {returnAudioDevices.map((mic) => (
-                        <option key={mic.deviceId} value={mic.deviceId}>
-                          {mic.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                    {onSelectWhisperInputDevice && (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                        <label
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontSize: '0.75rem',
+                            color: 'var(--text-secondary)'
+                          }}
+                        >
+                          Whisper Input (Mic):
+                          <select
+                            value={whisperInputDeviceId}
+                            onChange={(e) => onSelectWhisperInputDevice(e.target.value)}
+                            style={{
+                              padding: '4px 8px',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border-subtle)',
+                              background: 'var(--bg-app)',
+                              color: 'var(--text-primary)',
+                              fontSize: '0.76rem'
+                            }}
+                          >
+                            <option value="">Off (Listen Only)</option>
+                            <option value="default">Default Microphone</option>
+                            {returnAudioDevices.map((mic) => (
+                              <option key={mic.deviceId} value={mic.deviceId}>
+                                {mic.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        {renderHelpBtn('whisperInput')}
+                      </div>
+                    )}
+
+                    {onSelectMonitorOutputDevice && (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                        <label
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontSize: '0.75rem',
+                            color: 'var(--text-secondary)'
+                          }}
+                        >
+                          Whisper Output:
+                          <select
+                            value={monitorOutputDeviceId}
+                            onChange={(e) => onSelectMonitorOutputDevice(e.target.value)}
+                            style={{
+                              padding: '4px 8px',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border-subtle)',
+                              background: 'var(--bg-app)',
+                              color: 'var(--text-primary)',
+                              fontSize: '0.76rem'
+                            }}
+                          >
+                            <option value="">System Default</option>
+                            {audioOutputDevices.map((out) => (
+                              <option key={out.deviceId} value={out.deviceId}>
+                                {out.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        {renderHelpBtn('whisperOutput')}
+                      </div>
+                    )}
+
+                    <span style={{ fontSize: '0.71rem', color: 'var(--text-muted)' }}>
+                      2-way private audio with whispered speakers while LIVE audio stays on System Default.
+                    </span>
+                  </div>
                 )}
 
-                {onSelectMonitorOutputDevice && (
-                  <label
+                {activeReturnFeedHelp && RETURN_FEED_HELP[activeReturnFeedHelp] && (
+                  <div
                     style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      fontSize: '0.75rem',
-                      color: 'var(--text-secondary)'
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      justifyContent: 'space-between',
+                      gap: '10px',
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      background: 'rgba(14, 165, 233, 0.12)',
+                      border: '1px solid rgba(56, 189, 248, 0.35)',
+                      fontSize: '0.74rem',
+                      color: '#bae6fd'
                     }}
                   >
-                    Whisper Output:
-                    <select
-                      value={monitorOutputDeviceId}
-                      onChange={(e) => onSelectMonitorOutputDevice(e.target.value)}
+                    <div>
+                      <strong style={{ color: '#e0f2fe' }}>
+                        {RETURN_FEED_HELP[activeReturnFeedHelp].title}:{' '}
+                      </strong>
+                      {RETURN_FEED_HELP[activeReturnFeedHelp].text}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveReturnFeedHelp(null)}
+                      aria-label="Close help"
                       style={{
-                        padding: '4px 8px',
-                        borderRadius: '6px',
-                        border: '1px solid var(--border-subtle)',
-                        background: 'var(--bg-app)',
-                        color: 'var(--text-primary)',
-                        fontSize: '0.76rem'
+                        border: 'none',
+                        background: 'transparent',
+                        color: '#7dd3fc',
+                        cursor: 'pointer',
+                        padding: '0 2px',
+                        flexShrink: 0
                       }}
                     >
-                      <option value="">System Default</option>
-                      {audioOutputDevices.map((out) => (
-                        <option key={out.deviceId} value={out.deviceId}>
-                          {out.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                      <X size={13} />
+                    </button>
+                  </div>
                 )}
-
-                <span style={{ fontSize: '0.71rem', color: 'var(--text-muted)' }}>
-                  2-way private audio with whispered speakers while LIVE audio stays on System Default.
-                </span>
-              </div>
-            )}
-          </section>
-        )}
+              </section>
+            );
+          })()}
 
         {/* Live On Screen */}
         <section style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1534,13 +1764,13 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                     <button
                       type="button"
-                      onClick={() => onUpdateOverflowConfig({ layout: 'full' })}
+                      onClick={() => onUpdateStageConfig({ layout: 'full' })}
                       style={{
                         padding: '5px 10px',
                         borderRadius: '7px',
                         border: '1px solid var(--border-subtle)',
-                        background: overflowConfig.layout === 'full' ? '#2563eb' : 'transparent',
-                        color: overflowConfig.layout === 'full' ? '#fff' : 'var(--text-primary)',
+                        background: stageConfig.layout === 'full' ? '#2563eb' : 'transparent',
+                        color: stageConfig.layout === 'full' ? '#fff' : 'var(--text-primary)',
                         fontSize: '0.78rem',
                         fontWeight: 600,
                         display: 'inline-flex',
@@ -1552,13 +1782,13 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                     </button>
                     <button
                       type="button"
-                      onClick={() => onUpdateOverflowConfig({ layout: 'custom' })}
+                      onClick={() => onUpdateStageConfig({ layout: 'custom' })}
                       style={{
                         padding: '5px 10px',
                         borderRadius: '7px',
                         border: '1px solid var(--border-subtle)',
-                        background: overflowConfig.layout === 'custom' ? '#2563eb' : 'transparent',
-                        color: overflowConfig.layout === 'custom' ? '#fff' : 'var(--text-primary)',
+                        background: stageConfig.layout === 'custom' ? '#2563eb' : 'transparent',
+                        color: stageConfig.layout === 'custom' ? '#fff' : 'var(--text-primary)',
                         fontSize: '0.78rem',
                         fontWeight: 600,
                         display: 'inline-flex',
@@ -1568,7 +1798,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                     >
                       <LayoutTemplate size={13} /> Studio
                     </button>
-                    {overflowConfig.layout === 'full' && (
+                    {stageConfig.layout === 'full' && (
                       <label
                         style={{
                           display: 'inline-flex',
@@ -1581,20 +1811,20 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                       >
                         <input
                           type="checkbox"
-                          checked={overflowConfig.fullCropSides !== false}
+                          checked={stageConfig.fullCropSides !== false}
                           onChange={(e) =>
-                            onUpdateOverflowConfig({ fullCropSides: e.target.checked })
+                            onUpdateStageConfig({ fullCropSides: e.target.checked })
                           }
                         />
                         Crop Sides (Fill)
                       </label>
                     )}
-                    {overflowConfig.layout === 'custom' && onOpenOverflowStudioEditor && (
+                    {onOpenStudioEditor && (
                       <button
                         type="button"
                         onClick={() => {
                           onClose();
-                          onOpenOverflowStudioEditor();
+                          onOpenStudioEditor();
                         }}
                         style={{
                           padding: '5px 10px',
@@ -1610,30 +1840,6 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                         }}
                       >
                         <Sliders size={13} /> Customize Studio
-                      </button>
-                    )}
-                    {onCopyParticipantsStudioToOverflow && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onCopyParticipantsStudioToOverflow();
-                          setOverflowStudioCopied(true);
-                          setTimeout(() => setOverflowStudioCopied(false), 2000);
-                        }}
-                        style={{
-                          padding: '5px 10px',
-                          borderRadius: '7px',
-                          border: '1px solid var(--border-subtle)',
-                          background: overflowStudioCopied ? 'rgba(34, 197, 94, 0.18)' : 'transparent',
-                          color: overflowStudioCopied ? '#4ade80' : 'var(--text-primary)',
-                          fontSize: '0.76rem',
-                          fontWeight: 600,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px'
-                        }}
-                      >
-                        <Copy size={12} /> {overflowStudioCopied ? 'Copied!' : 'Copy Guests Studio'}
                       </button>
                     )}
                   </div>

@@ -2,6 +2,7 @@ import React, { useLayoutEffect, useRef, useState } from 'react';
 import type { LiveState } from '../../shared/types';
 import { CanvasSlideStage } from './CanvasSlideStage';
 import { MainScreenView } from './MainScreenView';
+import { MAIN_ROOM_CAMERA_ID } from '../utils/overflowState';
 import {
   DEFAULT_PRESENTATION_BOX,
   DEFAULT_STUDIO_BACKGROUND,
@@ -87,64 +88,108 @@ export const FittedMainScreenFrame: React.FC<ScaledMainScreenPreviewProps> = ({
     return () => observer.disconnect();
   }, []);
 
-  const isStudioMode =
+  const hasLiveParticipant =
     liveState?.override !== 'blackout' &&
-    liveState?.participants?.layout === 'custom' &&
     (liveState?.participants?.liveParticipantIds?.length ?? 0) > 0;
+  const isStudioMode =
+    hasLiveParticipant && liveState?.participants?.layout === 'custom';
+  const boxTiming = isStudioMode
+    ? '520ms cubic-bezier(0.4, 0, 0.2, 1)'
+    : '380ms cubic-bezier(0.22, 1, 0.36, 1)';
 
-  if (isStudioMode && liveState?.participants) {
-    const presBox = liveState.participants.studioPresentationBox ?? DEFAULT_PRESENTATION_BOX;
-    const studioBg = liveState.participants.studioBackground || DEFAULT_STUDIO_BACKGROUND;
-    const primaryId = liveState.participants.liveParticipantIds[0];
-    const liveParticipant = liveState.participantList?.find((p) => p.id === primaryId);
-    const studioElements = liveState.participants.studioElements ?? [];
+  const presBox = liveState?.participants?.studioPresentationBox ?? DEFAULT_PRESENTATION_BOX;
+  const studioBg = liveState?.participants?.studioBackground || DEFAULT_STUDIO_BACKGROUND;
+  const primaryId = liveState?.participants?.liveParticipantIds?.[0];
+  const liveParticipant =
+    primaryId && primaryId !== MAIN_ROOM_CAMERA_ID
+      ? liveState?.participantList?.find((p) => p.id === primaryId)
+      : undefined;
+  const studioElements = liveState?.participants?.studioElements ?? [];
 
-    const cw = containerSize.width || 384;
-    const ch = containerSize.height || 216;
-    const studioW = cw / ch > BASE_ASPECT ? ch * BASE_ASPECT : cw;
-    const studioH = cw / ch > BASE_ASPECT ? ch : cw / BASE_ASPECT;
-    const studioScale = studioH / BASE_HEIGHT;
+  const cw = containerSize.width || 384;
+  const ch = containerSize.height || 216;
+  const studioW = cw / ch > BASE_ASPECT ? ch * BASE_ASPECT : cw;
+  const studioH = cw / ch > BASE_ASPECT ? ch : cw / BASE_ASPECT;
+  const studioScale = studioH / BASE_HEIGHT;
 
-    const presBoxW = studioW * (presBox.width / 100);
-    const presBoxH = studioH * (presBox.height / 100);
-    const presScale = Math.min(presBoxW / BASE_WIDTH, presBoxH / BASE_HEIGHT) || 0.1;
-    const presW = presBoxW / presScale;
-    const presH = presBoxH / presScale;
+  const presBoxW = studioW * (presBox.width / 100);
+  const presBoxH = studioH * (presBox.height / 100);
+  const presScale = Math.min(presBoxW / BASE_WIDTH, presBoxH / BASE_HEIGHT) || 0.1;
+  const presW = presBoxW / presScale;
+  const presH = presBoxH / presScale;
 
-    return (
-      <div
-        ref={containerRef}
-        style={{
-          width: '100%',
-          height: '100%',
-          position: 'relative',
-          overflow: 'hidden',
-          background: studioBg,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}
-      >
-        {/* Centered 16:9 Studio Container so layout never breaks on narrow/tall screens */}
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        width: '100%',
+        height: '100%',
+        position: 'relative',
+        overflow: 'hidden',
+        background: isStudioMode ? studioBg : '#000',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'background 280ms ease'
+      }}
+    >
+      {/* Full-screen virtual stage when no live participant is active (preserves non-16:9 fill) */}
+      {!hasLiveParticipant && (
         <div
           style={{
-            width: `${studioW}px`,
-            height: `${studioH}px`,
-            position: 'relative',
-            flexShrink: 0
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none'
           }}
         >
-          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          <div
+            style={{
+              width: `${stage.width}px`,
+              height: `${stage.height}px`,
+              transform: `scale(${stage.scale})`,
+              transformOrigin: 'top left',
+              pointerEvents: 'none',
+              position: 'relative'
+            }}
+          >
+            <MainScreenView liveState={liveState} />
+          </div>
+        </div>
+      )}
+
+      {/* Unified stage wrapper keeps MainScreenView, CanvasSlideStage, and ParticipantOverlay mounted across Full <-> Studio transitions */}
+      <div
+        style={{
+          width: isStudioMode ? `${studioW}px` : '100%',
+          height: isStudioMode ? `${studioH}px` : '100%',
+          position: 'relative',
+          flexShrink: 0,
+          pointerEvents: 'none',
+          transition: `width ${boxTiming}, height ${boxTiming}`
+        }}
+      >
+        {hasLiveParticipant && studioElements.length > 0 && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              opacity: isStudioMode ? 1 : 0,
+              transition: 'opacity 280ms ease'
+            }}
+          >
             <CanvasSlideStage
               elements={studioElements}
               background="transparent"
               liveParticipant={liveParticipant}
             />
           </div>
+        )}
 
-          {/* Presentation Box */}
+        {/* Presentation Box stays mounted in place and fades in after the camera shrinks into Studio */}
+        {hasLiveParticipant && (
           <div
             style={{
               position: 'absolute',
@@ -156,7 +201,9 @@ export const FittedMainScreenFrame: React.FC<ScaledMainScreenPreviewProps> = ({
               overflow: 'hidden',
               boxShadow: '0 16px 40px rgba(0, 0, 0, 0.45)',
               pointerEvents: 'none',
-              zIndex: 20
+              zIndex: 20,
+              opacity: isStudioMode ? 1 : 0,
+              transition: isStudioMode ? 'opacity 220ms ease 280ms' : 'opacity 140ms ease'
             }}
           >
             <div
@@ -170,53 +217,20 @@ export const FittedMainScreenFrame: React.FC<ScaledMainScreenPreviewProps> = ({
               <MainScreenView liveState={liveState} />
             </div>
           </div>
+        )}
 
-          {/* Participant Video Box (outside CSS scale transform for flicker-free WebRTC) */}
+        {/* Participant Video Box (outside CSS scale transform for flicker-free WebRTC) */}
+        {hasLiveParticipant && (
           <ParticipantOverlay
-            stageConfig={liveState.participants}
-            participants={liveState.participantList}
+            stageConfig={liveState?.participants}
+            participants={liveState?.participantList}
             streams={participantStreams}
             enableAudio={enableParticipantAudio}
-            compact={studioScale < 0.7}
+            compact={(isStudioMode ? studioScale : stage.scale) < 0.7}
+            scale={isStudioMode ? undefined : stage.scale}
           />
-        </div>
+        )}
       </div>
-    );
-  }
-
-  return (
-    <div
-      ref={containerRef}
-      style={{
-        width: '100%',
-        height: '100%',
-        position: 'relative',
-        overflow: 'hidden',
-        background: '#000'
-      }}
-    >
-      <div
-        style={{
-          width: `${stage.width}px`,
-          height: `${stage.height}px`,
-          transform: `scale(${stage.scale})`,
-          transformOrigin: 'top left',
-          pointerEvents: 'none',
-          position: 'relative'
-        }}
-      >
-        <MainScreenView liveState={liveState} />
-      </div>
-      {liveState?.override !== 'blackout' && (
-        <ParticipantOverlay
-          stageConfig={liveState?.participants}
-          participants={liveState?.participantList}
-          streams={participantStreams}
-          enableAudio={enableParticipantAudio}
-          compact={stage.scale < 0.7}
-          scale={stage.scale}
-        />
-      )}
     </div>
   );
 };

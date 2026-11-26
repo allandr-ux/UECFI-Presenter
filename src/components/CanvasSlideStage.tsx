@@ -139,7 +139,7 @@ export const CanvasSlideStage: React.FC<CanvasSlideStageProps> = ({
               </div>
             )}
 
-            {item.kind === 'participantWidget' && (
+            {item.kind === 'participantWidget' && liveParticipant && (
               <div
                 style={{
                   width: '100%',

@@ -407,6 +407,9 @@ export const OperatorConsole: React.FC = () => {
   const autoSwitchedOverflowRef = useRef(false);
   const hasLiveMainGuestRef = useRef(false);
   hasLiveMainGuestRef.current = participantStageConfig.liveParticipantIds.length > 0;
+  const overflowEnabledRef = useRef(false);
+  overflowEnabledRef.current = overflowConfig.enabled;
+  const [previewCamerasOn, setPreviewCamerasOn] = useState(false);
   const [libraryTab, setLibraryTab] = useState<'library' | 'verses'>('verses');
   const [centerMode, setCenterMode] = useState<'grid' | 'search'>('grid');
   const [libraryFilter, setLibraryFilter] = useState<'all' | 'song' | 'programItem'>('all');
@@ -1198,10 +1201,12 @@ export const OperatorConsole: React.FC = () => {
     }
 
     let cancelled = false;
+    // Disable AEC/NS/AGC on Return Audio so mixer/soundboard loops pass the app's own song
+    // playback and live music cleanly without Electron's echo canceller stripping them out.
     const constraints: MediaTrackConstraints = {
-      echoCancellation: true,
-      noiseSuppression: true,
-      autoGainControl: true,
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false,
       ...(returnFeedConfig.audioDeviceId !== 'default'
         ? { deviceId: { exact: returnFeedConfig.audioDeviceId } }
         : {})
@@ -1641,7 +1646,9 @@ export const OperatorConsole: React.FC = () => {
   // when sending the Main Room return feed to connected remote speakers.
   // Pre-warms configured angles when Overflow is active and uses WebRTC replaceTrack for seamless switching.
   const shouldCaptureMainRoomCamera =
-    overflowConfig.enabled || (returnFeedConfig.sendVideo && participants.length > 0);
+    overflowConfig.enabled ||
+    previewCamerasOn ||
+    (returnFeedConfig.sendVideo && participants.length > 0);
 
   useEffect(() => {
     const stopAllAngleStreams = () => {
@@ -1692,15 +1699,46 @@ export const OperatorConsole: React.FC = () => {
     const isStreamLive = (stream?: MediaStream | null) =>
       Boolean(stream && stream.getVideoTracks().some((t) => t.readyState === 'live'));
 
-    const openCameraStream = async (deviceId: string): Promise<MediaStream | null> => {
+    const openCameraStream = async (
+      deviceId: string,
+      previewOnly = false
+    ): Promise<MediaStream | null> => {
       if (!navigator.mediaDevices?.getUserMedia) return null;
-      const constraints: MediaStreamConstraints = {
-        video: deviceId
-          ? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
-          : { width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false
-      };
-      return navigator.mediaDevices.getUserMedia(constraints);
+      const tiers: MediaTrackConstraints[] = previewOnly
+        ? [
+            {
+              width: { ideal: 320, max: 640 },
+              height: { ideal: 240, max: 480 },
+              frameRate: { ideal: 10, max: 15 }
+            },
+            {
+              width: { ideal: 320, max: 640 },
+              height: { ideal: 180, max: 480 }
+            }
+          ]
+        : [
+            { width: { ideal: 1280 }, height: { ideal: 720 } },
+            { width: { ideal: 640, max: 1280 }, height: { ideal: 360, max: 720 } }
+          ];
+
+      let lastErr: unknown = null;
+      for (const tier of tiers) {
+        try {
+          const constraints: MediaStreamConstraints = {
+            video: deviceId ? { deviceId: { exact: deviceId }, ...tier } : tier,
+            audio: false
+          };
+          return await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (err) {
+          lastErr = err;
+        }
+      }
+      throw lastErr;
+    };
+
+    const isHighResStream = (stream?: MediaStream | null) => {
+      const settings = stream?.getVideoTracks()[0]?.getSettings();
+      return (settings?.width ?? 0) >= 1000;
     };
 
     const activeKey = selectedOverflowCameraId || '__default__';
@@ -1723,9 +1761,15 @@ export const OperatorConsole: React.FC = () => {
       for (const devId of targetIds) {
         if (cancelled) return;
         const existing = overflowAngleStreamsRef.current.get(devId);
-        if (isStreamLive(existing)) continue;
+        if (isStreamLive(existing) && existing) {
+          // If this camera was previously the 720p active camera, reopen it at low-bandwidth
+          // preview resolution so all 3 USB cameras fit within the USB controller budget.
+          if (!isHighResStream(existing)) continue;
+          existing.getTracks().forEach((t) => t.stop());
+          overflowAngleStreamsRef.current.delete(devId);
+        }
         try {
-          const warmStream = await openCameraStream(devId);
+          const warmStream = await openCameraStream(devId, true);
           if (!warmStream) continue;
           if (cancelled) {
             warmStream.getTracks().forEach((t) => t.stop());
@@ -1740,11 +1784,15 @@ export const OperatorConsole: React.FC = () => {
     };
 
     const cachedActive = overflowAngleStreamsRef.current.get(activeKey);
-    if (isStreamLive(cachedActive) && cachedActive) {
+    if (isStreamLive(cachedActive) && cachedActive && isHighResStream(cachedActive)) {
       applyActiveStream(cachedActive);
       void prewarmOtherAngles();
     } else {
-      openCameraStream(selectedOverflowCameraId)
+      if (cachedActive) {
+        cachedActive.getTracks().forEach((t) => t.stop());
+        overflowAngleStreamsRef.current.delete(activeKey);
+      }
+      openCameraStream(selectedOverflowCameraId, false)
         .catch(async () => {
           // Fallback: if opening failed due to USB hub limits while other angles were warm,
           // release other cached streams and retry opening only the active camera.
@@ -1903,7 +1951,8 @@ export const OperatorConsole: React.FC = () => {
   // Clicking a card in Content Grid triggers presentation (pushes to Live)
   const autoSwitchFullToStudio = useCallback(() => {
     setParticipantStageConfig((prev) => {
-      if (prev.liveParticipantIds.length === 0 || prev.layout !== 'full') return prev;
+      const hasActiveFeed = prev.liveParticipantIds.length > 0 || overflowEnabledRef.current;
+      if (!hasActiveFeed || prev.layout !== 'full') return prev;
       autoSwitchedMainRef.current = true;
       const updated: ParticipantStageConfig = { ...prev, layout: 'custom' };
       try {
@@ -3268,10 +3317,9 @@ export const OperatorConsole: React.FC = () => {
           >
             <ChevronRight size={16} />
           </button>
-        </div>
 
-        {/* Live Output Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ width: '1px', height: '22px', background: 'var(--border-subtle)', margin: '0 2px' }} />
+
           <button
             type="button"
             onClick={() => toggleOverride('clearText')}
@@ -3339,48 +3387,10 @@ export const OperatorConsole: React.FC = () => {
               <Pencil size={13} />
             </button>
           </div>
+        </div>
 
-          <div style={{ width: '1px', height: '22px', background: 'var(--border-subtle)', margin: '0 2px' }} />
-
-          <button
-            type="button"
-            onClick={() => {
-              refreshDisplaysAndRemote();
-              setParticipantsModalOpen((prev) => !prev);
-            }}
-            style={toolbarBtnStyle(
-              participantsModalOpen ||
-                participantStageConfig.liveParticipantIds.length > 0 ||
-                overflowConfig.enabled
-            )}
-            title="Toggle Video Feeds Panel (Green Room & Centro Cam)"
-          >
-            <Users size={14} />
-            Video Feeds
-            {(participants.length > 0 || overflowConfig.enabled) && (
-              <span
-                style={{
-                  background:
-                    participantStageConfig.liveParticipantIds.length > 0
-                      ? '#dc2626'
-                      : overflowConfig.enabled
-                        ? '#059669'
-                        : '#eab308',
-                  color:
-                    participantStageConfig.liveParticipantIds.length > 0 || overflowConfig.enabled
-                      ? '#fff'
-                      : '#0f172a',
-                  borderRadius: '999px',
-                  padding: '1px 6px',
-                  fontSize: '0.7rem',
-                  fontWeight: 700
-                }}
-              >
-                {participants.length + (overflowConfig.enabled ? 1 : 0)}
-              </span>
-            )}
-          </button>
-
+        {/* Right Toolbar Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={() => {
@@ -4819,6 +4829,8 @@ export const OperatorConsole: React.FC = () => {
                 // Ignore storage quota errors
               }
             }}
+            previewCamerasOn={previewCamerasOn}
+            onTogglePreviewCameras={() => setPreviewCamerasOn((prev) => !prev)}
             onUpdateOverflowConfig={(next) => {
               if (next.layout !== undefined) {
                 autoSwitchedOverflowRef.current = false;
@@ -5150,317 +5162,6 @@ export const OperatorConsole: React.FC = () => {
                 }
               />
             </div>
-          </div>
-
-          {/* Live Feeds Quick Dock */}
-          <div
-            style={{
-              padding: '8px 12px',
-              borderTop: '1px solid var(--border-subtle)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '6px',
-              flexShrink: 0
-            }}
-          >
-            {overflowAngles.length > 0 ? (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                {overflowAngles.map((angle) => {
-                  const isOn = overflowConfig.enabled && angle.id === activeOverflowAngleId;
-                  return (
-                    <button
-                      key={`quick-angle-${angle.id}`}
-                      type="button"
-                      onClick={() => {
-                        if (isOn) {
-                          setOverflowConfig((prev) => ({
-                            ...prev,
-                            enabled: false,
-                            ...(prev.feedSource === 'camera' ? { feedSource: 'auto' } : {})
-                          }));
-                        } else {
-                          setActiveOverflowAngleId(angle.id);
-                          try {
-                            localStorage.setItem('uecfi_overflow_active_angle_v1', angle.id);
-                          } catch {
-                            // Ignore storage quota errors
-                          }
-                          setOverflowConfig((prev) => ({ ...prev, enabled: true }));
-                        }
-                      }}
-                      style={{
-                        flex: '1 1 auto',
-                        minWidth: '64px',
-                        padding: '5px 8px',
-                        borderRadius: '7px',
-                        border: '1px solid',
-                        borderColor: isOn ? '#10b981' : 'var(--border-subtle)',
-                        background: isOn ? '#059669' : 'var(--bg-panel-elevated)',
-                        color: isOn ? '#fff' : 'var(--text-secondary)',
-                        fontSize: '0.73rem',
-                        fontWeight: 600,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '5px',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}
-                      title={isOn ? `Turn off ${angle.label || 'Camera'}` : `Turn on ${angle.label || 'Camera'}`}
-                    >
-                      <Camera size={12} style={{ flexShrink: 0 }} />
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {angle.label || 'Camera'}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() =>
-                  setOverflowConfig((prev) => {
-                    const nextEnabled = !prev.enabled;
-                    return {
-                      ...prev,
-                      enabled: nextEnabled,
-                      ...(!nextEnabled && prev.feedSource === 'camera'
-                        ? { feedSource: 'auto' }
-                        : {})
-                    };
-                  })
-                }
-                style={{
-                  width: '100%',
-                  padding: '5px 8px',
-                  borderRadius: '7px',
-                  border: '1px solid',
-                  borderColor: overflowConfig.enabled ? '#10b981' : 'var(--border-subtle)',
-                  background: overflowConfig.enabled ? '#059669' : 'var(--bg-panel-elevated)',
-                  color: overflowConfig.enabled ? '#fff' : 'var(--text-secondary)',
-                  fontSize: '0.73rem',
-                  fontWeight: 600,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px'
-                }}
-              >
-                <Camera size={12} />
-                Centro Cam
-              </button>
-            )}
-
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                Overflow Feed
-              </span>
-              <div
-                style={{
-                  display: 'inline-flex',
-                  background: 'var(--bg-app)',
-                  borderRadius: '6px',
-                  padding: '2px',
-                  border: '1px solid var(--border-subtle)'
-                }}
-              >
-                {(
-                  [
-                    { id: 'auto', label: 'Auto' },
-                    { id: 'camera', label: 'Room Cam' },
-                    { id: 'remote', label: 'Remote' }
-                  ] as const
-                ).map((opt) => {
-                  const active = (overflowConfig.feedSource ?? 'auto') === opt.id;
-                  return (
-                    <button
-                      key={`overflow-src-${opt.id}`}
-                      type="button"
-                      onClick={() => {
-                        setOverflowConfig((prev) => {
-                          const updated = {
-                            ...prev,
-                            feedSource: opt.id,
-                            enabled: opt.id === 'camera' ? true : prev.enabled
-                          };
-                          try {
-                            localStorage.setItem(
-                              'uecfi_overflow_layout_v1',
-                              JSON.stringify({ ...updated, enabled: false })
-                            );
-                          } catch {
-                            // Ignore storage quota errors
-                          }
-                          return updated;
-                        });
-                      }}
-                      style={{
-                        padding: '2px 7px',
-                        borderRadius: '4px',
-                        border: 'none',
-                        fontSize: '0.68rem',
-                        fontWeight: 600,
-                        background: active ? '#2563eb' : 'transparent',
-                        color: active ? '#fff' : 'var(--text-secondary)'
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {participants.length > 0 && (
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '4px',
-                  maxHeight: '132px',
-                  overflowY: 'auto'
-                }}
-              >
-                {participants.map((p) => {
-                  const isLive = p.status === 'live';
-                  return (
-                    <div
-                      key={`dock-${p.id}`}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '4px 7px',
-                        borderRadius: '7px',
-                        background: 'var(--bg-panel-elevated)',
-                        border: `1px solid ${isLive ? 'rgba(239, 68, 68, 0.45)' : 'var(--border-subtle)'}`
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: '7px',
-                          height: '7px',
-                          borderRadius: '999px',
-                          background: isLive ? '#ef4444' : '#eab308',
-                          flexShrink: 0
-                        }}
-                      />
-                      <span
-                        style={{
-                          flex: 1,
-                          minWidth: 0,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          fontSize: '0.74rem',
-                          fontWeight: 600
-                        }}
-                        title={`${p.title ? `${p.title} ` : ''}${p.name}`}
-                      >
-                        {p.title ? `${p.title} ` : ''}
-                        {p.name}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleModerateParticipant(
-                            p.id,
-                            isLive ? 'MOVE_TO_GREEN_ROOM' : 'PUT_LIVE'
-                          )
-                        }
-                        title={isLive ? 'Send back to Green Room' : 'Put On Screen'}
-                        style={{
-                          padding: '3px 7px',
-                          borderRadius: '6px',
-                          border: 'none',
-                          background: isLive ? '#334155' : '#2563eb',
-                          color: '#fff',
-                          fontSize: '0.7rem',
-                          fontWeight: 600,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}
-                      >
-                        {isLive ? <UserMinus size={11} /> : <UserCheck size={11} />}
-                        {isLive ? 'Green Room' : 'Go Live'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleMonitorParticipant(p.id)}
-                        title={
-                          monitoredParticipantIds.includes(p.id)
-                            ? 'End Whisper (2-way audio)'
-                            : 'Whisper (2-way private audio with speaker)'
-                        }
-                        style={{
-                          padding: '3px 5px',
-                          borderRadius: '6px',
-                          border: monitoredParticipantIds.includes(p.id)
-                            ? '1px solid rgba(56, 189, 248, 0.55)'
-                            : '1px solid var(--border-subtle)',
-                          background: monitoredParticipantIds.includes(p.id)
-                            ? 'rgba(14, 165, 233, 0.22)'
-                            : 'transparent',
-                          color: monitoredParticipantIds.includes(p.id)
-                            ? '#7dd3fc'
-                            : 'var(--text-secondary)',
-                          display: 'inline-flex'
-                        }}
-                      >
-                        {monitoredParticipantIds.includes(p.id) ? (
-                          <Volume2 size={12} />
-                        ) : (
-                          <VolumeX size={12} />
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleModerateParticipant(p.id, 'SET_MUTED', !p.mutedByOperator)
-                        }
-                        title={p.mutedByOperator ? 'Unmute' : 'Mute'}
-                        style={{
-                          padding: '3px 5px',
-                          borderRadius: '6px',
-                          border: '1px solid var(--border-subtle)',
-                          background: p.mutedByOperator ? 'rgba(220, 38, 38, 0.2)' : 'transparent',
-                          color: p.mutedByOperator ? '#fca5a5' : 'var(--text-secondary)',
-                          display: 'inline-flex'
-                        }}
-                      >
-                        {p.mutedByOperator ? <MicOff size={12} /> : <Mic size={12} />}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleModerateParticipant(
-                            p.id,
-                            'SET_VIDEO_HIDDEN',
-                            !p.videoHiddenByOperator
-                          )
-                        }
-                        title={p.videoHiddenByOperator ? 'Show Video' : 'Hide Video'}
-                        style={{
-                          padding: '3px 5px',
-                          borderRadius: '6px',
-                          border: '1px solid var(--border-subtle)',
-                          background: p.videoHiddenByOperator
-                            ? 'rgba(220, 38, 38, 0.2)'
-                            : 'transparent',
-                          color: p.videoHiddenByOperator ? '#fca5a5' : 'var(--text-secondary)',
-                          display: 'inline-flex'
-                        }}
-                      >
-                        {p.videoHiddenByOperator ? <CameraOff size={12} /> : <Camera size={12} />}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
 
           {/* Quick Settings */}

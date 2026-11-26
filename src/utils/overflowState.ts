@@ -12,37 +12,19 @@ export function buildOverflowLiveState(liveState: LiveState | null): LiveState |
   if (!liveState) return null;
 
   const source = liveState.overflow?.feedSource ?? 'auto';
-  const hasLiveRemoteParticipant = (liveState.participants?.liveParticipantIds?.length ?? 0) > 0;
-
-  const overflow = liveState.overflow;
-  const applyOverflowLayout = (baseParticipants: LiveState['participants']): LiveState['participants'] => {
-    if (!overflow || !baseParticipants) return baseParticipants;
-    return {
-      ...baseParticipants,
-      layout: overflow.layout,
-      fullCropSides: overflow.fullCropSides,
-      studioBackground: overflow.studioBackground,
-      studioPresentationBox: overflow.studioPresentationBox,
-      studioParticipantBox: overflow.studioParticipantBox,
-      studioElements: overflow.studioElements
-    };
-  };
+  const baseParticipants = liveState.participants;
+  const hasLiveRemoteParticipant = (baseParticipants?.liveParticipantIds?.length ?? 0) > 0;
 
   if (source === 'remote' || (source === 'auto' && hasLiveRemoteParticipant)) {
-    return overflow
-      ? {
-          ...liveState,
-          participants: applyOverflowLayout(liveState.participants)
-        }
-      : liveState;
+    return liveState;
   }
 
   if (!liveState.overflow?.enabled) {
-    if (source === 'camera' && hasLiveRemoteParticipant && liveState.participants) {
+    if (source === 'camera' && hasLiveRemoteParticipant && baseParticipants) {
       return {
         ...liveState,
         participants: {
-          ...liveState.participants,
+          ...baseParticipants,
           liveParticipantIds: []
         }
       };
@@ -66,14 +48,16 @@ export function buildOverflowLiveState(liveState: LiveState | null): LiveState |
     ...liveState,
     participantList: [...(liveState.participantList ?? []), syntheticCam],
     participants: {
-      layout: liveState.overflow.layout,
+      layout: baseParticipants?.layout ?? liveState.overflow.layout,
       liveParticipantIds: [MAIN_ROOM_CAMERA_ID],
-      fullCropSides: liveState.overflow.fullCropSides,
+      fullCropSides: baseParticipants?.fullCropSides ?? liveState.overflow.fullCropSides,
       showNameplate: false,
-      studioBackground: liveState.overflow.studioBackground,
-      studioPresentationBox: liveState.overflow.studioPresentationBox,
-      studioParticipantBox: liveState.overflow.studioParticipantBox,
-      studioElements: liveState.overflow.studioElements
+      studioBackground: baseParticipants?.studioBackground ?? liveState.overflow.studioBackground,
+      studioPresentationBox:
+        baseParticipants?.studioPresentationBox ?? liveState.overflow.studioPresentationBox,
+      studioParticipantBox:
+        baseParticipants?.studioParticipantBox ?? liveState.overflow.studioParticipantBox,
+      studioElements: baseParticipants?.studioElements ?? liveState.overflow.studioElements
     }
   };
 }

@@ -79,7 +79,10 @@ export const ParticipantVideoTile: React.FC<VideoTileProps> = ({
               : '16px',
         overflow: 'hidden',
         border: frameless ? 'none' : '2px solid rgba(56, 189, 248, 0.45)',
-        boxShadow: frameless ? 'none' : '0 16px 40px rgba(0, 0, 0, 0.55)'
+        boxShadow: frameless ? 'none' : '0 16px 40px rgba(0, 0, 0, 0.55)',
+        transition: frameless
+          ? 'border-radius 380ms cubic-bezier(0.22, 1, 0.36, 1), border-color 280ms ease, box-shadow 280ms ease'
+          : 'border-radius 520ms cubic-bezier(0.4, 0, 0.2, 1), border-color 320ms ease, box-shadow 320ms ease'
       }}
     >
       <video
@@ -178,45 +181,28 @@ export const ParticipantOverlay: React.FC<ParticipantOverlayProps> = ({
   const layout = stageConfig?.layout ?? 'custom';
   const showNameplate = Boolean(stageConfig?.showNameplate);
 
-  if (layout === 'custom') {
-    const box = stageConfig?.studioParticipantBox ?? DEFAULT_PARTICIPANT_BOX;
-    const primaryId = liveIds[0];
-    return (
-      <div
-        style={{
-          position: 'absolute',
-          left: `${box.x}%`,
-          top: `${box.y}%`,
-          width: `${box.width}%`,
-          height: `${box.height}%`,
-          zIndex: 40
-        }}
-      >
-        <ParticipantVideoTile
-          key={primaryId}
-          stream={streams?.get(primaryId)}
-          participant={participantMap.get(primaryId)}
-          enableAudio={enableAudio}
-          compact={compact}
-          scale={scale}
-          borderRadius={box.borderRadius ?? 16}
-          showNameplate={false}
-        />
-      </div>
-    );
-  }
-
+  const isCustom = layout === 'custom';
+  const box = stageConfig?.studioParticipantBox ?? DEFAULT_PARTICIPANT_BOX;
   const primaryId = liveIds[0];
   const showBuiltInFullNameplate =
-    primaryId !== 'mainRoomCamera' && stageConfig?.showNameplate !== false;
+    !isCustom && primaryId !== 'mainRoomCamera' && stageConfig?.showNameplate !== false;
+
+  const boxTiming = isCustom
+    ? '520ms cubic-bezier(0.4, 0, 0.2, 1)'
+    : '380ms cubic-bezier(0.22, 1, 0.36, 1)';
 
   return (
     <div
       style={{
         position: 'absolute',
-        inset: 0,
+        left: isCustom ? `${box.x}%` : '0%',
+        top: isCustom ? `${box.y}%` : '0%',
+        width: isCustom ? `${box.width}%` : '100%',
+        height: isCustom ? `${box.height}%` : '100%',
         zIndex: 40,
-        background: '#000'
+        background: isCustom ? 'transparent' : '#000',
+        willChange: 'left, top, width, height',
+        transition: `left ${boxTiming}, top ${boxTiming}, width ${boxTiming}, height ${boxTiming}, background-color 280ms ease`
       }}
     >
       <ParticipantVideoTile
@@ -226,8 +212,9 @@ export const ParticipantOverlay: React.FC<ParticipantOverlayProps> = ({
         enableAudio={enableAudio}
         compact={compact}
         scale={scale}
-        frameless
-        objectFit={stageConfig?.fullCropSides !== false ? 'cover' : 'contain'}
+        frameless={!isCustom}
+        borderRadius={isCustom ? (box.borderRadius ?? 16) : 0}
+        objectFit={isCustom || stageConfig?.fullCropSides !== false ? 'cover' : 'contain'}
         showNameplate={showBuiltInFullNameplate}
       />
     </div>
