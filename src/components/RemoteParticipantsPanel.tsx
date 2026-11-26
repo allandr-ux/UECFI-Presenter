@@ -40,9 +40,14 @@ import type {
 interface PreviewVideoProps {
   stream?: MediaStream;
   videoOff: boolean;
+  offlineLabel?: string;
 }
 
-const MutedPreviewVideo: React.FC<PreviewVideoProps> = ({ stream, videoOff }) => {
+const MutedPreviewVideo: React.FC<PreviewVideoProps> = ({
+  stream,
+  videoOff,
+  offlineLabel = 'Connecting'
+}) => {
   const ref = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
@@ -93,7 +98,7 @@ const MutedPreviewVideo: React.FC<PreviewVideoProps> = ({ stream, videoOff }) =>
             color: 'var(--text-secondary)'
           }}
         >
-          {stream ? 'Cam Off' : 'Connecting'}
+          {stream ? 'Cam Off' : offlineLabel}
         </div>
       )}
     </div>
@@ -752,26 +757,30 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                   }}
                 >
                   <div style={{ position: 'relative' }}>
-                    <MutedPreviewVideo stream={camStream} videoOff={!camStream} />
-                    <span
-                      style={{
-                        position: 'absolute',
-                        top: '4px',
-                        left: '4px',
-                        padding: '1px 5px',
-                        borderRadius: '4px',
-                        fontSize: '0.62rem',
-                        fontWeight: 700,
-                        background: isStandbyForLiveGuest
-                          ? 'rgba(217, 119, 6, 0.9)'
-                          : isLive
-                            ? '#059669'
-                            : 'rgba(15, 23, 42, 0.85)',
-                        color: '#fff'
-                      }}
-                    >
-                      {isStandbyForLiveGuest ? 'STANDBY' : isLive ? 'ACTIVE' : 'OFF'}
-                    </span>
+                    <MutedPreviewVideo
+                      stream={camStream}
+                      videoOff={!camStream}
+                      offlineLabel="Camera Off"
+                    />
+                    {isLive && (
+                      <span
+                        style={{
+                          position: 'absolute',
+                          top: '4px',
+                          left: '4px',
+                          padding: '1px 5px',
+                          borderRadius: '4px',
+                          fontSize: '0.62rem',
+                          fontWeight: 700,
+                          background: isStandbyForLiveGuest
+                            ? 'rgba(217, 119, 6, 0.9)'
+                            : '#059669',
+                          color: '#fff'
+                        }}
+                      >
+                        {isStandbyForLiveGuest ? 'STANDBY' : 'ACTIVE'}
+                      </span>
+                    )}
                   </div>
                   <div
                     style={{
