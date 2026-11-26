@@ -111,7 +111,8 @@ const ALLOWED_REMOTE_ACTIONS = new Set<RemoteCommandMessage['action']>([
   'AUDIO_TOGGLE_PLAY',
   'AUDIO_STOP',
   'AUDIO_RESTART',
-  'AUDIO_SET_VOLUME'
+  'AUDIO_SET_VOLUME',
+  'TOGGLE_RETURN_AUDIO'
 ]);
 
 interface StoredWhitelistRecord extends WhitelistedDevice {

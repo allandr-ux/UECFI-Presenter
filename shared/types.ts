@@ -12,7 +12,8 @@ export type RemoteCommandAction =
   | 'AUDIO_TOGGLE_PLAY'
   | 'AUDIO_STOP'
   | 'AUDIO_RESTART'
-  | 'AUDIO_SET_VOLUME';
+  | 'AUDIO_SET_VOLUME'
+  | 'TOGGLE_RETURN_AUDIO';
 
 export interface RemoteCommandMessage {
   action: RemoteCommandAction;
@@ -287,6 +288,8 @@ export interface LiveState {
   participants?: ParticipantStageConfig;
   participantList?: RemoteParticipant[];
   overflow?: OverflowStageConfig;
+  returnAudioActive?: boolean;
+  returnAudioMuted?: boolean;
   updatedAt: number;
 }
 

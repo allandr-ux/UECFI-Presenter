@@ -25,7 +25,13 @@ app.use(cors());
 app.use(express.json());
 
 // Serve the responsive Remote Guest Web Portal from public/
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(
+  express.static(path.join(__dirname, 'public'), {
+    setHeaders: (res) => {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  })
+);
 
 // Health check endpoint for Render.com and monitoring services
 app.get('/health', (req, res) => {
@@ -357,6 +363,22 @@ wss.on('connection', (ws, req) => {
             type: 'operator-moderation',
             mutedByOperator: Boolean(msg.mutedByOperator),
             videoHiddenByOperator: Boolean(msg.videoHiddenByOperator)
+          });
+        }
+        break;
+      }
+
+      case 'return-audio-override': {
+        const room = ws.sessionMeta ? rooms.get(ws.sessionMeta.roomId) : null;
+        if (!room || ws.sessionMeta.role !== 'host') return;
+        const forceUnmute = Boolean(msg.forceUnmute);
+        const targets = msg.targetGuestId
+          ? [room.guests.get(msg.targetGuestId)].filter(Boolean)
+          : Array.from(room.guests.values());
+        for (const targetGuest of targets) {
+          safeSend(targetGuest.ws, {
+            type: 'return-audio-override',
+            forceUnmute
           });
         }
         break;

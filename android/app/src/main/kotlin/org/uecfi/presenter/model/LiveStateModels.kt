@@ -42,6 +42,8 @@ data class LiveState(
   val programItems: List<ProgramItemSummary> = emptyList(),
   val nextItemTitle: String? = null,
   val logoSlide: ProgramItem? = null,
+  val returnAudioActive: Boolean = false,
+  val returnAudioMuted: Boolean = false,
   val updatedAt: Long = 0L,
 )
 

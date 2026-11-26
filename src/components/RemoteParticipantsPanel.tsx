@@ -3,9 +3,12 @@ import QRCode from 'qrcode';
 import {
   Camera,
   CameraOff,
+  ChevronDown,
+  ChevronUp,
   Copy,
   LayoutTemplate,
   Maximize2,
+  Megaphone,
   Mic,
   MicOff,
   Monitor,
@@ -98,6 +101,7 @@ const MutedPreviewVideo: React.FC<PreviewVideoProps> = ({ stream, videoOff }) =>
 interface RemoteParticipantsPanelProps {
   open: boolean;
   onClose: () => void;
+  onToggleOpen?: () => void;
   onOpenSetup: () => void;
   onOpenStudioEditor: () => void;
   participants: RemoteParticipant[];
@@ -113,6 +117,8 @@ interface RemoteParticipantsPanelProps {
   overflowConfig?: OverflowStageConfig;
   overflowCameras?: Array<{ deviceId: string; label: string }>;
   overflowAngles?: OverflowCameraAngle[];
+  overflowCameraStreams?: Map<string, MediaStream>;
+  mainRoomPreviewStream?: MediaStream | null;
   activeOverflowAngleId?: string;
   onSelectOverflowAngle?: (angleId: string) => void;
   onUpdateOverflowAngles?: (angles: OverflowCameraAngle[]) => void;
@@ -141,6 +147,7 @@ interface RemoteParticipantsPanelProps {
 export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = ({
   open,
   onClose,
+  onToggleOpen,
   onOpenSetup,
   onOpenStudioEditor,
   participants,
@@ -153,6 +160,8 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
   overflowConfig,
   overflowCameras = [],
   overflowAngles = [],
+  overflowCameraStreams,
+  mainRoomPreviewStream = null,
   activeOverflowAngleId = '',
   onSelectOverflowAngle,
   onUpdateOverflowAngles,
@@ -177,7 +186,6 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
   whisperInputDeviceId = 'default',
   onSelectWhisperInputDevice
 }) => {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const [activeTab, setActiveTab] = useState<'guests' | 'overflow'>('guests');
   const [overflowQrDataUrl, setOverflowQrDataUrl] = useState('');
@@ -196,16 +204,6 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
       .then(setOverflowQrDataUrl)
       .catch(() => setOverflowQrDataUrl(''));
   }, [overflowUrl]);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    if (open && !dialog.open) {
-      dialog.showModal();
-    } else if (!open && dialog.open) {
-      dialog.close();
-    }
-  }, [open]);
 
   const liveParticipants = participants.filter((p) => p.status === 'live');
   const greenRoomParticipants = participants.filter((p) => p.status === 'greenRoom');
@@ -429,97 +427,535 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
     );
   };
 
+  const handleToggle = () => {
+    if (onToggleOpen) {
+      onToggleOpen();
+    } else if (open) {
+      onClose();
+    }
+  };
+
+  const selectTabOnly = (tab: 'guests' | 'overflow') => {
+    setActiveTab(tab);
+  };
+
   return (
-    <dialog
-      ref={dialogRef}
+    <section
       aria-labelledby={titleId}
-      onClose={onClose}
-      style={{ maxWidth: '720px', width: '92vw' }}
+      style={{
+        flexShrink: 0,
+        background: 'var(--bg-panel)',
+        borderTop: '1px solid var(--border-subtle)',
+        display: 'flex',
+        flexDirection: 'column'
+      }}
     >
-      <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Users size={18} color="#38bdf8" />
-            <h2 id={titleId} style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>
-              Video Feeds
-            </h2>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      {/* Collapsible Header + Tab Bar */}
+      <div
+        onClick={handleToggle}
+        style={{
+          padding: '8px 14px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '10px',
+          cursor: 'pointer',
+          userSelect: 'none',
+          background: open ? 'rgba(15, 23, 42, 0.55)' : 'var(--bg-panel)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <Users size={15} color="#38bdf8" />
+          <h2 id={titleId} style={{ margin: 0, fontSize: '0.84rem', fontWeight: 700 }}>
+            Video Feeds
+          </h2>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginLeft: '6px' }}
+          >
             <button
               type="button"
-              onClick={() => {
-                onClose();
-                onOpenSetup();
-              }}
+              onClick={() => selectTabOnly('guests')}
               style={{
-                padding: '6px 10px',
-                borderRadius: '8px',
+                padding: '4px 10px',
+                borderRadius: '7px',
                 border: '1px solid var(--border-subtle)',
-                background: 'var(--bg-panel-elevated)',
-                fontSize: '0.78rem',
+                background:
+                  activeTab === 'guests' ? '#2563eb' : 'var(--bg-panel-elevated)',
+                color: activeTab === 'guests' ? '#fff' : 'var(--text-primary)',
+                fontSize: '0.76rem',
+                fontWeight: 600,
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px'
+                gap: '5px'
               }}
             >
-              <Settings2 size={13} /> Invite QR & Relay
+              <Users size={12} /> Green Room ({participants.length})
             </button>
             <button
               type="button"
-              onClick={onClose}
-              aria-label="Close"
+              onClick={() => selectTabOnly('overflow')}
               style={{
-                background: 'transparent',
+                padding: '4px 10px',
+                borderRadius: '7px',
                 border: '1px solid var(--border-subtle)',
-                borderRadius: '8px',
-                padding: '6px',
-                display: 'inline-flex'
+                background:
+                  activeTab === 'overflow' ? '#059669' : 'var(--bg-panel-elevated)',
+                color: activeTab === 'overflow' ? '#fff' : 'var(--text-primary)',
+                fontSize: '0.76rem',
+                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px'
               }}
             >
-              <X size={16} />
+              <Camera size={12} /> Centro Cam {overflowConfig?.enabled ? '• ON' : ''}
             </button>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: '6px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '10px' }}>
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
           <button
             type="button"
-            onClick={() => setActiveTab('guests')}
+            onClick={onOpenSetup}
             style={{
-              padding: '6px 12px',
-              borderRadius: '8px',
+              padding: '4px 9px',
+              borderRadius: '7px',
               border: '1px solid var(--border-subtle)',
-              background: activeTab === 'guests' ? '#2563eb' : 'var(--bg-panel-elevated)',
-              color: activeTab === 'guests' ? '#fff' : 'var(--text-primary)',
-              fontSize: '0.82rem',
-              fontWeight: 600,
+              background: 'var(--bg-panel-elevated)',
+              fontSize: '0.75rem',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '6px'
+              gap: '5px'
             }}
+            title="Open Settings (Displays, Local Remote, Online Relay)"
           >
-            <Users size={14} /> Remote Guests ({participants.length})
+            <Settings2 size={12} /> Relay &amp; QR
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('overflow')}
+            onClick={handleToggle}
+            aria-label={open ? 'Collapse Video Feeds' : 'Expand Video Feeds'}
+            aria-expanded={open}
             style={{
-              padding: '6px 12px',
-              borderRadius: '8px',
+              background: 'var(--bg-panel-elevated)',
               border: '1px solid var(--border-subtle)',
-              background: activeTab === 'overflow' ? '#059669' : 'var(--bg-panel-elevated)',
-              color: activeTab === 'overflow' ? '#fff' : 'var(--text-primary)',
-              fontSize: '0.82rem',
-              fontWeight: 600,
+              borderRadius: '7px',
+              padding: '4px 7px',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '6px'
+              justifyContent: 'center'
             }}
           >
-            <Camera size={14} /> Overflow Camera {overflowConfig?.enabled ? '• ON' : ''}
+            {open ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
           </button>
         </div>
+      </div>
+
+      {!open &&
+        (participants.length > 0 || overflowAngles.length > 0 || overflowCameras.length > 0) && (
+          <div
+            style={{
+              padding: '10px 14px',
+              borderTop: '1px solid var(--border-subtle)',
+              display: 'flex',
+              alignItems: 'stretch',
+              gap: '10px',
+              overflowX: 'auto'
+            }}
+          >
+            {/* Auto Toggle (first item before all camera & guest feeds) */}
+            {(() => {
+              const isAuto = (overflowConfig?.feedSource ?? 'auto') === 'auto';
+              return (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isAuto) {
+                      onUpdateOverflowConfig?.({
+                        feedSource: overflowConfig?.enabled ? 'camera' : 'remote'
+                      });
+                    } else {
+                      onUpdateOverflowConfig?.({ feedSource: 'auto' });
+                    }
+                  }}
+                  title={
+                    isAuto
+                      ? 'Auto: Overflow follows Live guest speakers and falls back to Centro Cam'
+                      : 'Manual: Click to re-enable Auto switching'
+                  }
+                  style={{
+                    flexShrink: 0,
+                    width: '68px',
+                    padding: '8px 6px',
+                    borderRadius: '10px',
+                    border: '1px solid',
+                    borderColor: isAuto ? '#3b82f6' : 'var(--border-subtle)',
+                    background: isAuto ? 'rgba(37, 99, 235, 0.22)' : 'var(--bg-panel-elevated)',
+                    color: isAuto ? '#93c5fd' : 'var(--text-secondary)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <Radio size={16} />
+                  <span style={{ fontSize: '0.74rem', fontWeight: 700 }}>Auto</span>
+                  <span
+                    style={{
+                      fontSize: '0.62rem',
+                      fontWeight: 700,
+                      padding: '1px 6px',
+                      borderRadius: '999px',
+                      background: isAuto ? '#2563eb' : 'rgba(148, 163, 184, 0.16)',
+                      color: isAuto ? '#fff' : 'var(--text-muted)'
+                    }}
+                  >
+                    {isAuto ? 'ON' : 'MANUAL'}
+                  </span>
+                </button>
+              );
+            })()}
+
+            {/* All Centro Cam Feeds */}
+            {(overflowAngles.length > 0
+              ? overflowAngles
+              : overflowCameras.map((c, i) => ({
+                  id: `cam-${i}-${c.deviceId}`,
+                  label: c.label,
+                  deviceId: c.deviceId
+                }))
+            ).map((cam) => {
+              const isSelected =
+                overflowAngles.length > 0
+                  ? cam.id === activeOverflowAngleId
+                  : overflowCameras[0]?.deviceId === cam.deviceId;
+              const isLive = Boolean(overflowConfig?.enabled && isSelected);
+              const streamKey = cam.deviceId || '__default__';
+              const camStream =
+                overflowCameraStreams?.get(streamKey) ??
+                (isSelected ? mainRoomPreviewStream ?? undefined : undefined);
+
+              const handleToggleCam = () => {
+                if (isLive) {
+                  // If a live guest's video was manually overridden with Centro Cam,
+                  // turning Centro Cam off restores Auto mode so the guest resumes.
+                  onUpdateOverflowConfig?.({
+                    enabled: false,
+                    ...(overflowConfig?.feedSource === 'camera' ? { feedSource: 'auto' } : {})
+                  });
+                  return;
+                }
+                const hasLiveGuest = liveParticipants.length > 0;
+                if (overflowAngles.length === 0) {
+                  onUpdateOverflowAngles?.([cam]);
+                }
+                onSelectOverflowAngle?.(cam.id);
+                onUpdateOverflowConfig?.({
+                  enabled: true,
+                  ...(hasLiveGuest ? { feedSource: 'camera' } : {})
+                });
+              };
+
+              return (
+                <div
+                  key={`collapsed-cam-${cam.id}`}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                    padding: '6px',
+                    borderRadius: '10px',
+                    background: 'var(--bg-panel-elevated)',
+                    border: `1px solid ${isLive ? '#10b981' : 'var(--border-subtle)'}`,
+                    flexShrink: 0,
+                    width: '142px'
+                  }}
+                >
+                  <div style={{ position: 'relative' }}>
+                    <MutedPreviewVideo stream={camStream} videoOff={!camStream} />
+                    <span
+                      style={{
+                        position: 'absolute',
+                        top: '4px',
+                        left: '4px',
+                        padding: '1px 5px',
+                        borderRadius: '4px',
+                        fontSize: '0.62rem',
+                        fontWeight: 700,
+                        background: isLive ? '#059669' : 'rgba(15, 23, 42, 0.85)',
+                        color: '#fff'
+                      }}
+                    >
+                      {isLive ? 'ACTIVE' : 'OFF'}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '6px'
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '0.74rem',
+                        fontWeight: 600,
+                        color: 'var(--text-primary)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        flex: 1
+                      }}
+                      title={cam.label}
+                    >
+                      {cam.label || 'Camera'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleToggleCam}
+                      style={{
+                        padding: '2px 7px',
+                        borderRadius: '5px',
+                        border: 'none',
+                        background: isLive ? 'rgba(239, 68, 68, 0.22)' : '#059669',
+                        color: isLive ? '#fca5a5' : '#fff',
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        flexShrink: 0
+                      }}
+                    >
+                      {isLive ? 'Off' : 'On'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Visual divider between Centro Cameras and Guest Speakers when both are present */}
+            {(overflowAngles.length > 0 || overflowCameras.length > 0) &&
+              participants.length > 0 && (
+                <div
+                  aria-hidden="true"
+                  style={{
+                    width: '1px',
+                    alignSelf: 'stretch',
+                    margin: '4px 2px',
+                    background: 'var(--border-subtle)',
+                    flexShrink: 0
+                  }}
+                />
+              )}
+
+            {/* All Green Room / Remote Speaker Feeds */}
+            {participants.map((p) => {
+              const isLive = p.status === 'live';
+              const isVideoOff = !p.videoEnabled || p.videoHiddenByOperator;
+              const stream = streams.get(p.id);
+              return (
+                <div
+                  key={`collapsed-${p.id}`}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                    padding: '6px',
+                    borderRadius: '10px',
+                    background: 'var(--bg-panel-elevated)',
+                    border: `1px solid ${isLive ? 'rgba(239, 68, 68, 0.65)' : 'var(--border-subtle)'}`,
+                    flexShrink: 0,
+                    width: '142px'
+                  }}
+                >
+                  <div style={{ position: 'relative' }}>
+                    <MutedPreviewVideo stream={stream} videoOff={isVideoOff} />
+                    {isLive && (
+                      <span
+                        style={{
+                          position: 'absolute',
+                          top: '4px',
+                          left: '4px',
+                          padding: '1px 5px',
+                          borderRadius: '4px',
+                          fontSize: '0.62rem',
+                          fontWeight: 700,
+                          background: '#dc2626',
+                          color: '#fff'
+                        }}
+                      >
+                        LIVE
+                      </span>
+                    )}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: '4px',
+                        right: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      {returnFeedConfig?.audioDeviceId &&
+                        returnFeedConfig?.autoMuteWhenLive &&
+                        onToggleReturnAudioManualUnmute && (
+                          <button
+                            type="button"
+                            title={
+                              returnAudioManualUnmute
+                                ? 'Return Audio: Live (Re-mute)'
+                                : 'Return Audio: Auto-Muted (Unmute)'
+                            }
+                            onClick={onToggleReturnAudioManualUnmute}
+                            style={{
+                              padding: '3px 5px',
+                              borderRadius: '5px',
+                              border: '1px solid rgba(148, 163, 184, 0.3)',
+                              background: returnAudioManualUnmute
+                                ? 'rgba(5, 150, 105, 0.88)'
+                                : 'rgba(217, 119, 6, 0.88)',
+                              color: '#fff',
+                              display: 'inline-flex',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <Megaphone size={11} />
+                          </button>
+                        )}
+                      {onToggleMonitorParticipant && (
+                        <button
+                          type="button"
+                          title={
+                            monitoredParticipantIds.includes(p.id)
+                              ? 'End 2-way Whisper'
+                              : 'Start 2-way Whisper'
+                          }
+                          onClick={() => onToggleMonitorParticipant(p.id)}
+                          style={{
+                            padding: '3px 5px',
+                            borderRadius: '5px',
+                            border: '1px solid rgba(148, 163, 184, 0.3)',
+                            background: monitoredParticipantIds.includes(p.id)
+                              ? 'rgba(14, 165, 233, 0.85)'
+                              : 'rgba(15, 23, 42, 0.78)',
+                            color: '#fff',
+                            display: 'inline-flex',
+                            alignItems: 'center'
+                          }}
+                        >
+                          {monitoredParticipantIds.includes(p.id) ? (
+                            <Volume2 size={11} />
+                          ) : (
+                            <VolumeX size={11} />
+                          )}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        title={p.mutedByOperator ? 'Unmute participant' : 'Mute participant'}
+                        onClick={() => onModerate(p.id, 'SET_MUTED', !p.mutedByOperator)}
+                        style={{
+                          padding: '3px 5px',
+                          borderRadius: '5px',
+                          border: '1px solid rgba(148, 163, 184, 0.3)',
+                          background: p.mutedByOperator
+                            ? 'rgba(220, 38, 38, 0.85)'
+                            : 'rgba(15, 23, 42, 0.78)',
+                          color: '#fff',
+                          display: 'inline-flex',
+                          alignItems: 'center'
+                        }}
+                      >
+                        {p.mutedByOperator ? <MicOff size={11} /> : <Mic size={11} />}
+                      </button>
+                      <button
+                        type="button"
+                        title={
+                          p.videoHiddenByOperator
+                            ? 'Show participant video'
+                            : 'Hide participant video'
+                        }
+                        onClick={() => onModerate(p.id, 'SET_VIDEO_HIDDEN', !p.videoHiddenByOperator)}
+                        style={{
+                          padding: '3px 5px',
+                          borderRadius: '5px',
+                          border: '1px solid rgba(148, 163, 184, 0.3)',
+                          background: p.videoHiddenByOperator
+                            ? 'rgba(220, 38, 38, 0.85)'
+                            : 'rgba(15, 23, 42, 0.78)',
+                          color: '#fff',
+                          display: 'inline-flex',
+                          alignItems: 'center'
+                        }}
+                      >
+                        {p.videoHiddenByOperator ? <CameraOff size={11} /> : <Camera size={11} />}
+                      </button>
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '6px'
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '0.74rem',
+                        fontWeight: 600,
+                        color: 'var(--text-primary)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        flex: 1
+                      }}
+                      title={p.name}
+                    >
+                      {p.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onModerate(p.id, isLive ? 'MOVE_TO_GREEN_ROOM' : 'PUT_LIVE')
+                      }
+                      style={{
+                        padding: '2px 7px',
+                        borderRadius: '5px',
+                        border: 'none',
+                        background: isLive ? 'rgba(239, 68, 68, 0.22)' : '#16a34a',
+                        color: isLive ? '#fca5a5' : '#fff',
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        flexShrink: 0
+                      }}
+                    >
+                      {isLive ? 'Off' : 'Go Live'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+      {open && (
+        <div
+          style={{
+            padding: '14px 16px',
+            maxHeight: '42vh',
+            overflowY: 'auto',
+            borderTop: '1px solid var(--border-subtle)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px'
+          }}
+        >
 
         {activeTab === 'guests' ? (
           <>
@@ -666,7 +1102,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
               <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Main Room Return Feed (Sent to Remote Speakers)
+                Centro Cam Return Feed (Sent to Remote Speakers)
               </span>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>
                 <input
@@ -674,7 +1110,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                   checked={returnFeedConfig.sendVideo}
                   onChange={(e) => onUpdateReturnFeedConfig({ sendVideo: e.target.checked })}
                 />
-                Send Main Room Camera
+                Send Centro Cam
               </label>
             </div>
 
@@ -870,9 +1306,16 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                   <input
                     type="checkbox"
                     checked={overflowConfig.enabled}
-                    onChange={(e) => onUpdateOverflowConfig({ enabled: e.target.checked })}
+                    onChange={(e) =>
+                      onUpdateOverflowConfig({
+                        enabled: e.target.checked,
+                        ...(!e.target.checked && overflowConfig.feedSource === 'camera'
+                          ? { feedSource: 'auto' }
+                          : {})
+                      })
+                    }
                   />
-                  Enable Main Room Camera
+                  Enable Centro Cam
                 </label>
               </div>
 
@@ -893,7 +1336,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                     Overflow Feed Source
                   </span>
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                    Switch Overflow between Remote Guest (when live) and Main Room Camera
+                    Switch Overflow between Remote Guest (when live) and Centro Cam
                   </span>
                 </div>
                 <div
@@ -909,7 +1352,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                   {(
                     [
                       { id: 'auto', label: 'Auto' },
-                      { id: 'camera', label: 'Room Cam' },
+                      { id: 'camera', label: 'Centro Cam' },
                       { id: 'remote', label: 'Remote' }
                     ] as const
                   ).map((opt) => {
@@ -1273,7 +1716,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                       {overflowUrl}
                     </code>
                     <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)' }}>
-                      Main room camera never appears on the Main Screen, and is automatically overridden whenever a remote guest is Live.
+                      Centro Cam never appears on the Main Screen, and is automatically overridden whenever a remote guest is Live.
                     </div>
                   </div>
                 </div>
@@ -1281,7 +1724,8 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
             </section>
           )
         )}
-      </div>
-    </dialog>
+        </div>
+      )}
+    </section>
   );
 };

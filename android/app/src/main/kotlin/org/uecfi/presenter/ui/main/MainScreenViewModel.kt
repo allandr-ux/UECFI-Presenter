@@ -199,6 +199,10 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
     wsClient.sendCommand("CLEAR_OVERRIDE")
   }
 
+  fun toggleReturnAudio() {
+    wsClient.sendCommand("TOGGLE_RETURN_AUDIO")
+  }
+
   fun toggleAudioPlay() {
     wsClient.sendCommand("AUDIO_TOGGLE_PLAY")
   }

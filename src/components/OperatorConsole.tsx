@@ -243,6 +243,9 @@ export const OperatorConsole: React.FC = () => {
     }
   });
   const [mainRoomPreviewStream, setMainRoomPreviewStream] = useState<MediaStream | null>(null);
+  const [overflowCameraStreams, setOverflowCameraStreams] = useState<Map<string, MediaStream>>(
+    new Map()
+  );
   const [overflowStudioModalOpen, setOverflowStudioModalOpen] = useState(false);
   const [overflowCameras, setOverflowCameras] = useState<Array<{ deviceId: string; label: string }>>([]);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -850,6 +853,14 @@ export const OperatorConsole: React.FC = () => {
       participants: participantStageConfig,
       participantList: participants,
       overflow: overflowConfig,
+      returnAudioActive:
+        Boolean(returnFeedConfig.audioDeviceId) &&
+        participantStageConfig.liveParticipantIds.length > 0,
+      returnAudioMuted:
+        Boolean(returnFeedConfig.audioDeviceId) &&
+        participantStageConfig.liveParticipantIds.length > 0 &&
+        returnFeedConfig.autoMuteWhenLive &&
+        !returnAudioManualUnmute,
       updatedAt: Date.now()
     }),
     [
@@ -865,7 +876,10 @@ export const OperatorConsole: React.FC = () => {
       logoSlide,
       participantStageConfig,
       participants,
-      overflowConfig
+      overflowConfig,
+      returnFeedConfig.audioDeviceId,
+      returnFeedConfig.autoMuteWhenLive,
+      returnAudioManualUnmute
     ]
   );
 
@@ -1157,6 +1171,22 @@ export const OperatorConsole: React.FC = () => {
       setReturnAudioManualUnmute(false);
     }
   }, [participantStageConfig.liveParticipantIds.length]);
+
+  // When operator enables manual Return Audio unmute (Megaphone), override any
+  // local "Mute Room Audio" setting on connected online guests.
+  useEffect(() => {
+    if (!returnAudioManualUnmute) return;
+    const relayWs = relaySocketRef.current;
+    const roomId = participantSettings.onlineSessionCode.trim().toLowerCase();
+    if (!relayWs || relayWs.readyState !== WebSocket.OPEN || !roomId) return;
+    relayWs.send(
+      JSON.stringify({
+        type: 'return-audio-override',
+        roomId,
+        forceUnmute: true
+      })
+    );
+  }, [returnAudioManualUnmute, participantSettings.onlineSessionCode]);
 
   // Capture configurable Room Return Audio when an audio source is selected and guests are connected
   useEffect(() => {
@@ -1625,6 +1655,7 @@ export const OperatorConsole: React.FC = () => {
       mainRoomBroadcasterRef.current?.dispose();
       mainRoomBroadcasterRef.current = null;
       stopAllAngleStreams();
+      setOverflowCameraStreams(new Map());
       mainRoomStreamRef.current?.getTracks().forEach((t) => t.stop());
       mainRoomStreamRef.current = null;
       setMainRoomPreviewStream(null);
@@ -1701,6 +1732,7 @@ export const OperatorConsole: React.FC = () => {
             return;
           }
           overflowAngleStreamsRef.current.set(devId, warmStream);
+          setOverflowCameraStreams(new Map(overflowAngleStreamsRef.current));
         } catch {
           // Ignore if a camera is busy or shares USB bandwidth with the active camera
         }
@@ -1732,6 +1764,7 @@ export const OperatorConsole: React.FC = () => {
           }
           setCameraError(null);
           overflowAngleStreamsRef.current.set(activeKey, stream);
+          setOverflowCameraStreams(new Map(overflowAngleStreamsRef.current));
           applyActiveStream(stream);
           void prewarmOtherAngles();
         })
@@ -2023,6 +2056,22 @@ export const OperatorConsole: React.FC = () => {
       setOverride((prev) => (prev === 'showLogo' ? 'none' : 'showLogo'));
     } else if (cmd.action === 'CLEAR_OVERRIDE') {
       setOverride('none');
+    } else if (cmd.action === 'TOGGLE_RETURN_AUDIO') {
+      if (returnFeedConfig.autoMuteWhenLive) {
+        setReturnAudioManualUnmute((prev) => !prev);
+      } else {
+        // Enable autoMuteWhenLive so the pulpit speaker can mute Centro return audio too
+        setReturnFeedConfig((prev) => {
+          const updated = { ...prev, autoMuteWhenLive: true };
+          try {
+            localStorage.setItem('uecfi_return_feed_v1', JSON.stringify(updated));
+          } catch {
+            // Ignore storage quota errors
+          }
+          return updated;
+        });
+        setReturnAudioManualUnmute(false);
+      }
     } else if (cmd.action === 'AUDIO_TOGGLE_PLAY') {
       handleToggleLiveAudio();
     } else if (cmd.action === 'AUDIO_STOP') {
@@ -2081,6 +2130,29 @@ export const OperatorConsole: React.FC = () => {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [handleNext, handlePrevious]);
+
+  // Automatically switch Overflow feedSource back to 'auto' whenever the last live guest speaker
+  // is taken offline (moved to Green Room, kicked, or disconnected).
+  const prevLiveGuestCountRef = useRef(0);
+  useEffect(() => {
+    const liveCount = participantStageConfig.liveParticipantIds.length;
+    if (prevLiveGuestCountRef.current > 0 && liveCount === 0) {
+      setOverflowConfig((prev) => {
+        if ((prev.feedSource ?? 'auto') === 'auto') return prev;
+        const updated: OverflowStageConfig = { ...prev, feedSource: 'auto' };
+        try {
+          localStorage.setItem(
+            'uecfi_overflow_layout_v1',
+            JSON.stringify({ ...updated, enabled: false })
+          );
+        } catch {
+          // Ignore storage quota errors
+        }
+        return updated;
+      });
+    }
+    prevLiveGuestCountRef.current = liveCount;
+  }, [participantStageConfig.liveParticipantIds.length]);
 
   const handleToggleOverflowScreen = async () => {
     if (!window.presenterAPI) return;
@@ -3274,12 +3346,14 @@ export const OperatorConsole: React.FC = () => {
             type="button"
             onClick={() => {
               refreshDisplaysAndRemote();
-              setParticipantsModalOpen(true);
+              setParticipantsModalOpen((prev) => !prev);
             }}
             style={toolbarBtnStyle(
-              participantStageConfig.liveParticipantIds.length > 0 || overflowConfig.enabled
+              participantsModalOpen ||
+                participantStageConfig.liveParticipantIds.length > 0 ||
+                overflowConfig.enabled
             )}
-            title="Video Feeds (Remote Guests & Overflow Camera)"
+            title="Toggle Video Feeds Panel (Green Room & Centro Cam)"
           >
             <Users size={14} />
             Video Feeds
@@ -4685,6 +4759,195 @@ export const OperatorConsole: React.FC = () => {
             })}
               </div>
           </div>
+
+          <RemoteParticipantsPanel
+            open={participantsModalOpen}
+            onClose={() => setParticipantsModalOpen(false)}
+            onToggleOpen={() => {
+              refreshDisplaysAndRemote();
+              setParticipantsModalOpen((prev) => !prev);
+            }}
+            onOpenSetup={() => {
+              refreshDisplaysAndRemote();
+              setSetupModalOpen(true);
+            }}
+            onOpenStudioEditor={() => setStudioLayoutModalOpen(true)}
+            participants={participants}
+            stageConfig={participantStageConfig}
+            streams={participantStreams}
+            monitoredParticipantIds={monitoredParticipantIds}
+            onToggleMonitorParticipant={handleToggleMonitorParticipant}
+            audioOutputDevices={audioOutputDevices}
+            monitorOutputDeviceId={monitorOutputDeviceId}
+            onSelectMonitorOutputDevice={(deviceId) => {
+              setMonitorOutputDeviceId(deviceId);
+              try {
+                localStorage.setItem('uecfi_monitor_output_device_v1', deviceId);
+              } catch {
+                // Ignore storage quota errors
+              }
+            }}
+            whisperInputDeviceId={whisperInputDeviceId}
+            onSelectWhisperInputDevice={(deviceId) => {
+              setWhisperInputDeviceId(deviceId);
+              try {
+                localStorage.setItem('uecfi_whisper_input_device_v1', deviceId);
+              } catch {
+                // Ignore storage quota errors
+              }
+            }}
+            onModerate={handleModerateParticipant}
+            overflowConfig={overflowConfig}
+            overflowCameras={overflowCameras}
+            overflowAngles={overflowAngles}
+            overflowCameraStreams={overflowCameraStreams}
+            mainRoomPreviewStream={mainRoomPreviewStream}
+            activeOverflowAngleId={activeOverflowAngleId}
+            onSelectOverflowAngle={(angleId) => {
+              setActiveOverflowAngleId(angleId);
+              try {
+                localStorage.setItem('uecfi_overflow_active_angle_v1', angleId);
+              } catch {
+                // Ignore storage quota errors
+              }
+            }}
+            onUpdateOverflowAngles={(angles) => {
+              setOverflowAngles(angles);
+              try {
+                localStorage.setItem('uecfi_overflow_angles_v1', JSON.stringify(angles));
+              } catch {
+                // Ignore storage quota errors
+              }
+            }}
+            onUpdateOverflowConfig={(next) => {
+              if (next.layout !== undefined) {
+                autoSwitchedOverflowRef.current = false;
+                if (layoutsLinked) {
+                  autoSwitchedMainRef.current = false;
+                  setParticipantStageConfig((prev) => {
+                    const updated = { ...prev, layout: next.layout! };
+                    try {
+                      localStorage.setItem(
+                        'uecfi_studio_layout_v1',
+                        JSON.stringify({ ...updated, liveParticipantIds: undefined })
+                      );
+                    } catch {
+                      // Ignore storage quota errors
+                    }
+                    return updated;
+                  });
+                }
+              }
+              setOverflowConfig((prev) => {
+                const updated = { ...prev, ...next };
+                try {
+                  localStorage.setItem(
+                    'uecfi_overflow_layout_v1',
+                    JSON.stringify({ ...updated, enabled: false })
+                  );
+                } catch {
+                  // Ignore storage quota errors
+                }
+                return updated;
+              });
+            }}
+            onOpenOverflowStudioEditor={() => setOverflowStudioModalOpen(true)}
+            onCopyParticipantsStudioToOverflow={() => {
+              setOverflowConfig((prev) => {
+                const updated: OverflowStageConfig = {
+                  ...prev,
+                  layout: 'custom',
+                  studioBackground: participantStageConfig.studioBackground,
+                  studioPresentationBox: participantStageConfig.studioPresentationBox
+                    ? { ...participantStageConfig.studioPresentationBox }
+                    : undefined,
+                  studioParticipantBox: participantStageConfig.studioParticipantBox
+                    ? { ...participantStageConfig.studioParticipantBox }
+                    : undefined,
+                  studioElements: participantStageConfig.studioElements
+                    ? participantStageConfig.studioElements.map((el) => ({ ...el }))
+                    : undefined
+                };
+                try {
+                  localStorage.setItem(
+                    'uecfi_overflow_layout_v1',
+                    JSON.stringify({ ...updated, enabled: false })
+                  );
+                } catch {
+                  // Ignore storage quota errors
+                }
+                return updated;
+              });
+            }}
+            displays={displays}
+            remoteInfo={remoteInfo}
+            overflowScreenOpen={overflowScreenOpen}
+            onSelectOverflowDisplay={async (displayId) => {
+              await window.presenterAPI?.openOverflowScreen(displayId);
+              await refreshDisplaysAndRemote();
+            }}
+            onCloseOverflowScreen={async () => {
+              await window.presenterAPI?.closeOverflowScreen();
+              await refreshDisplaysAndRemote();
+            }}
+            onUpdateParticipantInfo={(participantId, info) => {
+              setParticipants((prev) =>
+                prev.map((p) => (p.id === participantId ? { ...p, ...info } : p))
+              );
+            }}
+            onUpdateStageConfig={(next) => {
+              if (next.layout !== undefined) {
+                autoSwitchedMainRef.current = false;
+                if (layoutsLinked) {
+                  autoSwitchedOverflowRef.current = false;
+                  setOverflowConfig((prev) => {
+                    const updated = { ...prev, layout: next.layout! };
+                    try {
+                      localStorage.setItem(
+                        'uecfi_overflow_layout_v1',
+                        JSON.stringify({ ...updated, enabled: false })
+                      );
+                    } catch {
+                      // Ignore storage quota errors
+                    }
+                    return updated;
+                  });
+                }
+              }
+              setParticipantStageConfig((prev) => {
+                const updated = { ...prev, ...next };
+                try {
+                  localStorage.setItem(
+                    'uecfi_studio_layout_v1',
+                    JSON.stringify({ ...updated, liveParticipantIds: undefined })
+                  );
+                } catch {
+                  // Ignore storage quota errors
+                }
+                return updated;
+              });
+            }}
+            onClearAllLive={() => {
+              participantStageConfig.liveParticipantIds.forEach((id) =>
+                handleModerateParticipant(id, 'MOVE_TO_GREEN_ROOM')
+              );
+            }}
+            returnAudioDevices={returnAudioDevices}
+            returnFeedConfig={returnFeedConfig}
+            returnAudioManualUnmute={returnAudioManualUnmute}
+            onToggleReturnAudioManualUnmute={() => setReturnAudioManualUnmute((prev) => !prev)}
+            onUpdateReturnFeedConfig={(next) => {
+              setReturnFeedConfig((prev) => {
+                const updated = { ...prev, ...next };
+                try {
+                  localStorage.setItem('uecfi_return_feed_v1', JSON.stringify(updated));
+                } catch {
+                  // Ignore storage quota errors
+                }
+                return updated;
+              });
+            }}
+          />
         </main>
 
         {/* Right Column Resizable Divider */}
@@ -4900,20 +5163,84 @@ export const OperatorConsole: React.FC = () => {
               flexShrink: 0
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+            {overflowAngles.length > 0 ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                {overflowAngles.map((angle) => {
+                  const isOn = overflowConfig.enabled && angle.id === activeOverflowAngleId;
+                  return (
+                    <button
+                      key={`quick-angle-${angle.id}`}
+                      type="button"
+                      onClick={() => {
+                        if (isOn) {
+                          setOverflowConfig((prev) => ({
+                            ...prev,
+                            enabled: false,
+                            ...(prev.feedSource === 'camera' ? { feedSource: 'auto' } : {})
+                          }));
+                        } else {
+                          setActiveOverflowAngleId(angle.id);
+                          try {
+                            localStorage.setItem('uecfi_overflow_active_angle_v1', angle.id);
+                          } catch {
+                            // Ignore storage quota errors
+                          }
+                          setOverflowConfig((prev) => ({ ...prev, enabled: true }));
+                        }
+                      }}
+                      style={{
+                        flex: '1 1 auto',
+                        minWidth: '64px',
+                        padding: '5px 8px',
+                        borderRadius: '7px',
+                        border: '1px solid',
+                        borderColor: isOn ? '#10b981' : 'var(--border-subtle)',
+                        background: isOn ? '#059669' : 'var(--bg-panel-elevated)',
+                        color: isOn ? '#fff' : 'var(--text-secondary)',
+                        fontSize: '0.73rem',
+                        fontWeight: 600,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '5px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                      title={isOn ? `Turn off ${angle.label || 'Camera'}` : `Turn on ${angle.label || 'Camera'}`}
+                    >
+                      <Camera size={12} style={{ flexShrink: 0 }} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {angle.label || 'Camera'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
               <button
                 type="button"
                 onClick={() =>
-                  setOverflowConfig((prev) => ({ ...prev, enabled: !prev.enabled }))
+                  setOverflowConfig((prev) => {
+                    const nextEnabled = !prev.enabled;
+                    return {
+                      ...prev,
+                      enabled: nextEnabled,
+                      ...(!nextEnabled && prev.feedSource === 'camera'
+                        ? { feedSource: 'auto' }
+                        : {})
+                    };
+                  })
                 }
                 style={{
-                  flex: 1,
+                  width: '100%',
                   padding: '5px 8px',
                   borderRadius: '7px',
-                  border: '1px solid var(--border-subtle)',
-                  background: overflowConfig.enabled ? 'rgba(5, 150, 105, 0.22)' : 'var(--bg-panel-elevated)',
-                  color: overflowConfig.enabled ? '#6ee7b7' : 'var(--text-secondary)',
-                  fontSize: '0.74rem',
+                  border: '1px solid',
+                  borderColor: overflowConfig.enabled ? '#10b981' : 'var(--border-subtle)',
+                  background: overflowConfig.enabled ? '#059669' : 'var(--bg-panel-elevated)',
+                  color: overflowConfig.enabled ? '#fff' : 'var(--text-secondary)',
+                  fontSize: '0.73rem',
                   fontWeight: 600,
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -4921,28 +5248,10 @@ export const OperatorConsole: React.FC = () => {
                   gap: '6px'
                 }}
               >
-                <Camera size={13} />
-                Main Room Cam: {overflowConfig.enabled ? 'ON' : 'OFF'}
+                <Camera size={12} />
+                Centro Cam
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  refreshDisplaysAndRemote();
-                  setParticipantsModalOpen(true);
-                }}
-                style={{
-                  padding: '5px 8px',
-                  borderRadius: '7px',
-                  border: '1px solid var(--border-subtle)',
-                  background: 'transparent',
-                  color: 'var(--text-secondary)',
-                  fontSize: '0.72rem',
-                  fontWeight: 600
-                }}
-              >
-                All Feeds...
-              </button>
-            </div>
+            )}
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
               <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>
@@ -5003,45 +5312,6 @@ export const OperatorConsole: React.FC = () => {
                 })}
               </div>
             </div>
-
-            {overflowAngles.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                {overflowAngles.map((angle) => {
-                  const isActive = angle.id === activeOverflowAngleId;
-                  return (
-                    <button
-                      key={`quick-angle-${angle.id}`}
-                      type="button"
-                      onClick={() => {
-                        setActiveOverflowAngleId(angle.id);
-                        try {
-                          localStorage.setItem('uecfi_overflow_active_angle_v1', angle.id);
-                        } catch {
-                          // Ignore storage quota errors
-                        }
-                      }}
-                      style={{
-                        flex: '1 1 auto',
-                        minWidth: '54px',
-                        padding: '4px 7px',
-                        borderRadius: '6px',
-                        border: '1px solid var(--border-subtle)',
-                        background: isActive ? '#059669' : 'var(--bg-app)',
-                        color: isActive ? '#fff' : 'var(--text-secondary)',
-                        fontSize: '0.71rem',
-                        fontWeight: 600,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}
-                      title={`Switch Overflow Camera to ${angle.label}`}
-                    >
-                      {angle.label || 'Camera'}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
 
             {participants.length > 0 && (
               <div
@@ -6675,189 +6945,6 @@ export const OperatorConsole: React.FC = () => {
           </React.Fragment>
         );
       })}
-
-      <RemoteParticipantsPanel
-        open={participantsModalOpen}
-        onClose={() => setParticipantsModalOpen(false)}
-        onOpenSetup={() => {
-          refreshDisplaysAndRemote();
-          setSetupModalOpen(true);
-        }}
-        onOpenStudioEditor={() => setStudioLayoutModalOpen(true)}
-        participants={participants}
-        stageConfig={participantStageConfig}
-        streams={participantStreams}
-        monitoredParticipantIds={monitoredParticipantIds}
-        onToggleMonitorParticipant={handleToggleMonitorParticipant}
-        audioOutputDevices={audioOutputDevices}
-        monitorOutputDeviceId={monitorOutputDeviceId}
-        onSelectMonitorOutputDevice={(deviceId) => {
-          setMonitorOutputDeviceId(deviceId);
-          try {
-            localStorage.setItem('uecfi_monitor_output_device_v1', deviceId);
-          } catch {
-            // Ignore storage quota errors
-          }
-        }}
-        whisperInputDeviceId={whisperInputDeviceId}
-        onSelectWhisperInputDevice={(deviceId) => {
-          setWhisperInputDeviceId(deviceId);
-          try {
-            localStorage.setItem('uecfi_whisper_input_device_v1', deviceId);
-          } catch {
-            // Ignore storage quota errors
-          }
-        }}
-        onModerate={handleModerateParticipant}
-        overflowConfig={overflowConfig}
-        overflowCameras={overflowCameras}
-        overflowAngles={overflowAngles}
-        activeOverflowAngleId={activeOverflowAngleId}
-        onSelectOverflowAngle={(angleId) => {
-          setActiveOverflowAngleId(angleId);
-          try {
-            localStorage.setItem('uecfi_overflow_active_angle_v1', angleId);
-          } catch {
-            // Ignore storage quota errors
-          }
-        }}
-        onUpdateOverflowAngles={(angles) => {
-          setOverflowAngles(angles);
-          try {
-            localStorage.setItem('uecfi_overflow_angles_v1', JSON.stringify(angles));
-          } catch {
-            // Ignore storage quota errors
-          }
-        }}
-        onUpdateOverflowConfig={(next) => {
-          if (next.layout !== undefined) {
-            autoSwitchedOverflowRef.current = false;
-            if (layoutsLinked) {
-              autoSwitchedMainRef.current = false;
-              setParticipantStageConfig((prev) => {
-                const updated = { ...prev, layout: next.layout! };
-                try {
-                  localStorage.setItem(
-                    'uecfi_studio_layout_v1',
-                    JSON.stringify({ ...updated, liveParticipantIds: undefined })
-                  );
-                } catch {
-                  // Ignore storage quota errors
-                }
-                return updated;
-              });
-            }
-          }
-          setOverflowConfig((prev) => {
-            const updated = { ...prev, ...next };
-            try {
-              localStorage.setItem(
-                'uecfi_overflow_layout_v1',
-                JSON.stringify({ ...updated, enabled: false })
-              );
-            } catch {
-              // Ignore storage quota errors
-            }
-            return updated;
-          });
-        }}
-        onOpenOverflowStudioEditor={() => setOverflowStudioModalOpen(true)}
-        onCopyParticipantsStudioToOverflow={() => {
-          setOverflowConfig((prev) => {
-            const updated: OverflowStageConfig = {
-              ...prev,
-              layout: 'custom',
-              studioBackground: participantStageConfig.studioBackground,
-              studioPresentationBox: participantStageConfig.studioPresentationBox
-                ? { ...participantStageConfig.studioPresentationBox }
-                : undefined,
-              studioParticipantBox: participantStageConfig.studioParticipantBox
-                ? { ...participantStageConfig.studioParticipantBox }
-                : undefined,
-              studioElements: participantStageConfig.studioElements
-                ? participantStageConfig.studioElements.map((el) => ({ ...el }))
-                : undefined
-            };
-            try {
-              localStorage.setItem(
-                'uecfi_overflow_layout_v1',
-                JSON.stringify({ ...updated, enabled: false })
-              );
-            } catch {
-              // Ignore storage quota errors
-            }
-            return updated;
-          });
-        }}
-        displays={displays}
-        remoteInfo={remoteInfo}
-        overflowScreenOpen={overflowScreenOpen}
-        onSelectOverflowDisplay={async (displayId) => {
-          await window.presenterAPI?.openOverflowScreen(displayId);
-          await refreshDisplaysAndRemote();
-        }}
-        onCloseOverflowScreen={async () => {
-          await window.presenterAPI?.closeOverflowScreen();
-          await refreshDisplaysAndRemote();
-        }}
-        onUpdateParticipantInfo={(participantId, info) => {
-          setParticipants((prev) =>
-            prev.map((p) => (p.id === participantId ? { ...p, ...info } : p))
-          );
-        }}
-        onUpdateStageConfig={(next) => {
-          if (next.layout !== undefined) {
-            autoSwitchedMainRef.current = false;
-            if (layoutsLinked) {
-              autoSwitchedOverflowRef.current = false;
-              setOverflowConfig((prev) => {
-                const updated = { ...prev, layout: next.layout! };
-                try {
-                  localStorage.setItem(
-                    'uecfi_overflow_layout_v1',
-                    JSON.stringify({ ...updated, enabled: false })
-                  );
-                } catch {
-                  // Ignore storage quota errors
-                }
-                return updated;
-              });
-            }
-          }
-          setParticipantStageConfig((prev) => {
-            const updated = { ...prev, ...next };
-            try {
-              localStorage.setItem(
-                'uecfi_studio_layout_v1',
-                JSON.stringify({ ...updated, liveParticipantIds: undefined })
-              );
-            } catch {
-              // Ignore storage quota errors
-            }
-            return updated;
-          });
-        }}
-        onClearAllLive={() => {
-          participantStageConfig.liveParticipantIds.forEach((id) =>
-            handleModerateParticipant(id, 'MOVE_TO_GREEN_ROOM')
-          );
-        }}
-        returnAudioDevices={returnAudioDevices}
-        returnFeedConfig={returnFeedConfig}
-        returnAudioManualUnmute={returnAudioManualUnmute}
-        onToggleReturnAudioManualUnmute={() => setReturnAudioManualUnmute((prev) => !prev)}
-        onUpdateReturnFeedConfig={(next) => {
-          setReturnFeedConfig((prev) => {
-            const updated = { ...prev, ...next };
-            try {
-              localStorage.setItem('uecfi_return_feed_v1', JSON.stringify(updated));
-            } catch {
-              // Ignore storage quota errors
-            }
-            return updated;
-          });
-        }}
-      />
 
       <StudioLayoutModal
         open={studioLayoutModalOpen}

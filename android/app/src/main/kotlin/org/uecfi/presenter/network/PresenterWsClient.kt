@@ -296,6 +296,7 @@ class PresenterWsClient {
         override = if (current.override == "showLogo") "none" else "showLogo",
       )
       "CLEAR_OVERRIDE" -> current.copy(override = "none")
+      "TOGGLE_RETURN_AUDIO" -> current.copy(returnAudioMuted = !current.returnAudioMuted)
       else -> current
     }
     if (updated != current) {

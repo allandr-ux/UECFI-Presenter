@@ -50,6 +50,8 @@ import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.MenuBook
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.MicOff
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -221,16 +223,95 @@ fun MainScreen(
             onOpenSettings = { showSettingsModal = true },
           )
 
-          // Top-right overlay bar: Settings button beside Program drawer button
+          // Top overlay bar: Centro Mic button + muted notice (left), Settings & Program (right)
           Row(
             modifier = Modifier
               .fillMaxWidth()
               .align(Alignment.TopCenter)
               .windowInsetsPadding(WindowInsets.safeDrawing)
               .padding(horizontal = 14.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.End,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
           ) {
+            // Top-left: Larger Centro Mic Mute/Unmute button + inline muted notice
+            Row(
+              modifier = Modifier.weight(1f),
+              horizontalArrangement = Arrangement.spacedBy(10.dp),
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              if (isConnected && liveState?.returnAudioActive == true) {
+                val isMicMuted = liveState?.returnAudioMuted == true
+                Surface(
+                  onClick = viewModel::toggleReturnAudio,
+                  shape = RoundedCornerShape(999.dp),
+                  color = if (isMicMuted) {
+                    Color(0xFFD97706).copy(alpha = 0.90f)
+                  } else {
+                    Color(0xFF059669).copy(alpha = 0.92f)
+                  },
+                  border = BorderStroke(
+                    width = 1.5.dp,
+                    color = if (isMicMuted) {
+                      Color(0xFFFDE68A).copy(alpha = 0.85f)
+                    } else {
+                      Color(0xFF6EE7B7).copy(alpha = 0.85f)
+                    },
+                  ),
+                ) {
+                  Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                  ) {
+                    Icon(
+                      imageVector = if (isMicMuted) Icons.Rounded.MicOff else Icons.Rounded.Mic,
+                      contentDescription = if (isMicMuted) {
+                        "Unmute Centro audio to remote speaker"
+                      } else {
+                        "Mute Centro audio to remote speaker"
+                      },
+                      tint = Color.White,
+                      modifier = Modifier.size(24.dp),
+                    )
+                    Text(
+                      text = if (isMicMuted) "Mic Muted — Unmute" else "Centro Mic Live",
+                      style = MaterialTheme.typography.titleSmall,
+                      color = Color.White,
+                      fontWeight = FontWeight.Bold,
+                    )
+                  }
+                }
+
+                if (isMicMuted) {
+                  Surface(
+                    onClick = viewModel::toggleReturnAudio,
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFF78350F).copy(alpha = 0.94f),
+                    border = BorderStroke(1.5.dp, Color(0xFFFBBF24).copy(alpha = 0.85f)),
+                  ) {
+                    Row(
+                      modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                      verticalAlignment = Alignment.CenterVertically,
+                      horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                      Icon(
+                        imageVector = Icons.Rounded.MicOff,
+                        contentDescription = null,
+                        tint = Color(0xFFFDE68A),
+                        modifier = Modifier.size(22.dp),
+                      )
+                      Text(
+                        text = "Remote speaker cannot hear you — tap Unmute before speaking.",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color(0xFFFEF3C7),
+                        fontWeight = FontWeight.Bold,
+                      )
+                    }
+                  }
+                }
+              }
+            }
+
             Row(
               verticalAlignment = Alignment.CenterVertically,
               horizontalArrangement = Arrangement.spacedBy(8.dp),

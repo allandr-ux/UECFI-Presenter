@@ -6,7 +6,7 @@
   <title>UECFI Presenter - Remote Speaker Portal</title>
   <!-- Tailwind CSS CDN for instant styling with zero build overhead -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans select-none">
 
@@ -196,6 +196,16 @@
               <div id="operatorModText" class="px-3.5 py-1.5 rounded-full bg-amber-950/90 border border-amber-500/50 text-amber-200 text-xs font-bold shadow-lg backdrop-blur"></div>
             </div>
 
+            <!-- Go-Live Speaker Cue Countdown Overlay (3, 2, 1, GO!) -->
+            <div id="goLiveCountdownOverlay" class="hidden fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/65 backdrop-blur-xs pointer-events-none select-none">
+              <div id="goLiveCountdownLabel" class="text-sm sm:text-base font-extrabold uppercase tracking-[0.28em] text-rose-200 mb-2 drop-shadow">
+                Get Ready
+              </div>
+              <div id="goLiveCountdownText" style="font-size: clamp(5.5rem, 22vw, 12rem); line-height: 1;" class="font-black tracking-tight text-white drop-shadow-[0_6px_28px_rgba(0,0,0,0.85)]">
+                3
+              </div>
+            </div>
+
             <!-- Bottom Floating Media Bar -->
             <div class="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-slate-950/85 backdrop-blur px-4 py-2 rounded-full border border-slate-700/60 shadow-xl z-20">
               <!-- Mic Mute Toggle -->
@@ -334,6 +344,6 @@
   <!-- Incoming Operator Voice Audio Element (Plays in speaker's headphones/device) -->
   <audio id="operatorAudio" autoplay></audio>
 
-  <script src="guest.js?v=3"></script>
+  <script src="guest.js?v=5"></script>
 </body>
 </html>

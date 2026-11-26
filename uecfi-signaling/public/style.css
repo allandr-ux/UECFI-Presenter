@@ -58,3 +58,31 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Go-Live Speaker Cue Countdown animation */
+@keyframes countdown-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  38% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  85% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.2;
+    transform: scale(0.92);
+  }
+}
+
+.countdown-flash {
+  animation: countdown-pop 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}

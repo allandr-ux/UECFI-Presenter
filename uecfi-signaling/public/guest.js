@@ -26,6 +26,7 @@ const state = {
   onStage: false,
   liveStartedAt: null,
   liveTimerInterval: null,
+  goLiveCountdownTimers: [],
   signalInterval: null,
   iceRecoveryTimer: null,
   landscapeDismissed: false,
@@ -93,6 +94,9 @@ const el = {
   liveTimer: document.getElementById('liveTimer'),
   operatorModBanner: document.getElementById('operatorModBanner'),
   operatorModText: document.getElementById('operatorModText'),
+  goLiveCountdownOverlay: document.getElementById('goLiveCountdownOverlay'),
+  goLiveCountdownLabel: document.getElementById('goLiveCountdownLabel'),
+  goLiveCountdownText: document.getElementById('goLiveCountdownText'),
   intercomPanel: document.getElementById('intercomPanel'),
   btnShowIntercomMobile: document.getElementById('btnShowIntercomMobile'),
   returnFeedCard: document.getElementById('returnFeedCard'),
@@ -777,7 +781,7 @@ async function handleSignalingMessage(msg) {
       break;
 
     case 'stage-status-changed':
-      setStageStatus(msg.onStage);
+      setStageStatus(msg.onStage, { triggerCountdown: true });
       break;
 
     case 'intercom-chat':
@@ -792,6 +796,17 @@ async function handleSignalingMessage(msg) {
       state.mutedByOperator = Boolean(msg.mutedByOperator);
       state.videoHiddenByOperator = Boolean(msg.videoHiddenByOperator);
       updateOperatorModBanner();
+      break;
+
+    case 'return-audio-override':
+      if (msg.forceUnmute) {
+        state.returnAudioMuted = false;
+        if (el.operatorAudio) {
+          el.operatorAudio.muted = false;
+          el.operatorAudio.play().catch(() => {});
+        }
+        updateReturnFeedUI();
+      }
       break;
   }
 }
@@ -1033,7 +1048,60 @@ function startLiveTimer() {
   }, 1000);
 }
 
-function setStageStatus(onStage) {
+function clearGoLiveCountdown() {
+  state.goLiveCountdownTimers.forEach((timerId) => clearTimeout(timerId));
+  state.goLiveCountdownTimers = [];
+  if (el.goLiveCountdownOverlay) {
+    el.goLiveCountdownOverlay.classList.add('hidden');
+  }
+}
+
+function showGoLiveCountdownStep(text, label, isGoStep) {
+  if (!el.goLiveCountdownOverlay || !el.goLiveCountdownText || !el.goLiveCountdownLabel) return;
+
+  el.goLiveCountdownOverlay.classList.remove('hidden');
+  el.goLiveCountdownLabel.textContent = label;
+  el.goLiveCountdownLabel.className = isGoStep
+    ? 'text-xs sm:text-sm font-extrabold uppercase tracking-[0.28em] text-emerald-300 mb-1 drop-shadow'
+    : 'text-xs sm:text-sm font-extrabold uppercase tracking-[0.28em] text-rose-200 mb-1 drop-shadow';
+
+  el.goLiveCountdownText.textContent = text;
+  el.goLiveCountdownText.className = isGoStep
+    ? 'font-black leading-none tracking-tight text-7xl sm:text-8xl md:text-9xl text-emerald-400 drop-shadow-[0_6px_32px_rgba(16,185,129,0.7)]'
+    : 'font-black leading-none tracking-tight text-8xl sm:text-9xl text-white drop-shadow-[0_6px_28px_rgba(0,0,0,0.85)]';
+
+  // Force reflow so the CSS pop animation replays cleanly on every step
+  void el.goLiveCountdownText.offsetWidth;
+  el.goLiveCountdownText.classList.add('countdown-flash');
+}
+
+function startGoLiveCountdown() {
+  clearGoLiveCountdown();
+
+  const steps = [
+    { delayMs: 0, text: '3', label: 'Get Ready', isGo: false, toneHz: 660, toneDur: 0.08 },
+    { delayMs: 900, text: '2', label: 'Get Ready', isGo: false, toneHz: 660, toneDur: 0.08 },
+    { delayMs: 1800, text: '1', label: 'Get Ready', isGo: false, toneHz: 660, toneDur: 0.08 },
+    { delayMs: 2700, text: 'GO!', label: 'Speak Now', isGo: true, toneHz: 880, toneDur: 0.18 }
+  ];
+
+  steps.forEach((step) => {
+    const id = setTimeout(() => {
+      if (!state.onStage) return;
+      showGoLiveCountdownStep(step.text, step.label, step.isGo);
+      playTone(step.toneHz, step.toneDur);
+    }, step.delayMs);
+    state.goLiveCountdownTimers.push(id);
+  });
+
+  const hideId = setTimeout(() => {
+    clearGoLiveCountdown();
+  }, 3700);
+  state.goLiveCountdownTimers.push(hideId);
+}
+
+function setStageStatus(onStage, options = {}) {
+  const wasOnStage = state.onStage;
   state.onStage = Boolean(onStage);
 
   if (state.onStage) {
@@ -1057,9 +1125,15 @@ function setStageStatus(onStage) {
       el.btnShowIntercomMobile.textContent = 'Show Operator Intercom';
     }
 
-    // Play subtle notification chime
-    playTone(880, 0.15); // A5 chime
+    if (options.triggerCountdown && !wasOnStage) {
+      // Visual-only speaker cue countdown (camera feed is already live in monitors)
+      startGoLiveCountdown();
+    } else if (!wasOnStage) {
+      // Play subtle notification chime
+      playTone(880, 0.15); // A5 chime
+    }
   } else {
+    clearGoLiveCountdown();
     // BACKSTAGE / GREEN ROOM STATE
     el.tallyBanner.className = 'tally-backstage rounded-2xl p-4 flex items-center justify-between shadow-xl transition-all duration-300';
     el.tallyDot.className = 'w-3.5 h-3.5 rounded-full bg-amber-400 animate-pulse';
