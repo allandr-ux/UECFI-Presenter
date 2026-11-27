@@ -233,8 +233,8 @@ export class LocalRemoteServer {
     return {
       port: this.port,
       localUrl: this.isDev
-        ? `http://${ip}:5173/?view=remote&wsPort=${this.port}&pin=${this.pin}`
-        : `http://${ip}:${this.port}/?view=remote&pin=${this.pin}`,
+        ? `http://${ip}:5173/?wsPort=${this.port}`
+        : `http://${ip}:${this.port}/`,
       wsUrl: `ws://${ip}:${this.port}`,
       localPin: this.pin
     };
@@ -325,20 +325,45 @@ export class LocalRemoteServer {
   }
 
   private issueDeviceToken(deviceName?: string): { deviceId: string; deviceToken: string } {
-    const deviceId = crypto.randomUUID();
     const deviceToken = crypto.randomBytes(32).toString('hex');
     const now = Date.now();
     const cleanName =
       typeof deviceName === 'string' && deviceName.trim()
         ? deviceName.trim().slice(0, 60)
         : 'Remote Device';
-    this.whitelist.push({
-      id: deviceId,
-      name: cleanName,
-      tokenHash: this.hashToken(deviceToken),
-      createdAt: now,
-      lastSeenAt: now
-    });
+
+    // Reuse & deduplicate existing whitelist record when the same named device re-pairs with a PIN
+    const existing =
+      cleanName !== 'Remote Device'
+        ? this.whitelist.find((r) => r.name.toLowerCase() === cleanName.toLowerCase())
+        : undefined;
+
+    let deviceId: string;
+    if (existing) {
+      deviceId = existing.id;
+      this.whitelist = this.whitelist
+        .filter((r) => r.id === deviceId || r.name.toLowerCase() !== cleanName.toLowerCase())
+        .map((r) =>
+          r.id === deviceId
+            ? {
+                ...r,
+                name: cleanName,
+                tokenHash: this.hashToken(deviceToken),
+                lastSeenAt: now
+              }
+            : r
+        );
+    } else {
+      deviceId = crypto.randomUUID();
+      this.whitelist.push({
+        id: deviceId,
+        name: cleanName,
+        tokenHash: this.hashToken(deviceToken),
+        createdAt: now,
+        lastSeenAt: now
+      });
+    }
+
     this.saveWhitelist();
     this.onWhitelistChange?.(this.getWhitelistedDevices());
     return { deviceId, deviceToken };
@@ -800,8 +825,8 @@ export class LocalRemoteServer {
         resolve({
           port: this.port,
           localUrl: this.isDev
-            ? `http://${ip}:5173/?view=remote&wsPort=${this.port}&pin=${this.pin}`
-            : `http://${ip}:${this.port}/?view=remote&pin=${this.pin}`,
+            ? `http://${ip}:5173/?wsPort=${this.port}`
+            : `http://${ip}:${this.port}/`,
           wsUrl: `ws://${ip}:${this.port}`,
           localPin: this.pin
         });

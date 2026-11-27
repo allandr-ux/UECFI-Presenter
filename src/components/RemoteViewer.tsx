@@ -47,20 +47,23 @@ function getBrowserDeviceName(): string {
 export const RemoteViewer: React.FC = () => {
   const t = useTerminology();
   const initialParams = new URLSearchParams(window.location.search);
-  const kiosk = initialParams.get('kiosk') === '1';
-  const chromeless = initialParams.get('chromeless') === '1';
   const isAndroidApp =
     initialParams.get('noWs') === '1' ||
     Boolean((window as Window & { AndroidPresenterBridge?: unknown }).AndroidPresenterBridge);
+  // Browser URL viewers are strictly view-only Overflow screens (no kiosk/mainScreen/remote control).
+  const kiosk = isAndroidApp && initialParams.get('kiosk') === '1';
+  const chromeless = isAndroidApp && initialParams.get('chromeless') === '1';
   const requestedMode = initialParams.get('viewMode');
   const initialMode: RemoteViewMode =
-    kiosk || (chromeless && requestedMode === 'mainScreen') ? 'mainScreen' : 'overflow';
+    isAndroidApp && (kiosk || (chromeless && requestedMode === 'mainScreen'))
+      ? 'mainScreen'
+      : 'overflow';
 
   const [viewMode] = useState<RemoteViewMode>(initialMode);
   const [liveState, setLiveState] = useState<LiveState | null>(null);
   const [connected, setConnected] = useState(false);
-  const [pinInput] = useState(
-    () => initialParams.get('pin') || sessionStorage.getItem('uecfi_remote_pin') || ''
+  const [pinInput] = useState(() =>
+    kiosk ? initialParams.get('pin') || sessionStorage.getItem('uecfi_remote_pin') || '' : ''
   );
   const [programDrawerOpen, setProgramDrawerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -268,6 +271,7 @@ export const RemoteViewer: React.FC = () => {
 
       socket.onopen = () => {
         setConnected(true);
+        if (!kiosk) return;
         const savedToken = localStorage.getItem(DEVICE_TOKEN_STORAGE)?.trim();
         const deviceName = getBrowserDeviceName();
         if (savedToken) {
@@ -363,6 +367,7 @@ export const RemoteViewer: React.FC = () => {
     action: RemoteCommandAction,
     itemId?: string
   ) => {
+    if (!kiosk) return;
     const socket = socketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
     socket.send(

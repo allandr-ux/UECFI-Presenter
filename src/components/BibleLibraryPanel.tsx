@@ -257,12 +257,6 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
     };
   };
 
-  const handlePreviewVerse = (verseIdx: number, verseNumber: number) => {
-    setActiveVerseNum(verseNumber);
-    const item = buildChapterItem();
-    if (item) onSelectVerseChapter?.(item, verseIdx);
-  };
-
   const handleProjectVerse = (verseIdx: number, verseNumber: number) => {
     const item = buildChapterItem();
     if (!item) return;
@@ -405,9 +399,8 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
                   key={v.number}
                   type="button"
                   data-selected={selected ? 'true' : undefined}
-                  onClick={() => handlePreviewVerse(idx, v.number)}
-                  onDoubleClick={() => handleProjectVerse(idx, v.number)}
-                  title="Click to preview chapter · Double-click to present"
+                  onClick={() => handleProjectVerse(idx, v.number)}
+                  title="Click to present"
                   className={cn(
                     colItemBtnCls(selected),
                     'flex items-start gap-[5px] leading-[1.3]'

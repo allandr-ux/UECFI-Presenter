@@ -11,8 +11,8 @@ android {
     applicationId = "org.uecfi.presenter"
     minSdk = 24
     targetSdk = 36
-    versionCode = 4
-    versionName = "2.1.4"
+    versionCode = 5
+    versionName = "2.2.1"
   }
 
   buildTypes {

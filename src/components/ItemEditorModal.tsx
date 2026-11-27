@@ -72,7 +72,6 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
   onSave
 }) => {
   const t = useTerminology();
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const bgFileRef = useRef<HTMLInputElement>(null);
   const audioFileRef = useRef<HTMLInputElement>(null);
   const lrcFileRef = useRef<HTMLInputElement>(null);
@@ -100,16 +99,6 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
     target.setSelectionRange(pending.pos, pending.pos);
     target.scrollIntoView({ block: 'nearest' });
   }, [blocks]);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    if (open && !dialog.open) {
-      dialog.showModal();
-    } else if (!open && dialog.open) {
-      dialog.close();
-    }
-  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -277,18 +266,13 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
 
   return (
     <>
-    <dialog
-      ref={dialogRef}
+    <section
       aria-labelledby={titleId}
-      className="w-[min(94vw,760px)] max-w-[760px]"
-      onClose={() => {
-        if (dialogRef.current) dialogRef.current.returnValue = '';
-        onClose();
-      }}
+      className="flex min-h-0 flex-1 flex-col overflow-hidden bg-app"
     >
-      <form onSubmit={handleSubmit} className="flex max-h-[88vh] flex-col gap-4 px-6 py-5">
-        <div className="flex items-center justify-between">
-          <h2 id={titleId} className="m-0 text-[1.1rem] font-bold">
+      <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+        <div className="flex items-center justify-between gap-3 border-b border-subtle bg-panel px-[22px] py-3.5">
+          <h2 id={titleId} className="m-0 text-[1.05rem] font-bold">
             {initialItem ? `${t.editor.edit}: ${initialItem.title}` : t.contentTypes[type]}
           </h2>
           <button
@@ -300,6 +284,8 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
             <X size={16} />
           </button>
         </div>
+
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-[22px] py-4">
 
         {/* Metadata row */}
         <div className="grid grid-cols-[1.5fr_1fr] gap-2.5">
@@ -554,8 +540,10 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
           ))}
         </div>
 
+        </div>
+
         {/* Footer Actions */}
-        <div className="flex items-center justify-between border-t border-subtle pt-3">
+        <div className="flex items-center justify-between border-t border-subtle bg-panel px-[22px] py-3">
           <button
             type="button"
             onClick={() => handleAddBlock()}
@@ -578,7 +566,7 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
           </div>
         </div>
       </form>
-    </dialog>
+    </section>
 
     <LyricsSyncModal
       open={syncModalOpen}

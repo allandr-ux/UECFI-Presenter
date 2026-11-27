@@ -277,7 +277,7 @@ export const OperatorConsole: React.FC = () => {
       if (saved) {
         const parsed = JSON.parse(saved) as Partial<RemoteReturnFeedConfig>;
         return {
-          sendVideo: parsed.sendVideo !== false,
+          sendVideo: true,
           audioDeviceId: parsed.audioDeviceId || '',
           autoMuteWhenLive: parsed.autoMuteWhenLive !== false
         };
@@ -360,8 +360,6 @@ export const OperatorConsole: React.FC = () => {
   const overflowSubscribedViewersRef = useRef<Set<string>>(new Set());
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
   const [remoteInfo, setRemoteInfo] = useState<RemoteConnectionInfo | null>(null);
-  const [setupModalOpen, setSetupModalOpen] = useState(false);
-  const [participantsModalOpen, setParticipantsModalOpen] = useState(false);
   const [studioLayoutModalOpen, setStudioLayoutModalOpen] = useState(false);
   const [participants, setParticipants] = useState<RemoteParticipant[]>([]);
   const [participantStageConfig, setParticipantStageConfig] = useState<ParticipantStageConfig>(() => {
@@ -415,7 +413,7 @@ export const OperatorConsole: React.FC = () => {
   overflowEnabledRef.current = overflowConfig.enabled;
   const [previewCamerasOn, setPreviewCamerasOn] = useState(false);
   const [libraryTab, setLibraryTab] = useState<'library' | 'verses'>('verses');
-  const [centerMode, setCenterMode] = useState<'grid' | 'search'>('grid');
+  const [centerMode, setCenterMode] = useState<'grid' | 'search' | 'settings' | 'editor'>('grid');
   const [libraryFilter, setLibraryFilter] = useState<'all' | 'song' | 'programItem'>('all');
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const addMenuRef = useRef<HTMLDivElement>(null);
@@ -462,7 +460,6 @@ export const OperatorConsole: React.FC = () => {
   const [pickerQuery, setPickerQuery] = useState('');
   const [draggedProgramIdx, setDraggedProgramIdx] = useState<number | null>(null);
   const [dragOverProgramIdx, setDragOverProgramIdx] = useState<number | null>(null);
-  const [editorOpen, setEditorOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const pendingAutoPlayRef = useRef(false);
   const scrubberSeekingRef = useRef(false);
@@ -2099,6 +2096,7 @@ export const OperatorConsole: React.FC = () => {
     if (!liveItem) return;
     if (activeBlockIndex + 1 < liveItem.blocks.length) {
       setActiveBlockIndex((prev) => prev + 1);
+      setHighlightedVerseBlockIndex(null);
       setOverride('none');
       autoSwitchFullToStudio();
     }
@@ -2108,6 +2106,7 @@ export const OperatorConsole: React.FC = () => {
     if (!liveItem) return;
     if (activeBlockIndex > 0) {
       setActiveBlockIndex((prev) => prev - 1);
+      setHighlightedVerseBlockIndex(null);
       setOverride('none');
       autoSwitchFullToStudio();
     }
@@ -2842,6 +2841,7 @@ export const OperatorConsole: React.FC = () => {
       setBrowsingAdHocItem(styledItem);
       setLiveAdHocItem(styledItem);
       setActiveBlockIndex(startBlockIndex);
+      setHighlightedVerseBlockIndex(null);
       setOverride('none');
     });
   };
@@ -3306,7 +3306,7 @@ export const OperatorConsole: React.FC = () => {
     if (type === 'slide') {
       setSlideBuilderOpen(true);
     } else {
-      setEditorOpen(true);
+      setCenterMode('editor');
     }
   };
 
@@ -3319,7 +3319,7 @@ export const OperatorConsole: React.FC = () => {
       setProgramPickerMode('bible');
       setProgramPickerOpen(true);
     } else {
-      setEditorOpen(true);
+      setCenterMode('editor');
     }
   };
 
@@ -3527,12 +3527,16 @@ export const OperatorConsole: React.FC = () => {
           <button
             type="button"
             onClick={() => {
-              refreshDisplaysAndRemote();
-              setSetupModalOpen(true);
+              if (centerMode === 'settings') {
+                setCenterMode('grid');
+              } else {
+                refreshDisplaysAndRemote();
+                setCenterMode('settings');
+              }
             }}
-            title="Settings (Displays, Local Remote, Online Relay)"
+            title="Settings (Displays, Local Remote, Online Relay, Video Feeds)"
             aria-label="Settings"
-            className={toolbarBtnCls(false)}
+            className={toolbarBtnCls(centerMode === 'settings')}
           >
             <Settings size={15} />
             <span>Settings</span>
@@ -4023,24 +4027,32 @@ export const OperatorConsole: React.FC = () => {
               </button>
             </div>
 
-            {libraryTab === 'verses' ? (
-              <div className="min-h-0 flex-1">
-                <BibleLibraryPanel
-                  onProjectVerseItem={handleProjectVerseItem}
-                  onSelectVerseChapter={handleSelectVerseChapter}
-                  onOpenAiSearch={() => setCenterMode((prev) => (prev === 'search' ? 'grid' : 'search'))}
-                  aiSearchOpen={centerMode === 'search'}
-                  liveVerseLabel={
-                    liveItem?.type === 'verse' && override === 'none'
-                      ? liveItem.blocks[activeBlockIndex]?.label
-                      : selectedItem?.type === 'verse' && highlightedVerseBlockIndex !== null
-                        ? selectedItem.blocks[highlightedVerseBlockIndex]?.label
-                        : undefined
-                  }
-                />
-              </div>
-            ) : (
-              <div className="flex min-h-0 flex-1 flex-col">
+            <div
+              className={cn(
+                'min-h-0 flex-1 flex-col',
+                libraryTab === 'verses' ? 'flex' : 'hidden'
+              )}
+            >
+              <BibleLibraryPanel
+                onProjectVerseItem={handleProjectVerseItem}
+                onSelectVerseChapter={handleSelectVerseChapter}
+                onOpenAiSearch={() => setCenterMode((prev) => (prev === 'search' ? 'grid' : 'search'))}
+                aiSearchOpen={centerMode === 'search'}
+                liveVerseLabel={
+                  liveItem?.type === 'verse' && override === 'none'
+                    ? liveItem.blocks[activeBlockIndex]?.label
+                    : selectedItem?.type === 'verse' && highlightedVerseBlockIndex !== null
+                      ? selectedItem.blocks[highlightedVerseBlockIndex]?.label
+                      : undefined
+                }
+              />
+            </div>
+            <div
+              className={cn(
+                'min-h-0 flex-1 flex-col',
+                libraryTab === 'library' ? 'flex' : 'hidden'
+              )}
+            >
                 <div className="relative flex items-center gap-1 border-b border-subtle px-2 py-1.5">
                   {(
                     [
@@ -4313,7 +4325,6 @@ export const OperatorConsole: React.FC = () => {
                     })}
                 </div>
               </div>
-            )}
           </div>
         </aside>
 
@@ -4324,8 +4335,96 @@ export const OperatorConsole: React.FC = () => {
           className={COL_DIVIDER_CLS}
         />
 
-        {/* Center Column: Content Grid or Smart Bible Search */}
+        {/* Center Column: Content Grid, Smart Bible Search, or Settings */}
         <main className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-app">
+          <div
+            className={cn(
+              'min-h-0 flex-1 flex-col',
+              centerMode === 'settings' ? 'flex' : 'hidden'
+            )}
+          >
+            <DisplaySetupModal
+              open={centerMode === 'settings'}
+              onClose={() => setCenterMode('grid')}
+              displays={displays}
+              remoteInfo={remoteInfo}
+              participantSettings={participantSettings}
+              onSaveParticipantSettings={(next) => {
+                setParticipantSettings(next);
+                window.presenterAPI?.setSecret('participant_network_settings', JSON.stringify(next));
+              }}
+              onRefreshDisplays={refreshDisplaysAndRemote}
+              onRegenerateRemotePin={async () => {
+                const updated = await window.presenterAPI?.regenerateRemotePin();
+                if (updated) {
+                  setRemoteInfo(updated);
+                }
+              }}
+              onSelectMainDisplay={async (displayId) => {
+                await window.presenterAPI?.openMainScreen(displayId);
+                await refreshDisplaysAndRemote();
+              }}
+              onSelectOverflowDisplay={async (displayId) => {
+                await window.presenterAPI?.openOverflowScreen(displayId);
+                await refreshDisplaysAndRemote();
+              }}
+              hasLiveParticipants={participants.some((p) => p.status === 'live')}
+              returnAudioDevices={returnAudioDevices}
+              returnFeedConfig={returnFeedConfig}
+              returnAudioManualUnmute={returnAudioManualUnmute}
+              onToggleReturnAudioManualUnmute={() => setReturnAudioManualUnmute((prev) => !prev)}
+              onUpdateReturnFeedConfig={(next) => {
+                setReturnFeedConfig((prev) => {
+                  const updated = { ...prev, ...next };
+                  try {
+                    localStorage.setItem('uecfi_return_feed_v1', JSON.stringify(updated));
+                  } catch {
+                    // Ignore storage quota errors
+                  }
+                  return updated;
+                });
+              }}
+              audioOutputDevices={audioOutputDevices}
+              monitorOutputDeviceId={monitorOutputDeviceId}
+              onSelectMonitorOutputDevice={(deviceId) => {
+                setMonitorOutputDeviceId(deviceId);
+                try {
+                  localStorage.setItem('uecfi_monitor_output_device_v1', deviceId);
+                } catch {
+                  // Ignore storage quota errors
+                }
+              }}
+              whisperInputDeviceId={whisperInputDeviceId}
+              onSelectWhisperInputDevice={(deviceId) => {
+                setWhisperInputDeviceId(deviceId);
+                try {
+                  localStorage.setItem('uecfi_whisper_input_device_v1', deviceId);
+                } catch {
+                  // Ignore storage quota errors
+                }
+              }}
+              overflowConfig={overflowConfig}
+              overflowCameras={overflowCameras}
+              overflowAngles={overflowAngles}
+              activeOverflowAngleId={activeOverflowAngleId}
+              onSelectOverflowAngle={(angleId) => {
+                setActiveOverflowAngleId(angleId);
+                try {
+                  localStorage.setItem('uecfi_overflow_active_angle_v1', angleId);
+                } catch {
+                  // Ignore storage quota errors
+                }
+              }}
+              onUpdateOverflowAngles={(angles) => {
+                setOverflowAngles(angles);
+                try {
+                  localStorage.setItem('uecfi_overflow_angles_v1', JSON.stringify(angles));
+                } catch {
+                  // Ignore storage quota errors
+                }
+              }}
+            />
+          </div>
           <div
             className={cn(
               'min-h-0 flex-1 flex-col',
@@ -4341,6 +4440,20 @@ export const OperatorConsole: React.FC = () => {
                 setCenterMode('grid');
               }}
               onAddVerseToProgram={handleAddVerseToProgram}
+            />
+          </div>
+          <div
+            className={cn(
+              'min-h-0 flex-1 flex-col',
+              centerMode === 'editor' ? 'flex' : 'hidden'
+            )}
+          >
+            <ItemEditorModal
+              open={centerMode === 'editor'}
+              initialItem={editingItem}
+              defaultType={editorDefaultType}
+              onClose={() => setCenterMode('grid')}
+              onSave={handleSaveEditorItem}
             />
           </div>
           <div
@@ -4403,7 +4516,7 @@ export const OperatorConsole: React.FC = () => {
                       data-highlighted-block={isPreviewHighlighted ? 'true' : undefined}
                       onClick={() => handleSelectBlock(index)}
                       className={cn(
-                        'flex items-start gap-3.5 rounded-[10px] border-2 px-3.5 py-3 text-left transition-colors',
+                        'flex items-start gap-2.5 rounded-[10px] border-2 px-2 py-1.5 text-left transition-colors',
                         isLive
                           ? 'border-live-red bg-panel shadow-[0_0_0_2px_rgba(239,68,68,0.25)]'
                           : isPreviewHighlighted
@@ -4433,7 +4546,7 @@ export const OperatorConsole: React.FC = () => {
                         <div
                           className={cn(
                             'text-text-primary',
-                            hasSecondary && 'border-r border-subtle pr-3.5'
+                            hasSecondary && 'border-r border-subtle pr-2.5'
                           )}
                         >
                           {block.lines.map((line, i) => (
@@ -4460,7 +4573,7 @@ export const OperatorConsole: React.FC = () => {
                   data-live-block={isLive ? 'true' : undefined}
                   onClick={() => handleSelectBlock(index)}
                   className={cn(
-                    'flex w-full min-w-0 flex-col gap-2 rounded-[10px] border-2 bg-panel p-3 text-left transition-colors',
+                    'flex w-full min-w-0 flex-col gap-1.5 rounded-[10px] border-2 bg-panel p-1.5 text-left transition-colors',
                     isLive
                       ? 'border-live-red shadow-[0_0_0_2px_rgba(239,68,68,0.25)]'
                       : 'border-subtle hover:bg-hover/40'
@@ -4533,41 +4646,11 @@ export const OperatorConsole: React.FC = () => {
           </div>
 
           <RemoteParticipantsPanel
-            open={participantsModalOpen}
-            onClose={() => setParticipantsModalOpen(false)}
-            onToggleOpen={() => {
-              refreshDisplaysAndRemote();
-              setParticipantsModalOpen((prev) => !prev);
-            }}
-            onOpenSetup={() => {
-              refreshDisplaysAndRemote();
-              setSetupModalOpen(true);
-            }}
             onOpenStudioEditor={() => setStudioLayoutModalOpen(true)}
             participants={participants}
-            stageConfig={participantStageConfig}
             streams={participantStreams}
             monitoredParticipantIds={monitoredParticipantIds}
             onToggleMonitorParticipant={handleToggleMonitorParticipant}
-            audioOutputDevices={audioOutputDevices}
-            monitorOutputDeviceId={monitorOutputDeviceId}
-            onSelectMonitorOutputDevice={(deviceId) => {
-              setMonitorOutputDeviceId(deviceId);
-              try {
-                localStorage.setItem('uecfi_monitor_output_device_v1', deviceId);
-              } catch {
-                // Ignore storage quota errors
-              }
-            }}
-            whisperInputDeviceId={whisperInputDeviceId}
-            onSelectWhisperInputDevice={(deviceId) => {
-              setWhisperInputDeviceId(deviceId);
-              try {
-                localStorage.setItem('uecfi_whisper_input_device_v1', deviceId);
-              } catch {
-                // Ignore storage quota errors
-              }
-            }}
             onModerate={handleModerateParticipant}
             overflowConfig={overflowConfig}
             overflowCameras={overflowCameras}
@@ -4625,102 +4708,15 @@ export const OperatorConsole: React.FC = () => {
                 return updated;
               });
             }}
-            onOpenOverflowStudioEditor={() => setOverflowStudioModalOpen(true)}
-            onCopyParticipantsStudioToOverflow={() => {
-              setOverflowConfig((prev) => {
-                const updated: OverflowStageConfig = {
-                  ...prev,
-                  layout: 'custom',
-                  studioBackground: participantStageConfig.studioBackground,
-                  studioPresentationBox: participantStageConfig.studioPresentationBox
-                    ? { ...participantStageConfig.studioPresentationBox }
-                    : undefined,
-                  studioParticipantBox: participantStageConfig.studioParticipantBox
-                    ? { ...participantStageConfig.studioParticipantBox }
-                    : undefined,
-                  studioElements: participantStageConfig.studioElements
-                    ? participantStageConfig.studioElements.map((el) => ({ ...el }))
-                    : undefined
-                };
-                try {
-                  localStorage.setItem(
-                    'uecfi_overflow_layout_v1',
-                    JSON.stringify({ ...updated, enabled: false })
-                  );
-                } catch {
-                  // Ignore storage quota errors
-                }
-                return updated;
-              });
-            }}
-            displays={displays}
-            remoteInfo={remoteInfo}
-            overflowScreenOpen={overflowScreenOpen}
-            onSelectOverflowDisplay={async (displayId) => {
-              await window.presenterAPI?.openOverflowScreen(displayId);
-              await refreshDisplaysAndRemote();
-            }}
-            onCloseOverflowScreen={async () => {
-              await window.presenterAPI?.closeOverflowScreen();
-              await refreshDisplaysAndRemote();
-            }}
             onUpdateParticipantInfo={(participantId, info) => {
               setParticipants((prev) =>
                 prev.map((p) => (p.id === participantId ? { ...p, ...info } : p))
               );
             }}
-            onUpdateStageConfig={(next) => {
-              if (next.layout !== undefined) {
-                autoSwitchedMainRef.current = false;
-                if (layoutsLinked) {
-                  autoSwitchedOverflowRef.current = false;
-                  setOverflowConfig((prev) => {
-                    const updated = { ...prev, layout: next.layout! };
-                    try {
-                      localStorage.setItem(
-                        'uecfi_overflow_layout_v1',
-                        JSON.stringify({ ...updated, enabled: false })
-                      );
-                    } catch {
-                      // Ignore storage quota errors
-                    }
-                    return updated;
-                  });
-                }
-              }
-              setParticipantStageConfig((prev) => {
-                const updated = { ...prev, ...next };
-                try {
-                  localStorage.setItem(
-                    'uecfi_studio_layout_v1',
-                    JSON.stringify({ ...updated, liveParticipantIds: undefined })
-                  );
-                } catch {
-                  // Ignore storage quota errors
-                }
-                return updated;
-              });
-            }}
-            onClearAllLive={() => {
-              participantStageConfig.liveParticipantIds.forEach((id) =>
-                handleModerateParticipant(id, 'MOVE_TO_GREEN_ROOM')
-              );
-            }}
-            returnAudioDevices={returnAudioDevices}
             returnFeedConfig={returnFeedConfig}
             returnAudioManualUnmute={returnAudioManualUnmute}
             onToggleReturnAudioManualUnmute={() => setReturnAudioManualUnmute((prev) => !prev)}
-            onUpdateReturnFeedConfig={(next) => {
-              setReturnFeedConfig((prev) => {
-                const updated = { ...prev, ...next };
-                try {
-                  localStorage.setItem('uecfi_return_feed_v1', JSON.stringify(updated));
-                } catch {
-                  // Ignore storage quota errors
-                }
-                return updated;
-              });
-            }}
+            participantSettings={participantSettings}
           />
         </main>
 
@@ -5785,33 +5781,6 @@ export const OperatorConsole: React.FC = () => {
         </aside>
       </div>
 
-      <DisplaySetupModal
-        open={setupModalOpen}
-        onClose={() => setSetupModalOpen(false)}
-        displays={displays}
-        remoteInfo={remoteInfo}
-        participantSettings={participantSettings}
-        onSaveParticipantSettings={(next) => {
-          setParticipantSettings(next);
-          window.presenterAPI?.setSecret('participant_network_settings', JSON.stringify(next));
-        }}
-        onRefreshDisplays={refreshDisplaysAndRemote}
-        onRegenerateRemotePin={async () => {
-          const updated = await window.presenterAPI?.regenerateRemotePin();
-          if (updated) {
-            setRemoteInfo(updated);
-          }
-        }}
-        onSelectMainDisplay={async (displayId) => {
-          await window.presenterAPI?.openMainScreen(displayId);
-          await refreshDisplaysAndRemote();
-        }}
-        onSelectOverflowDisplay={async (displayId) => {
-          await window.presenterAPI?.openOverflowScreen(displayId);
-          await refreshDisplaysAndRemote();
-        }}
-      />
-
       {chatOpen && (
         <div
           className={cn(
@@ -5851,7 +5820,7 @@ export const OperatorConsole: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setChatMinimized((m) => !m)}
-                className="rounded-md p-1 text-text-secondary transition-colors hover:bg-hover hover:text-text-primary"
+                className="rounded-md border-0 bg-transparent p-1 text-text-secondary transition-colors hover:bg-hover hover:text-text-primary"
                 title={chatMinimized ? 'Expand chat' : 'Minimize chat'}
                 aria-label={chatMinimized ? 'Expand chat' : 'Minimize chat'}
               >
@@ -5866,7 +5835,7 @@ export const OperatorConsole: React.FC = () => {
                   setChatOpen(false);
                   setChatMinimized(false);
                 }}
-                className="rounded-md p-1 text-text-secondary transition-colors hover:bg-hover hover:text-text-primary"
+                className="rounded-md border-0 bg-transparent p-1 text-text-secondary transition-colors hover:bg-hover hover:text-text-primary"
                 title="Close chat"
                 aria-label="Close chat"
               >
@@ -5945,7 +5914,7 @@ export const OperatorConsole: React.FC = () => {
                 <button
                   type="submit"
                   disabled={!chatDraft.trim()}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white transition-colors hover:bg-blue-500 disabled:opacity-40"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border-0 bg-blue-600 text-white transition-colors hover:bg-blue-500 disabled:opacity-40"
                   title="Send"
                   aria-label="Send"
                 >
@@ -6116,14 +6085,6 @@ export const OperatorConsole: React.FC = () => {
             return updated;
           });
         }}
-      />
-
-      <ItemEditorModal
-        open={editorOpen}
-        initialItem={editingItem}
-        defaultType={editorDefaultType}
-        onClose={() => setEditorOpen(false)}
-        onSave={handleSaveEditorItem}
       />
 
       <SlideBuilderModal
