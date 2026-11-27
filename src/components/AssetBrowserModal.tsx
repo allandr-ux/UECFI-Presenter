@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { Check, Image as ImageIcon, KeyRound, Loader2, Search, Sparkles, X } from 'lucide-react';
 import { ANIMATED_STICKERS, type AnimatedStickerPreset } from '../utils/animatedStickers';
+import { cn } from '../utils/cn';
 
 /**
  * Helper to turn a raw SVG template (with `currentColor` or fill attributes)
@@ -405,84 +406,57 @@ export const AssetBrowserModal: React.FC<AssetBrowserModalProps> = ({
     <dialog
       ref={dialogRef}
       aria-labelledby={titleId}
-      style={{
-        maxWidth: '860px',
-        width: 'min(94vw, 860px)',
-        height: 'min(84vh, 680px)',
-        padding: 0
-      }}
+      className="h-[min(84vh,680px)] w-[min(94vw,860px)] max-w-[860px] p-0"
       onClose={(e) => {
         e.stopPropagation();
         if (dialogRef.current) dialogRef.current.returnValue = '';
         onClose();
       }}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div className="flex h-full flex-col">
         {/* Header */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '12px 16px',
-            borderBottom: '1px solid var(--border-subtle)',
-            background: 'var(--bg-panel-elevated)',
-            gap: '12px'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="flex items-center justify-between gap-3 border-b border-subtle bg-panel-elevated px-4 py-3">
+          <div className="flex items-center gap-2">
             <Sparkles size={16} color="#a78bfa" />
-            <h2 id={titleId} style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700 }}>
+            <h2 id={titleId} className="m-0 text-[0.98rem] font-bold">
               Icons, Shapes &amp; Stock Graphics
             </h2>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => setActiveTab('icons')}
-              style={{
-                padding: '6px 12px',
-                borderRadius: '8px',
-                border: '1px solid var(--border-subtle)',
-                background: activeTab === 'icons' ? '#7c3aed' : 'transparent',
-                color: activeTab === 'icons' ? '#fff' : 'var(--text-secondary)',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
+              className={cn(
+                'cursor-pointer rounded-lg border border-subtle px-3 py-1.5 text-[0.78rem] font-semibold transition-colors',
+                activeTab === 'icons'
+                  ? 'bg-violet-600 text-white'
+                  : 'bg-transparent text-text-secondary hover:bg-hover'
+              )}
             >
               Icons &amp; Shapes
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('animated')}
-              style={{
-                padding: '6px 12px',
-                borderRadius: '8px',
-                border: '1px solid var(--border-subtle)',
-                background: activeTab === 'animated' ? '#059669' : 'transparent',
-                color: activeTab === 'animated' ? '#fff' : 'var(--text-secondary)',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
+              className={cn(
+                'cursor-pointer rounded-lg border border-subtle px-3 py-1.5 text-[0.78rem] font-semibold transition-colors',
+                activeTab === 'animated'
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-transparent text-text-secondary hover:bg-hover'
+              )}
             >
               Animated Stickers
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('stock')}
-              style={{
-                padding: '6px 12px',
-                borderRadius: '8px',
-                border: '1px solid var(--border-subtle)',
-                background: activeTab === 'stock' ? '#2563eb' : 'transparent',
-                color: activeTab === 'stock' ? '#fff' : 'var(--text-secondary)',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
+              className={cn(
+                'cursor-pointer rounded-lg border border-subtle px-3 py-1.5 text-[0.78rem] font-semibold transition-colors',
+                activeTab === 'stock'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-transparent text-text-secondary hover:bg-hover'
+              )}
             >
               Stock Photos &amp; Vectors
             </button>
@@ -490,15 +464,7 @@ export const AssetBrowserModal: React.FC<AssetBrowserModalProps> = ({
               type="button"
               onClick={onClose}
               aria-label="Close"
-              style={{
-                background: 'transparent',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '8px',
-                padding: '6px',
-                color: 'var(--text-primary)',
-                display: 'inline-flex',
-                cursor: 'pointer'
-              }}
+              className="inline-flex cursor-pointer rounded-lg border border-subtle bg-transparent p-1.5 text-text-primary transition-colors hover:bg-hover"
             >
               <X size={15} />
             </button>
@@ -507,15 +473,15 @@ export const AssetBrowserModal: React.FC<AssetBrowserModalProps> = ({
 
         {/* TAB 1: ICONIFY (FREE, ZERO API KEY) */}
         {activeTab === 'icons' && (
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '14px 16px', gap: '12px' }}>
+          <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 py-3.5">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 void searchIcons(iconQuery);
               }}
-              style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}
+              className="flex flex-wrap items-center gap-2"
             >
-              <div style={{ flex: 1, minWidth: '200px', position: 'relative', display: 'flex' }}>
+              <div className="relative flex min-w-[200px] flex-1">
                 <input
                   type="text"
                   value={iconQuery}
@@ -525,65 +491,29 @@ export const AssetBrowserModal: React.FC<AssetBrowserModalProps> = ({
                     void searchIcons(next);
                   }}
                   placeholder="Search 9,000+ offline vector icons & shapes (e.g. church, cross, music)..."
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.84rem'
-                  }}
+                  className="w-full rounded-lg border border-subtle bg-app px-3 py-2 text-[0.84rem] text-text-primary focus:border-accent focus:outline-none"
                 />
               </div>
-              <label
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  fontSize: '0.76rem',
-                  color: 'var(--text-secondary)'
-                }}
-              >
+              <label className="inline-flex items-center gap-1.5 text-[0.76rem] text-text-secondary">
                 Color
                 <input
                   type="color"
                   value={iconColor}
                   onChange={(e) => setIconColor(e.target.value)}
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    padding: 0,
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: '6px',
-                    background: 'transparent',
-                    cursor: 'pointer'
-                  }}
+                  className="h-7 w-7 cursor-pointer rounded-md border border-subtle bg-transparent p-0"
                 />
               </label>
               <button
                 type="submit"
                 disabled={iconLoading}
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: '#7c3aed',
-                  color: '#fff',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  cursor: 'pointer'
-                }}
+                className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border-0 bg-violet-600 px-3.5 py-2 text-[0.8rem] font-semibold text-white transition-colors hover:bg-violet-500 disabled:opacity-50"
               >
                 <Search size={14} /> Search
               </button>
             </form>
 
             {/* Quick Category Chips */}
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            <div className="flex flex-wrap gap-1.5">
               {ICON_QUICK_CHIPS.map((chip) => (
                 <button
                   key={chip}
@@ -592,19 +522,12 @@ export const AssetBrowserModal: React.FC<AssetBrowserModalProps> = ({
                     setIconQuery(chip);
                     void searchIcons(chip);
                   }}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: '999px',
-                    border: '1px solid var(--border-subtle)',
-                    background:
-                      iconQuery.toLowerCase() === chip
-                        ? 'rgba(124, 58, 237, 0.25)'
-                        : 'var(--bg-panel-elevated)',
-                    color: iconQuery.toLowerCase() === chip ? '#ddd6fe' : 'var(--text-secondary)',
-                    fontSize: '0.73rem',
-                    fontWeight: 600,
-                    cursor: 'pointer'
-                  }}
+                  className={cn(
+                    'cursor-pointer rounded-full border border-subtle px-2.5 py-1 text-[0.73rem] font-semibold transition-colors',
+                    iconQuery.toLowerCase() === chip
+                      ? 'bg-violet-600/25 text-violet-200'
+                      : 'bg-panel-elevated text-text-secondary hover:bg-hover'
+                  )}
                 >
                   {chip}
                 </button>
@@ -612,39 +535,20 @@ export const AssetBrowserModal: React.FC<AssetBrowserModalProps> = ({
             </div>
 
             {iconError && (
-              <div
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: '8px',
-                  background: 'rgba(220, 38, 38, 0.14)',
-                  border: '1px solid rgba(239, 68, 68, 0.35)',
-                  color: '#fca5a5',
-                  fontSize: '0.78rem'
-                }}
-              >
+              <div className="rounded-lg border border-red-500/35 bg-red-600/14 px-3 py-2 text-[0.78rem] text-red-300">
                 {iconError}
               </div>
             )}
 
             {/* Icon Results Grid */}
-            <div
-              style={{
-                flex: 1,
-                minHeight: 0,
-                overflowY: 'auto',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(92px, 1fr))',
-                gap: '8px',
-                alignContent: 'start'
-              }}
-            >
+            <div className="grid min-h-0 flex-1 grid-cols-[repeat(auto-fill,minmax(92px,1fr))] content-start gap-2 overflow-y-auto">
               {iconLoading ? (
-                <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                  <Loader2 size={22} style={{ marginBottom: '6px' }} />
-                  <div style={{ fontSize: '0.82rem' }}>Searching Iconify...</div>
+                <div className="col-span-full p-10 text-center text-text-muted">
+                  <Loader2 size={22} className="mx-auto mb-1.5 animate-spin" />
+                  <div className="text-[0.82rem]">Searching Iconify...</div>
                 </div>
               ) : iconResults.length === 0 ? (
-                <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                <div className="col-span-full p-10 text-center text-[0.82rem] text-text-muted">
                   No icons found. Try another keyword like &ldquo;cross&rdquo;, &ldquo;music&rdquo;, or &ldquo;star&rdquo;.
                 </div>
               ) : (
@@ -656,34 +560,14 @@ export const AssetBrowserModal: React.FC<AssetBrowserModalProps> = ({
                       type="button"
                       onClick={() => handleSelectIcon(item)}
                       title={`Insert ${item.id}`}
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        padding: '12px 6px',
-                        borderRadius: '10px',
-                        border: '1px solid var(--border-subtle)',
-                        background: 'var(--bg-panel-elevated)',
-                        color: 'var(--text-secondary)',
-                        cursor: 'pointer'
-                      }}
+                      className="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[10px] border border-subtle bg-panel-elevated px-1.5 py-3 text-text-secondary transition-colors hover:border-accent/60 hover:bg-hover"
                     >
                       <img
                         src={previewUrl}
                         alt={item.name}
-                        style={{ width: '36px', height: '36px', objectFit: 'contain' }}
+                        className="h-9 w-9 object-contain"
                       />
-                      <span
-                        style={{
-                          fontSize: '0.66rem',
-                          maxWidth: '100%',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap'
-                        }}
-                      >
+                      <span className="max-w-full truncate text-[0.66rem]">
                         {item.name}
                       </span>
                     </button>
@@ -691,7 +575,7 @@ export const AssetBrowserModal: React.FC<AssetBrowserModalProps> = ({
                 })
               )}
             </div>
-            <div style={{ fontSize: '0.71rem', color: 'var(--text-muted)', textAlign: 'right' }}>
+            <div className="text-right text-[0.71rem] text-text-muted">
               9,000+ bundled offline icons (Lucide + Material Design) — zero rate limits, works offline &amp; recolorable.
             </div>
           </div>
@@ -699,9 +583,9 @@ export const AssetBrowserModal: React.FC<AssetBrowserModalProps> = ({
 
         {/* TAB 2: CURATED ANIMATED VECTOR STICKERS (100% OFFLINE, RECOLORABLE, ZERO MEMES) */}
         {activeTab === 'animated' && (
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '14px 16px', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 py-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
+              <div className="flex flex-wrap gap-1.5">
                 {(
                   [
                     { id: 'all', label: 'All' },
@@ -714,43 +598,31 @@ export const AssetBrowserModal: React.FC<AssetBrowserModalProps> = ({
                     key={cat.id}
                     type="button"
                     onClick={() => setAnimatedCategory(cat.id)}
-                    style={{
-                      padding: '5px 12px',
-                      borderRadius: '999px',
-                      border: '1px solid var(--border-subtle)',
-                      background:
-                        animatedCategory === cat.id
-                          ? 'rgba(5, 150, 105, 0.25)'
-                          : 'var(--bg-panel-elevated)',
-                      color: animatedCategory === cat.id ? '#6ee7b7' : 'var(--text-secondary)',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      cursor: 'pointer'
-                    }}
+                    className={cn(
+                      'cursor-pointer rounded-full border border-subtle px-3 py-[5px] text-[0.75rem] font-semibold transition-colors',
+                      animatedCategory === cat.id
+                        ? 'bg-emerald-600/25 text-emerald-300'
+                        : 'bg-panel-elevated text-text-secondary hover:bg-hover'
+                    )}
                   >
                     {cat.label}
                   </button>
                 ))}
               </div>
 
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <div className="inline-flex items-center gap-1.5">
                 {['#fde047', '#ffffff', '#93c5fd', '#6ee7b7', '#f9a8d4', '#f87171'].map((swatch) => (
                   <button
                     key={swatch}
                     type="button"
                     onClick={() => setAnimatedColor(swatch)}
-                    style={{
-                      width: '18px',
-                      height: '18px',
-                      borderRadius: '999px',
-                      background: swatch,
-                      border:
-                        animatedColor.toLowerCase() === swatch
-                          ? '2px solid var(--accent)'
-                          : '1px solid rgba(255,255,255,0.3)',
-                      padding: 0,
-                      cursor: 'pointer'
-                    }}
+                    className={cn(
+                      'h-[18px] w-[18px] cursor-pointer rounded-full p-0',
+                      animatedColor.toLowerCase() === swatch
+                        ? 'border-2 border-accent'
+                        : 'border border-white/30'
+                    )}
+                    style={{ background: swatch }}
                   />
                 ))}
                 <input
@@ -758,31 +630,12 @@ export const AssetBrowserModal: React.FC<AssetBrowserModalProps> = ({
                   aria-label="Animated sticker color"
                   value={animatedColor}
                   onChange={(e) => setAnimatedColor(e.target.value)}
-                  style={{
-                    width: '28px',
-                    height: '24px',
-                    padding: 0,
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: '6px',
-                    background: 'transparent',
-                    cursor: 'pointer'
-                  }}
+                  className="h-6 w-7 cursor-pointer rounded-md border border-subtle bg-transparent p-0"
                 />
               </div>
             </div>
 
-            <div
-              style={{
-                flex: 1,
-                minHeight: 0,
-                overflowY: 'auto',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(145px, 1fr))',
-                gridAutoRows: 'max-content',
-                gap: '10px',
-                alignContent: 'start'
-              }}
-            >
+            <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-[repeat(auto-fill,minmax(145px,1fr))] content-start gap-2.5 overflow-y-auto">
               {ANIMATED_STICKERS.filter(
                 (st: AnimatedStickerPreset) =>
                   animatedCategory === 'all' || st.category === animatedCategory
@@ -802,43 +655,23 @@ export const AssetBrowserModal: React.FC<AssetBrowserModalProps> = ({
                       });
                       onClose();
                     }}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      padding: '14px 10px',
-                      borderRadius: '12px',
-                      border: '1px solid var(--border-subtle)',
-                      background: 'var(--bg-panel-elevated)',
-                      color: 'var(--text-primary)',
-                      cursor: 'pointer'
-                    }}
+                    className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-subtle bg-panel-elevated px-2.5 py-3.5 text-text-primary transition-colors hover:border-accent/60 hover:bg-hover"
                   >
-                    <div
-                      style={{
-                        width: '100%',
-                        height: '68px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
+                    <div className="flex h-[68px] w-full items-center justify-center">
                       <img
                         src={previewUrl}
                         alt={sticker.name}
-                        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                        className="max-h-full max-w-full object-contain"
                       />
                     </div>
-                    <span style={{ fontSize: '0.73rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                    <span className="text-[0.73rem] font-semibold text-text-secondary">
                       {sticker.name}
                     </span>
                   </button>
                 );
               })}
             </div>
-            <div style={{ fontSize: '0.71rem', color: 'var(--text-muted)', textAlign: 'right' }}>
+            <div className="text-right text-[0.71rem] text-text-muted">
               100% offline animated vector stickers — recolorable anytime in Canvas.
             </div>
           </div>
@@ -846,67 +679,37 @@ export const AssetBrowserModal: React.FC<AssetBrowserModalProps> = ({
 
         {/* TAB 2: PIXABAY (FREE STOCK PHOTOS, ILLUSTRATIONS, VECTORS) */}
         {activeTab === 'stock' && (
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '14px 16px', gap: '12px' }}>
+          <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 py-3.5">
             {(!pixabayKey || showKeyInput) && (
-              <div
-                style={{
-                  padding: '12px',
-                  borderRadius: '10px',
-                  background: 'var(--bg-panel-elevated)',
-                  border: '1px solid var(--border-subtle)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <div className="flex flex-col gap-2 rounded-[10px] border border-subtle bg-panel-elevated p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1.5 text-[0.8rem] font-bold">
                     <KeyRound size={14} color="#60a5fa" /> Pixabay Free API Key
                   </span>
-                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                  <span className="text-[0.74rem] text-text-muted">
                     Free key:{' '}
                     <a
                       href="https://pixabay.com/api/docs/"
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ color: '#93c5fd', fontWeight: 700, textDecoration: 'underline' }}
+                      className="font-bold text-blue-300 underline"
                     >
                       pixabay.com/api/docs
                     </a>
                   </span>
                 </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div className="flex gap-2">
                   <input
                     type="password"
                     value={pixabayKeyDraft}
                     onChange={(e) => setPixabayKeyDraft(e.target.value)}
                     placeholder="Paste your free Pixabay API key..."
-                    style={{
-                      flex: 1,
-                      padding: '7px 10px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border-subtle)',
-                      background: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.82rem'
-                    }}
+                    className="flex-1 rounded-lg border border-subtle bg-app px-2.5 py-[7px] text-[0.82rem] text-text-primary focus:border-accent focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => void handleSavePixabayKey()}
-                    style={{
-                      padding: '7px 14px',
-                      borderRadius: '8px',
-                      border: 'none',
-                      background: '#2563eb',
-                      color: '#fff',
-                      fontSize: '0.8rem',
-                      fontWeight: 600,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      cursor: 'pointer'
-                    }}
+                    className="inline-flex cursor-pointer items-center gap-[5px] rounded-lg border-0 bg-blue-600 px-3.5 py-[7px] text-[0.8rem] font-semibold text-white transition-colors hover:bg-blue-500"
                   >
                     <Check size={14} /> Save Key
                   </button>
@@ -921,23 +724,14 @@ export const AssetBrowserModal: React.FC<AssetBrowserModalProps> = ({
                     e.preventDefault();
                     void searchStock(stockQuery, stockType);
                   }}
-                  style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}
+                  className="flex flex-wrap items-center gap-2"
                 >
                   <input
                     type="text"
                     value={stockQuery}
                     onChange={(e) => setStockQuery(e.target.value)}
                     placeholder="Search free photos, illustrations, & vectors..."
-                    style={{
-                      flex: 1,
-                      minWidth: '180px',
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border-subtle)',
-                      background: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.84rem'
-                    }}
+                    className="min-w-[180px] flex-1 rounded-lg border border-subtle bg-app px-3 py-2 text-[0.84rem] text-text-primary focus:border-accent focus:outline-none"
                   />
                   <select
                     value={stockType}
@@ -946,14 +740,7 @@ export const AssetBrowserModal: React.FC<AssetBrowserModalProps> = ({
                       setStockType(next);
                       void searchStock(stockQuery, next);
                     }}
-                    style={{
-                      padding: '8px 10px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border-subtle)',
-                      background: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.8rem'
-                    }}
+                    className="rounded-lg border border-subtle bg-app px-2.5 py-2 text-[0.8rem] text-text-primary focus:border-accent focus:outline-none"
                   >
                     <option value="all">All Types</option>
                     <option value="photo">Photos</option>
@@ -963,19 +750,7 @@ export const AssetBrowserModal: React.FC<AssetBrowserModalProps> = ({
                   <button
                     type="submit"
                     disabled={stockLoading}
-                    style={{
-                      padding: '8px 14px',
-                      borderRadius: '8px',
-                      border: 'none',
-                      background: '#2563eb',
-                      color: '#fff',
-                      fontSize: '0.8rem',
-                      fontWeight: 600,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      cursor: 'pointer'
-                    }}
+                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border-0 bg-blue-600 px-3.5 py-2 text-[0.8rem] font-semibold text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
                   >
                     <Search size={14} /> Search
                   </button>
@@ -983,24 +758,13 @@ export const AssetBrowserModal: React.FC<AssetBrowserModalProps> = ({
                     type="button"
                     onClick={() => setShowKeyInput((v) => !v)}
                     title="Change Pixabay API Key"
-                    style={{
-                      padding: '8px 10px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border-subtle)',
-                      background: 'transparent',
-                      color: 'var(--text-secondary)',
-                      fontSize: '0.76rem',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      cursor: 'pointer'
-                    }}
+                    className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-subtle bg-transparent px-2.5 py-2 text-[0.76rem] text-text-secondary transition-colors hover:bg-hover"
                   >
                     <KeyRound size={13} /> Key
                   </button>
                 </form>
 
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                <div className="flex flex-wrap gap-1.5">
                   {PIXABAY_QUICK_CHIPS.map((chip) => (
                     <button
                       key={chip}
@@ -1009,19 +773,12 @@ export const AssetBrowserModal: React.FC<AssetBrowserModalProps> = ({
                         setStockQuery(chip);
                         void searchStock(chip, stockType);
                       }}
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: '999px',
-                        border: '1px solid var(--border-subtle)',
-                        background:
-                          stockQuery.toLowerCase() === chip
-                            ? 'rgba(37, 99, 235, 0.25)'
-                            : 'var(--bg-panel-elevated)',
-                        color: stockQuery.toLowerCase() === chip ? '#93c5fd' : 'var(--text-secondary)',
-                        fontSize: '0.73rem',
-                        fontWeight: 600,
-                        cursor: 'pointer'
-                      }}
+                      className={cn(
+                        'cursor-pointer rounded-full border border-subtle px-2.5 py-1 text-[0.73rem] font-semibold transition-colors',
+                        stockQuery.toLowerCase() === chip
+                          ? 'bg-blue-600/25 text-blue-300'
+                          : 'bg-panel-elevated text-text-secondary hover:bg-hover'
+                      )}
                     >
                       {chip}
                     </button>
@@ -1031,16 +788,7 @@ export const AssetBrowserModal: React.FC<AssetBrowserModalProps> = ({
             )}
 
             {stockError && (
-              <div
-                style={{
-                  padding: '8px 12px',
-                  borderRadius: '8px',
-                  background: 'rgba(220, 38, 38, 0.14)',
-                  border: '1px solid rgba(239, 68, 68, 0.35)',
-                  color: '#fca5a5',
-                  fontSize: '0.78rem'
-                }}
-              >
+              <div className="rounded-lg border border-red-500/35 bg-red-600/14 px-3 py-2 text-[0.78rem] text-red-300">
                 {stockError}
               </div>
             )}
@@ -1059,28 +807,19 @@ export const AssetBrowserModal: React.FC<AssetBrowserModalProps> = ({
                   void searchStock(stockQuery, stockType, undefined, stockPage + 1);
                 }
               }}
-              style={{
-                flex: 1,
-                minHeight: 0,
-                overflowY: 'auto',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(185px, 1fr))',
-                gridAutoRows: 'max-content',
-                gap: '10px',
-                alignContent: 'start'
-              }}
+              className="grid min-h-0 flex-1 auto-rows-max grid-cols-[repeat(auto-fill,minmax(185px,1fr))] content-start gap-2.5 overflow-y-auto"
             >
               {stockLoading ? (
-                <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                  <Loader2 size={22} style={{ marginBottom: '6px' }} />
-                  <div style={{ fontSize: '0.82rem' }}>Searching Pixabay...</div>
+                <div className="col-span-full p-10 text-center text-text-muted">
+                  <Loader2 size={22} className="mx-auto mb-1.5 animate-spin" />
+                  <div className="text-[0.82rem]">Searching Pixabay...</div>
                 </div>
               ) : !pixabayKey ? (
-                <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '32px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                <div className="col-span-full p-8 text-center text-[0.82rem] text-text-muted">
                   Enter your free Pixabay API key above to search royalty-free photos, worship backgrounds, illustrations, and vectors.
                 </div>
               ) : stockResults.length === 0 ? (
-                <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                <div className="col-span-full p-10 text-center text-[0.82rem] text-text-muted">
                   No results found. Try another keyword.
                 </div>
               ) : (
@@ -1089,47 +828,22 @@ export const AssetBrowserModal: React.FC<AssetBrowserModalProps> = ({
                   return (
                     <div
                       key={hit.id}
-                      style={{
-                        borderRadius: '10px',
-                        overflow: 'hidden',
-                        border: '1px solid var(--border-subtle)',
-                        background: 'var(--bg-panel-elevated)',
-                        display: 'flex',
-                        flexDirection: 'column'
-                      }}
+                      className="flex flex-col overflow-hidden rounded-[10px] border border-subtle bg-panel-elevated"
                     >
-                      <div
-                        style={{
-                          width: '100%',
-                          height: '118px',
-                          flexShrink: 0,
-                          background: '#020617',
-                          overflow: 'hidden'
-                        }}
-                      >
+                      <div className="h-[118px] w-full shrink-0 overflow-hidden bg-slate-950">
                         <img
                           src={hit.webformatURL || hit.previewURL}
                           alt={hit.tags}
                           loading="lazy"
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          className="h-full w-full object-cover"
                         />
                       </div>
-                      <div style={{ display: 'flex', gap: '4px', padding: '6px' }}>
+                      <div className="flex gap-1 p-1.5">
                         <button
                           type="button"
                           disabled={Boolean(downloadingHitId)}
                           onClick={() => void handleUseStockImage(hit, 'layer')}
-                          style={{
-                            flex: 1,
-                            padding: '5px 6px',
-                            borderRadius: '6px',
-                            border: 'none',
-                            background: '#2563eb',
-                            color: '#fff',
-                            fontSize: '0.71rem',
-                            fontWeight: 600,
-                            cursor: 'pointer'
-                          }}
+                          className="flex-1 cursor-pointer rounded-md border-0 bg-blue-600 px-1.5 py-[5px] text-[0.71rem] font-semibold text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
                         >
                           {isBusy ? 'Saving...' : '+ Layer'}
                         </button>
@@ -1137,21 +851,7 @@ export const AssetBrowserModal: React.FC<AssetBrowserModalProps> = ({
                           type="button"
                           disabled={Boolean(downloadingHitId)}
                           onClick={() => void handleUseStockImage(hit, 'background')}
-                          style={{
-                            flex: 1,
-                            padding: '5px 6px',
-                            borderRadius: '6px',
-                            border: '1px solid var(--border-subtle)',
-                            background: 'transparent',
-                            color: 'var(--text-primary)',
-                            fontSize: '0.71rem',
-                            fontWeight: 600,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '3px',
-                            cursor: 'pointer'
-                          }}
+                          className="inline-flex flex-1 cursor-pointer items-center justify-center gap-[3px] rounded-md border border-subtle bg-transparent px-1.5 py-[5px] text-[0.71rem] font-semibold text-text-primary transition-colors hover:bg-hover disabled:opacity-50"
                         >
                           <ImageIcon size={11} /> Set BG
                         </button>
@@ -1161,24 +861,12 @@ export const AssetBrowserModal: React.FC<AssetBrowserModalProps> = ({
                 })
               )}
               {stockLoadingMore && (
-                <div
-                  style={{
-                    gridColumn: '1 / -1',
-                    textAlign: 'center',
-                    padding: '14px',
-                    color: 'var(--text-muted)',
-                    fontSize: '0.78rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px'
-                  }}
-                >
-                  <Loader2 size={15} /> Loading more results...
+                <div className="col-span-full flex items-center justify-center gap-1.5 p-3.5 text-center text-[0.78rem] text-text-muted">
+                  <Loader2 size={15} className="animate-spin" /> Loading more results...
                 </div>
               )}
             </div>
-            <div style={{ fontSize: '0.71rem', color: 'var(--text-muted)', textAlign: 'right' }}>
+            <div className="text-right text-[0.71rem] text-text-muted">
               Images are automatically cached locally so your slides work 100% offline.
             </div>
           </div>

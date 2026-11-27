@@ -5,6 +5,7 @@ import { useTerminology } from '../hooks/useTerminology';
 import { formatTimestamp, parseLrcToBlocks, parseTimestamp } from '../utils/timedLyrics';
 import { readTextFileWithEncoding } from '../utils/textEncoding';
 import { saveUserMediaFile } from '../utils/mediaUpload';
+import { cn } from '../utils/cn';
 import { BackgroundImagePicker } from './BackgroundImagePicker';
 import { LyricsSyncModal } from './LyricsSyncModal';
 
@@ -279,36 +280,30 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
     <dialog
       ref={dialogRef}
       aria-labelledby={titleId}
-      style={{ maxWidth: '760px', width: 'min(94vw, 760px)' }}
+      className="w-[min(94vw,760px)] max-w-[760px]"
       onClose={() => {
         if (dialogRef.current) dialogRef.current.returnValue = '';
         onClose();
       }}
     >
-      <form onSubmit={handleSubmit} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '88vh' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 id={titleId} style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>
+      <form onSubmit={handleSubmit} className="flex max-h-[88vh] flex-col gap-4 px-6 py-5">
+        <div className="flex items-center justify-between">
+          <h2 id={titleId} className="m-0 text-[1.1rem] font-bold">
             {initialItem ? `${t.editor.edit}: ${initialItem.title}` : t.contentTypes[type]}
           </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label={t.editor.cancel}
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '8px',
-              padding: '6px',
-              display: 'inline-flex'
-            }}
+            className="inline-flex rounded-lg border border-subtle bg-transparent p-1.5 transition-colors hover:bg-hover"
           >
             <X size={16} />
           </button>
         </div>
 
         {/* Metadata row */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '10px' }}>
-          <label style={fieldLabelStyle}>
+        <div className="grid grid-cols-[1.5fr_1fr] gap-2.5">
+          <label className={FIELD_LABEL_CLS}>
             <span>{t.editor.title}</span>
             <input
               type="text"
@@ -316,39 +311,39 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Amazing Grace"
-              style={inputStyle}
+              className={INPUT_CLS}
               autoFocus
             />
           </label>
-          <label style={fieldLabelStyle}>
+          <label className={FIELD_LABEL_CLS}>
             <span>{t.editor.subtitle}</span>
             <input
               type="text"
               value={subtitle}
               onChange={(e) => setSubtitle(e.target.value)}
               placeholder="e.g. Hymn / Worship"
-              style={inputStyle}
+              className={INPUT_CLS}
             />
           </label>
         </div>
 
         {/* Song Lyrics Mode + Background Theme */}
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div className="flex flex-wrap items-end gap-3">
           {type === 'song' && (
-            <div style={fieldLabelStyle}>
+            <div className={FIELD_LABEL_CLS}>
               <span>Lyrics Display</span>
-              <div style={{ display: 'flex', gap: '6px' }}>
+              <div className="flex gap-1.5">
                 <button
                   type="button"
                   onClick={() => setLyricsMode('slide')}
-                  style={pillBtnStyle(lyricsMode === 'slide')}
+                  className={pillBtnCls(lyricsMode === 'slide')}
                 >
                   {t.lyricsModes.slideMode}
                 </button>
                 <button
                   type="button"
                   onClick={() => setLyricsMode('timed')}
-                  style={pillBtnStyle(lyricsMode === 'timed')}
+                  className={pillBtnCls(lyricsMode === 'timed')}
                 >
                   {t.lyricsModes.timedMode}
                 </button>
@@ -357,27 +352,27 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
           )}
 
           {type === 'song' && lyricsMode === 'timed' && (
-            <div style={{ ...fieldLabelStyle, flex: 1 }}>
+            <div className={cn(FIELD_LABEL_CLS, 'flex-1')}>
               <span>Audio Track &amp; Sync</span>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div className="flex flex-wrap items-center gap-1.5">
                 <input
                   ref={audioFileRef}
                   type="file"
                   accept="audio/*,.mp3,.wav,.m4a,.ogg,.aac"
                   onChange={handleAudioUpload}
-                  style={{ display: 'none' }}
+                  className="hidden"
                 />
                 <input
                   ref={lrcFileRef}
                   type="file"
                   accept=".lrc,text/plain"
                   onChange={handleLrcImport}
-                  style={{ display: 'none' }}
+                  className="hidden"
                 />
                 <button
                   type="button"
                   onClick={() => audioFileRef.current?.click()}
-                  style={pillBtnStyle(Boolean(audioUrl))}
+                  className={pillBtnCls(Boolean(audioUrl))}
                 >
                   <Music size={12} />
                   {audioFileName ? audioFileName : 'Upload Audio'}
@@ -389,7 +384,7 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
                       setAudioUrl(undefined);
                       setAudioFileName(undefined);
                     }}
-                    style={pillBtnStyle(false)}
+                    className={pillBtnCls(false)}
                   >
                     Remove Audio
                   </button>
@@ -397,7 +392,7 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
                 <button
                   type="button"
                   onClick={() => lrcFileRef.current?.click()}
-                  style={pillBtnStyle(false)}
+                  className={pillBtnCls(false)}
                   title="Import timestamped .lrc lyrics"
                 >
                   <Upload size={12} />
@@ -406,12 +401,10 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setSyncModalOpen(true)}
-                  style={{
-                    ...pillBtnStyle(false),
-                    borderColor: 'rgba(168, 85, 247, 0.55)',
-                    background: 'rgba(147, 51, 234, 0.16)',
-                    color: '#d8b4fe'
-                  }}
+                  className={cn(
+                    pillBtnCls(false),
+                    'border-purple-500/55 bg-purple-600/16 text-purple-300 hover:bg-purple-600/24'
+                  )}
                   title="Open interactive line-by-line sync studio"
                 >
                   <Clock size={12} />
@@ -421,22 +414,22 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
             </div>
           )}
 
-          <div style={{ ...fieldLabelStyle, flex: 1 }}>
+          <div className={cn(FIELD_LABEL_CLS, 'flex-1')}>
             <span>{t.editor.theme}</span>
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div className="flex flex-wrap items-center gap-1.5">
               {THEME_PRESETS.map((preset) => (
                 <button
                   key={preset.name}
                   type="button"
                   title={preset.name}
                   onClick={() => setThemeBackground(preset.value)}
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '6px',
-                    background: preset.value,
-                    border: themeBackground === preset.value ? '2px solid #60a5fa' : '1px solid var(--border-subtle)'
-                  }}
+                  className={cn(
+                    'h-7 w-7 rounded-md',
+                    themeBackground === preset.value
+                      ? 'border-2 border-blue-400'
+                      : 'border border-subtle'
+                  )}
+                  style={{ background: preset.value }}
                 />
               ))}
               <BackgroundImagePicker
@@ -449,20 +442,14 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
 
         {/* Section Presets for Songs */}
         {type === 'song' && (
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Quick Add:</span>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[0.75rem] text-text-secondary">Quick Add:</span>
             {sectionPresets.map((sec) => (
               <button
                 key={sec}
                 type="button"
                 onClick={() => handleAddBlock(sec)}
-                style={{
-                  padding: '4px 9px',
-                  borderRadius: '999px',
-                  border: '1px solid var(--border-subtle)',
-                  background: 'var(--bg-panel-elevated)',
-                  fontSize: '0.74rem'
-                }}
+                className="rounded-full border border-subtle bg-panel-elevated px-[9px] py-1 text-[0.74rem] transition-colors hover:bg-hover"
               >
                 + {sec}
               </button>
@@ -471,31 +458,23 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
         )}
 
         {/* Blocks Editor */}
-        <div style={{ flex: 1, minHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '4px' }}>
+        <div className="flex min-h-[180px] flex-1 flex-col gap-2.5 overflow-y-auto pr-1">
           {blocks.map((block, idx) => (
             <div
               key={block.id}
-              style={{
-                padding: '10px',
-                borderRadius: '10px',
-                background: 'var(--bg-panel-elevated)',
-                border: '1px solid var(--border-subtle)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px'
-              }}
+              className="flex flex-col gap-2 rounded-[10px] border border-subtle bg-panel-elevated p-2.5"
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 flex-1 items-center gap-2">
                   <input
                     type="text"
                     value={block.label ?? ''}
                     onChange={(e) => handleUpdateBlockLabel(idx, e.target.value)}
                     placeholder={t.editor.sectionLabel}
-                    style={{ ...inputStyle, maxWidth: '200px', padding: '5px 8px', fontSize: '0.8rem', fontWeight: 600 }}
+                    className={cn(INPUT_CLS, 'max-w-[200px] px-2 py-[5px] text-[0.8rem] font-semibold')}
                   />
                   {type === 'song' && lyricsMode === 'timed' && (
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.73rem', color: 'var(--text-muted)' }}>
+                    <label className="inline-flex items-center gap-1 text-[0.73rem] text-text-muted">
                       <Clock size={12} />
                       <input
                         type="text"
@@ -504,7 +483,7 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
                         onBlur={(e) => handleUpdateBlockStartTime(idx, e.target.value)}
                         placeholder="0:00"
                         title="Start time (mm:ss or seconds)"
-                        style={{ ...inputStyle, width: '74px', padding: '4px 7px', fontSize: '0.76rem', fontVariantNumeric: 'tabular-nums' }}
+                        className={cn(INPUT_CLS, 'w-[74px] px-[7px] py-1 text-[0.76rem] tabular-nums')}
                       />
                     </label>
                   )}
@@ -514,14 +493,10 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
                   onClick={() => handleRemoveBlock(idx)}
                   disabled={blocks.length <= 1}
                   title={t.editor.delete}
-                  style={{
-                    background: 'transparent',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: '6px',
-                    padding: '5px',
-                    opacity: blocks.length <= 1 ? 0.4 : 1,
-                    display: 'inline-flex'
-                  }}
+                  className={cn(
+                    'inline-flex rounded-md border border-subtle bg-transparent p-[5px] transition-colors hover:bg-hover',
+                    blocks.length <= 1 ? 'opacity-40' : 'opacity-100'
+                  )}
                 >
                   <Trash2 size={13} />
                 </button>
@@ -538,19 +513,11 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
                     ? 'Enter slide text, or paste/type a list (- item or 1. item) to auto-create one slide per item...'
                     : 'Enter lyrics or slide text (one line per row)...'
                 }
-                style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.4 }}
+                className={cn(INPUT_CLS, 'resize-y leading-[1.4]')}
               />
               {type === 'song' && lyricsMode === 'timed' && block.lines.some((l) => l.trim()) && (
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px',
-                    paddingTop: '4px',
-                    borderTop: '1px solid var(--border-subtle)'
-                  }}
-                >
-                  <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                <div className="flex flex-col gap-1 border-t border-subtle pt-1">
+                  <div className="text-[0.7rem] font-semibold text-text-muted">
                     Line Timestamps (mm:ss)
                   </div>
                   {block.lines.map((lineText, lineIdx) => {
@@ -561,24 +528,9 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
                     return (
                       <div
                         key={`${block.id}-lt-${lineIdx}`}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: '8px'
-                        }}
+                        className="flex items-center justify-between gap-2"
                       >
-                        <span
-                          style={{
-                            fontSize: '0.76rem',
-                            color: 'var(--text-secondary)',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            flex: 1,
-                            minWidth: 0
-                          }}
-                        >
+                        <span className="min-w-0 flex-1 truncate text-[0.76rem] text-text-secondary">
                           {lineText}
                         </span>
                         <input
@@ -588,14 +540,10 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
                           onBlur={(e) => handleUpdateLineStartTime(idx, lineIdx, e.target.value)}
                           placeholder="0:00"
                           title="Line start time (mm:ss or seconds)"
-                          style={{
-                            ...inputStyle,
-                            width: '74px',
-                            padding: '3px 7px',
-                            fontSize: '0.74rem',
-                            fontVariantNumeric: 'tabular-nums',
-                            flexShrink: 0
-                          }}
+                          className={cn(
+                            INPUT_CLS,
+                            'w-[74px] shrink-0 px-[7px] py-[3px] text-[0.74rem] tabular-nums'
+                          )}
                         />
                       </div>
                     );
@@ -607,31 +555,23 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-subtle)', paddingTop: '12px' }}>
+        <div className="flex items-center justify-between border-t border-subtle pt-3">
           <button
             type="button"
             onClick={() => handleAddBlock()}
-            style={pillBtnStyle(false)}
+            className={pillBtnCls(false)}
           >
             <Plus size={14} />
             {t.editor.addBlock}
           </button>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button type="button" onClick={onClose} style={pillBtnStyle(false)}>
+          <div className="flex gap-2">
+            <button type="button" onClick={onClose} className={pillBtnCls(false)}>
               {t.editor.cancel}
             </button>
             <button
               type="submit"
-              style={{
-                padding: '8px 18px',
-                borderRadius: '8px',
-                border: 'none',
-                background: 'var(--accent)',
-                color: '#fff',
-                fontWeight: 700,
-                fontSize: '0.85rem'
-              }}
+              className="rounded-lg border-0 bg-accent px-[18px] py-2 text-[0.85rem] font-bold text-white transition-colors hover:bg-accent-hover"
             >
               {t.editor.save}
             </button>
@@ -652,37 +592,16 @@ export const ItemEditorModal: React.FC<ItemEditorModalProps> = ({
   );
 };
 
-const fieldLabelStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '4px',
-  fontSize: '0.76rem',
-  color: 'var(--text-secondary)',
-  fontWeight: 600
-};
+const FIELD_LABEL_CLS = 'flex flex-col gap-1 text-[0.76rem] font-semibold text-text-secondary';
 
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '8px 10px',
-  borderRadius: '8px',
-  border: '1px solid var(--border-subtle)',
-  background: 'var(--bg-app)',
-  color: 'var(--text-primary)',
-  fontSize: '0.85rem',
-  fontFamily: 'inherit'
-};
+const INPUT_CLS =
+  'w-full rounded-lg border border-subtle bg-app px-2.5 py-2 font-[inherit] text-[0.85rem] text-text-primary focus:border-accent focus:outline-none';
 
-function pillBtnStyle(active: boolean): React.CSSProperties {
-  return {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '5px',
-    padding: '6px 12px',
-    borderRadius: '8px',
-    border: '1px solid',
-    borderColor: active ? 'var(--accent)' : 'var(--border-subtle)',
-    background: active ? 'rgba(59,130,246,0.16)' : 'var(--bg-panel-elevated)',
-    fontSize: '0.8rem',
-    fontWeight: 600
-  };
+function pillBtnCls(active: boolean): string {
+  return cn(
+    'inline-flex items-center gap-[5px] rounded-lg border px-3 py-1.5 text-[0.8rem] font-semibold transition-colors',
+    active
+      ? 'border-accent bg-blue-500/16'
+      : 'border-subtle bg-panel-elevated hover:bg-hover'
+  );
 }

@@ -19,6 +19,7 @@ import { ANIMATED_STICKERS, type AnimatedStickerPreset } from '../utils/animated
 import { buildColoredSvgDataUrl } from './AssetBrowserModal';
 import { CanvasFrameGraphic, FRAME_OPTIONS } from './CanvasFrameGraphic';
 import { CanvasShapeGraphic, SHAPE_OPTIONS } from './CanvasShapeGraphic';
+import { cn } from '../utils/cn';
 
 const PIXABAY_SECRET_KEY = 'pixabay_api_key';
 const DEFAULT_PIXABAY_KEY = '58818457-ed1e6684bc4b217d0e6e4d991';
@@ -547,40 +548,28 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
       type="button"
       title={rec.name}
       onClick={() => handleClickRecent(rec)}
-      style={{
-        width: `${size}px`,
-        height: `${size}px`,
-        flexShrink: 0,
-        borderRadius: '10px',
-        border: '1px solid var(--border-subtle)',
-        background: 'var(--bg-panel-elevated)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '6px',
-        overflow: 'hidden',
-        cursor: 'pointer'
-      }}
+      className="flex shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-[10px] border border-subtle bg-panel-elevated p-1.5 transition-colors hover:border-accent/60 hover:bg-hover"
+      style={{ width: `${size}px`, height: `${size}px` }}
     >
       {rec.kind === 'shape' ? (
-        <div style={{ width: '28px', height: '28px' }}>
+        <div className="h-7 w-7">
           <CanvasShapeGraphic shapeType={rec.shapeType} fill="#e2e8f0" />
         </div>
       ) : rec.kind === 'frame' ? (
-        <div style={{ width: '32px', height: '32px' }}>
+        <div className="h-8 w-8">
           <CanvasFrameGraphic frameShape={rec.frameShape} />
         </div>
       ) : rec.kind === 'svg' ? (
         <img
           src={buildColoredSvgDataUrl(rec.svgTemplate, rec.color)}
           alt={rec.name}
-          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+          className="h-full w-full object-contain"
         />
       ) : (
         <img
           src={rec.url}
           alt={rec.name}
-          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '6px' }}
+          className="h-full w-full rounded-md object-cover"
         />
       )}
     </button>
@@ -645,12 +634,12 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
   const isGlobalSearching = searchQuery.trim().length > 0 && activeCategory === null;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '100%', minHeight: 0 }}>
+    <div className="flex h-full min-h-0 flex-col gap-3">
       {/* Top Canva-style Search Bar */}
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+      <div className="relative flex shrink-0 items-center">
         <Search
           size={14}
-          style={{ position: 'absolute', left: '10px', color: 'var(--text-muted)', pointerEvents: 'none' }}
+          className="pointer-events-none absolute left-2.5 text-text-muted"
         />
         <input
           type="text"
@@ -660,29 +649,13 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
             if (e.target.value.trim()) setActiveCategory(null);
           }}
           placeholder="Search elements"
-          style={{
-            width: '100%',
-            padding: '8px 28px 8px 32px',
-            borderRadius: '10px',
-            border: '1px solid var(--border-subtle)',
-            background: 'var(--bg-app)',
-            color: 'var(--text-primary)',
-            fontSize: '0.82rem'
-          }}
+          className="w-full rounded-[10px] border border-subtle bg-app py-2 pr-7 pl-8 text-[0.82rem] text-text-primary focus:border-accent focus:outline-none"
         />
         {searchQuery && (
           <button
             type="button"
             onClick={() => setSearchQuery('')}
-            style={{
-              position: 'absolute',
-              right: '8px',
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted)',
-              padding: '2px',
-              cursor: 'pointer'
-            }}
+            className="absolute right-2 cursor-pointer border-0 bg-transparent p-0.5 text-text-muted hover:text-text-primary"
           >
             <X size={13} />
           </button>
@@ -691,11 +664,11 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
 
       {/* GLOBAL SEARCH RESULTS */}
       {isGlobalSearching && (
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto">
           {/* Graphics matches */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[0.75rem] font-bold text-text-primary">
                 Graphics
               </span>
               <button
@@ -706,17 +679,17 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
                   setActiveCategory('graphics');
                   void runGraphicSearch(searchQuery);
                 }}
-                style={{ background: 'transparent', border: 'none', color: '#93c5fd', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer' }}
+                className="cursor-pointer border-0 bg-transparent text-[0.72rem] font-semibold text-blue-300 hover:underline"
               >
                 See all
               </button>
             </div>
             {graphicLoading ? (
-              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Searching...</div>
+              <div className="text-[0.74rem] text-text-muted">Searching...</div>
             ) : graphicResults.length === 0 ? (
-              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>No matching graphics.</div>
+              <div className="text-[0.74rem] text-text-muted">No matching graphics.</div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+              <div className="grid grid-cols-4 gap-1.5">
                 {graphicResults.slice(0, 12).map((item) => {
                   const displayName = item.name
                     .split('-')
@@ -735,22 +708,12 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
                           color: graphicColor
                         })
                       }
-                      style={{
-                        height: '54px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-subtle)',
-                        background: 'var(--bg-panel-elevated)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: '8px',
-                        cursor: 'pointer'
-                      }}
+                      className="flex h-[54px] cursor-pointer items-center justify-center rounded-lg border border-subtle bg-panel-elevated p-2 transition-colors hover:border-accent/60 hover:bg-hover"
                     >
                       <img
                         src={buildColoredSvgDataUrl(item.svgTemplate, graphicColor)}
                         alt={displayName}
-                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                        className="h-full w-full object-contain"
                       />
                     </button>
                   );
@@ -767,11 +730,11 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
             );
             if (matchedAnims.length === 0) return null;
             return (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[0.75rem] font-bold text-text-primary">
                   Animations
                 </span>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                <div className="grid grid-cols-3 gap-1.5">
                   {matchedAnims.slice(0, 6).map((st) => (
                     <button
                       key={st.id}
@@ -786,22 +749,12 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
                           aspect: st.aspect
                         })
                       }
-                      style={{
-                        height: '62px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-subtle)',
-                        background: 'var(--bg-panel-elevated)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: '8px',
-                        cursor: 'pointer'
-                      }}
+                      className="flex h-[62px] cursor-pointer items-center justify-center rounded-lg border border-subtle bg-panel-elevated p-2 transition-colors hover:border-accent/60 hover:bg-hover"
                     >
                       <img
                         src={buildColoredSvgDataUrl(st.svgTemplate, animColor)}
                         alt={st.name}
-                        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                        className="max-h-full max-w-full object-contain"
                       />
                     </button>
                   ))}
@@ -811,9 +764,9 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
           })()}
 
           {/* Photos matches */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[0.75rem] font-bold text-text-primary">
                 Photos
               </span>
               <button
@@ -824,35 +777,27 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
                   setActiveCategory('photos');
                   void runPhotoSearch(searchQuery, photoType, 1);
                 }}
-                style={{ background: 'transparent', border: 'none', color: '#93c5fd', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer' }}
+                className="cursor-pointer border-0 bg-transparent text-[0.72rem] font-semibold text-blue-300 hover:underline"
               >
                 See all
               </button>
             </div>
             {photoLoading ? (
-              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Searching Pixabay...</div>
+              <div className="text-[0.74rem] text-text-muted">Searching Pixabay...</div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+              <div className="grid grid-cols-2 gap-1.5">
                 {photoResults.slice(0, 6).map((hit) => (
                   <button
                     key={hit.id}
                     type="button"
                     disabled={Boolean(downloadingId)}
                     onClick={() => void handleUsePhoto(hit, 'layer')}
-                    style={{
-                      height: '76px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border-subtle)',
-                      overflow: 'hidden',
-                      padding: 0,
-                      background: '#020617',
-                      cursor: 'pointer'
-                    }}
+                    className="h-[76px] cursor-pointer overflow-hidden rounded-lg border border-subtle bg-slate-950 p-0 transition-opacity hover:opacity-90 disabled:opacity-50"
                   >
                     <img
                       src={hit.webformatURL || hit.previewURL}
                       alt={hit.tags}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      className="h-full w-full object-cover"
                     />
                   </button>
                 ))}
@@ -864,87 +809,54 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
 
       {/* HOME VIEW: Recently Used + Browse Categories */}
       {!isGlobalSearching && activeCategory === null && (
-        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
           {/* Recently Used Row */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[0.8rem] font-bold text-text-primary">
                 Recently used
               </span>
               {recentItems.length > 0 && (
                 <button
                   type="button"
                   onClick={() => setActiveCategory('recent')}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#a78bfa',
-                    fontSize: '0.74rem',
-                    fontWeight: 600,
-                    cursor: 'pointer'
-                  }}
+                  className="cursor-pointer border-0 bg-transparent text-[0.74rem] font-semibold text-violet-400 hover:underline"
                 >
                   See all
                 </button>
               )}
             </div>
             {recentItems.length === 0 ? (
-              <div
-                style={{
-                  padding: '10px',
-                  borderRadius: '10px',
-                  border: '1px dashed var(--border-subtle)',
-                  fontSize: '0.73rem',
-                  color: 'var(--text-muted)',
-                  textAlign: 'center'
-                }}
-              >
+              <div className="rounded-[10px] border border-dashed border-subtle p-2.5 text-center text-[0.73rem] text-text-muted">
                 Elements you add will appear here for quick reuse.
               </div>
             ) : (
-              <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px' }}>
+              <div className="flex gap-1.5 overflow-x-auto pb-0.5">
                 {recentItems.slice(0, 6).map((rec) => renderRecentTile(rec, 50))}
               </div>
             )}
           </div>
 
           {/* Browse Categories (3-Column Canva Grid) */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+          <div className="flex flex-col gap-2.5">
+            <span className="text-[0.8rem] font-bold text-text-primary">
               Browse categories
             </span>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px 8px' }}>
+            <div className="grid grid-cols-3 gap-x-2 gap-y-3">
               {CATEGORIES.map((cat) => (
                 <button
                   key={cat.id}
                   type="button"
                   onClick={() => setActiveCategory(cat.id)}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '6px',
-                    background: 'transparent',
-                    border: 'none',
-                    padding: '4px 2px',
-                    cursor: 'pointer'
-                  }}
+                  className="flex cursor-pointer flex-col items-center gap-1.5 border-0 bg-transparent px-0.5 py-1 transition-transform hover:scale-[1.03]"
                 >
                   <div
-                    style={{
-                      width: '58px',
-                      height: '58px',
-                      borderRadius: '15px',
-                      background: cat.gradient,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: '0 6px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.28)'
-                    }}
+                    className="flex h-[58px] w-[58px] items-center justify-center rounded-[15px] shadow-[0_6px_16px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.28)]"
+                    style={{ background: cat.gradient }}
                   >
                     {cat.icon}
                   </div>
-                  <span style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  <span className="text-[0.74rem] font-semibold text-text-secondary">
                     {cat.label}
                   </span>
                 </button>
@@ -956,27 +868,16 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
 
       {/* DRILLED-IN CATEGORY VIEWS */}
       {!isGlobalSearching && activeCategory !== null && (
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div className="flex min-h-0 flex-1 flex-col gap-2.5">
           {/* Category Subheader with Back Button */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div className="flex shrink-0 items-center justify-between">
             <button
               type="button"
               onClick={() => setActiveCategory(null)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                background: 'transparent',
-                border: 'none',
-                color: '#cbd5e1',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                padding: '2px 0',
-                cursor: 'pointer'
-              }}
+              className="inline-flex cursor-pointer items-center gap-[5px] border-0 bg-transparent px-0 py-0.5 text-[0.8rem] font-bold text-slate-300 hover:text-white"
             >
               <ArrowLeft size={15} />
-              <span style={{ textTransform: 'capitalize' }}>
+              <span className="capitalize">
                 {activeCategory === 'recent' ? 'Recently used' : activeCategory}
               </span>
             </button>
@@ -992,14 +893,7 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
                     // Ignore
                   }
                 }}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#fca5a5',
-                  fontSize: '0.72rem',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
+                className="cursor-pointer border-0 bg-transparent text-[0.72rem] font-semibold text-red-300 hover:text-red-200"
               >
                 Clear
               </button>
@@ -1008,59 +902,34 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
 
           {/* 1. RECENTLY USED FULL VIEW */}
           {activeCategory === 'recent' && (
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gridAutoRows: 'max-content', gap: '8px' }}>
+            <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-4 gap-2 overflow-y-auto">
               {recentItems.map((rec) => renderRecentTile(rec, 62))}
             </div>
           )}
 
           {/* 2. SHAPES CATEGORY */}
           {activeCategory === 'shapes' && (
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+              <div className="grid grid-cols-4 gap-2">
                 {SHAPE_OPTIONS.map((opt) => (
                   <button
                     key={opt.id}
                     type="button"
                     title={opt.label}
                     onClick={() => handleInsertShape(opt.id)}
-                    style={{
-                      height: '58px',
-                      borderRadius: '10px',
-                      border: '1px solid var(--border-subtle)',
-                      background: 'var(--bg-panel-elevated)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '4px',
-                      cursor: 'pointer'
-                    }}
+                    className="flex h-[58px] cursor-pointer flex-col items-center justify-center gap-1 rounded-[10px] border border-subtle bg-panel-elevated transition-colors hover:border-accent/60 hover:bg-hover"
                   >
-                    <div style={{ width: '24px', height: '24px' }}>
+                    <div className="h-6 w-6">
                       <CanvasShapeGraphic shapeType={opt.id} fill="#e2e8f0" />
                     </div>
-                    <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>{opt.label}</span>
+                    <span className="text-[0.62rem] text-text-muted">{opt.label}</span>
                   </button>
                 ))}
               </div>
               <button
                 type="button"
                 onClick={onAddDivider}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border-subtle)',
-                  background: 'var(--bg-panel-elevated)',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  cursor: 'pointer'
-                }}
+                className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-subtle bg-panel-elevated p-2.5 text-[0.78rem] font-semibold text-text-primary transition-colors hover:bg-hover"
               >
                 <Minus size={14} /> Add Divider Line
               </button>
@@ -1069,8 +938,8 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
 
           {/* 3. GRAPHICS CATEGORY (9,000+ Offline Icons) */}
           {activeCategory === 'graphics' && (
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <div className="flex min-h-0 flex-1 flex-col gap-2">
+              <div className="flex items-center gap-1.5">
                 <input
                   type="text"
                   value={graphicQuery}
@@ -1079,25 +948,17 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
                     void runGraphicSearch(e.target.value);
                   }}
                   placeholder="Filter 9,000+ offline graphics..."
-                  style={{
-                    flex: 1,
-                    padding: '6px 9px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.78rem'
-                  }}
+                  className="flex-1 rounded-lg border border-subtle bg-app px-[9px] py-1.5 text-[0.78rem] text-text-primary focus:border-accent focus:outline-none"
                 />
                 <input
                   type="color"
                   title="Graphic Color"
                   value={graphicColor}
                   onChange={(e) => setGraphicColor(e.target.value)}
-                  style={{ width: '28px', height: '28px', border: '1px solid var(--border-subtle)', borderRadius: '6px', background: 'transparent', padding: 0, cursor: 'pointer' }}
+                  className="h-7 w-7 cursor-pointer rounded-md border border-subtle bg-transparent p-0"
                 />
               </div>
-              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+              <div className="flex flex-wrap gap-1">
                 {GRAPHIC_CHIPS.map((chip) => (
                   <button
                     key={chip}
@@ -1106,24 +967,20 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
                       setGraphicQuery(chip);
                       void runGraphicSearch(chip);
                     }}
-                    style={{
-                      padding: '3px 8px',
-                      borderRadius: '999px',
-                      border: '1px solid var(--border-subtle)',
-                      background: graphicQuery.toLowerCase() === chip ? 'rgba(124,58,237,0.28)' : 'var(--bg-panel-elevated)',
-                      color: graphicQuery.toLowerCase() === chip ? '#ddd6fe' : 'var(--text-secondary)',
-                      fontSize: '0.68rem',
-                      fontWeight: 600,
-                      cursor: 'pointer'
-                    }}
+                    className={cn(
+                      'cursor-pointer rounded-full border border-subtle px-2 py-[3px] text-[0.68rem] font-semibold transition-colors',
+                      graphicQuery.toLowerCase() === chip
+                        ? 'bg-violet-600/28 text-violet-200'
+                        : 'bg-panel-elevated text-text-secondary hover:bg-hover'
+                    )}
                   >
                     {chip}
                   </button>
                 ))}
               </div>
-              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gridAutoRows: 'max-content', gap: '6px' }}>
+              <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-4 gap-1.5 overflow-y-auto">
                 {graphicLoading ? (
-                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '0.76rem' }}>
+                  <div className="col-span-full p-6 text-center text-[0.76rem] text-text-muted">
                     Loading...
                   </div>
                 ) : (
@@ -1145,22 +1002,12 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
                             color: graphicColor
                           })
                         }
-                        style={{
-                          height: '58px',
-                          borderRadius: '8px',
-                          border: '1px solid var(--border-subtle)',
-                          background: 'var(--bg-panel-elevated)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: '10px',
-                          cursor: 'pointer'
-                        }}
+                        className="flex h-[58px] cursor-pointer items-center justify-center rounded-lg border border-subtle bg-panel-elevated p-2.5 transition-colors hover:border-accent/60 hover:bg-hover"
                       >
                         <img
                           src={buildColoredSvgDataUrl(item.svgTemplate, graphicColor)}
                           alt={displayName}
-                          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                          className="h-full w-full object-contain"
                         />
                       </button>
                     );
@@ -1172,25 +1019,20 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
 
           {/* 4. ANIMATIONS CATEGORY (Curated Animated Vector Stickers) */}
           {activeCategory === 'animations' && (
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+            <div className="flex min-h-0 flex-1 flex-col gap-2">
+              <div className="flex items-center justify-between gap-1.5">
+                <div className="flex flex-wrap gap-1">
                   {(['all', 'worship', 'accents', 'pointers'] as const).map((cat) => (
                     <button
                       key={cat}
                       type="button"
                       onClick={() => setAnimFilter(cat)}
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '999px',
-                        border: '1px solid var(--border-subtle)',
-                        background: animFilter === cat ? 'rgba(5,150,105,0.28)' : 'var(--bg-panel-elevated)',
-                        color: animFilter === cat ? '#6ee7b7' : 'var(--text-secondary)',
-                        fontSize: '0.68rem',
-                        fontWeight: 600,
-                        textTransform: 'capitalize',
-                        cursor: 'pointer'
-                      }}
+                      className={cn(
+                        'cursor-pointer rounded-full border border-subtle px-2 py-[3px] text-[0.68rem] font-semibold capitalize transition-colors',
+                        animFilter === cat
+                          ? 'bg-emerald-600/28 text-emerald-300'
+                          : 'bg-panel-elevated text-text-secondary hover:bg-hover'
+                      )}
                     >
                       {cat}
                     </button>
@@ -1201,10 +1043,10 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
                   title="Animation Color"
                   value={animColor}
                   onChange={(e) => setAnimColor(e.target.value)}
-                  style={{ width: '26px', height: '26px', border: '1px solid var(--border-subtle)', borderRadius: '6px', background: 'transparent', padding: 0, cursor: 'pointer', flexShrink: 0 }}
+                  className="h-[26px] w-[26px] shrink-0 cursor-pointer rounded-md border border-subtle bg-transparent p-0"
                 />
               </div>
-              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gridAutoRows: 'max-content', gap: '8px' }}>
+              <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-2 gap-2 overflow-y-auto">
                 {ANIMATED_STICKERS.filter((st: AnimatedStickerPreset) => animFilter === 'all' || st.category === animFilter).map((st) => (
                   <button
                     key={st.id}
@@ -1218,26 +1060,16 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
                         aspect: st.aspect
                       })
                     }
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '10px 8px',
-                      borderRadius: '10px',
-                      border: '1px solid var(--border-subtle)',
-                      background: 'var(--bg-panel-elevated)',
-                      cursor: 'pointer'
-                    }}
+                    className="flex cursor-pointer flex-col items-center gap-1.5 rounded-[10px] border border-subtle bg-panel-elevated px-2 py-2.5 transition-colors hover:border-accent/60 hover:bg-hover"
                   >
-                    <div style={{ width: '100%', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div className="flex h-14 w-full items-center justify-center">
                       <img
                         src={buildColoredSvgDataUrl(st.svgTemplate, animColor)}
                         alt={st.name}
-                        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                        className="max-h-full max-w-full object-contain"
                       />
                     </div>
-                    <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{st.name}</span>
+                    <span className="text-[0.68rem] font-semibold text-text-secondary">{st.name}</span>
                   </button>
                 ))}
               </div>
@@ -1246,29 +1078,19 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
 
           {/* 5. FRAMES CATEGORY (Canva-style Photo Mask Frames) */}
           {activeCategory === 'frames' && (
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)' }}>
+            <div className="flex min-h-0 flex-1 flex-col gap-2">
+              <span className="text-[0.73rem] text-text-muted">
                 Add a frame, then drag any photo or image inside it.
               </span>
-              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gridAutoRows: 'max-content', gap: '8px' }}>
+              <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-2 gap-2 overflow-y-auto">
                 {FRAME_OPTIONS.map((fr) => (
                   <button
                     key={fr.id}
                     type="button"
                     onClick={() => handleInsertFrame(fr.id, `${fr.label} Frame`, fr.aspect)}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '10px 8px',
-                      borderRadius: '10px',
-                      border: '1px solid var(--border-subtle)',
-                      background: 'var(--bg-panel-elevated)',
-                      cursor: 'pointer'
-                    }}
+                    className="flex cursor-pointer flex-col items-center gap-1.5 rounded-[10px] border border-subtle bg-panel-elevated px-2 py-2.5 transition-colors hover:border-accent/60 hover:bg-hover"
                   >
-                    <div style={{ width: '62px', height: '62px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div className="flex h-[62px] w-[62px] items-center justify-center">
                       <div
                         style={{
                           width: fr.aspect >= 1 ? '62px' : `${Math.round(62 * fr.aspect)}px`,
@@ -1278,7 +1100,7 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
                         <CanvasFrameGraphic frameShape={fr.id} />
                       </div>
                     </div>
-                    <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{fr.label}</span>
+                    <span className="text-[0.68rem] font-semibold text-text-secondary">{fr.label}</span>
                   </button>
                 ))}
               </div>
@@ -1287,51 +1109,29 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
 
           {/* 6. GRIDS CATEGORY */}
           {activeCategory === 'grids' && (
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gridAutoRows: 'max-content', gap: '8px' }}>
+            <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-2 gap-2 overflow-y-auto">
               {GRID_PRESETS.map((grid) => (
                 <button
                   key={grid.id}
                   type="button"
                   onClick={() => onInsertGridLayout(grid.name, grid.rects)}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '10px 8px',
-                    borderRadius: '10px',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'var(--bg-panel-elevated)',
-                    cursor: 'pointer'
-                  }}
+                  className="flex cursor-pointer flex-col items-center gap-1.5 rounded-[10px] border border-subtle bg-panel-elevated px-2 py-2.5 transition-colors hover:border-accent/60 hover:bg-hover"
                 >
-                  <div
-                    style={{
-                      width: '100%',
-                      aspectRatio: '16 / 9',
-                      position: 'relative',
-                      background: '#090d16',
-                      borderRadius: '6px',
-                      overflow: 'hidden'
-                    }}
-                  >
+                  <div className="relative aspect-video w-full overflow-hidden rounded-md bg-[#090d16]">
                     {grid.rects.map((r, i) => (
                       <div
                         key={i}
+                        className="absolute rounded-[3px] border border-violet-300/70 bg-violet-500/35"
                         style={{
-                          position: 'absolute',
                           left: `${r.x}%`,
                           top: `${r.y}%`,
                           width: `${r.width}%`,
-                          height: `${r.height}%`,
-                          background: 'rgba(139, 92, 246, 0.35)',
-                          border: '1px solid rgba(196, 181, 253, 0.7)',
-                          borderRadius: '3px'
+                          height: `${r.height}%`
                         }}
                       />
                     ))}
                   </div>
-                  <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{grid.name}</span>
+                  <span className="text-[0.68rem] font-semibold text-text-secondary">{grid.name}</span>
                 </button>
               ))}
             </div>
@@ -1341,13 +1141,13 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
           {(activeCategory === 'photos' ||
             activeCategory === 'vectors' ||
             activeCategory === 'art') && (
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="flex min-h-0 flex-1 flex-col gap-2">
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
                   void runPhotoSearch(photoQuery, photoType, 1);
                 }}
-                style={{ display: 'flex', gap: '4px' }}
+                className="flex gap-1"
               >
                 <input
                   type="text"
@@ -1360,16 +1160,7 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
                         ? 'Search illustrations & art...'
                         : 'Search photos...'
                   }
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    padding: '6px 8px',
-                    borderRadius: '7px',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.76rem'
-                  }}
+                  className="min-w-0 flex-1 rounded-[7px] border border-subtle bg-app px-2 py-1.5 text-[0.76rem] text-text-primary focus:border-accent focus:outline-none"
                 />
                 <select
                   value={photoType}
@@ -1378,14 +1169,7 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
                     setPhotoType(next);
                     void runPhotoSearch(photoQuery, next, 1);
                   }}
-                  style={{
-                    padding: '6px',
-                    borderRadius: '7px',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.72rem'
-                  }}
+                  className="rounded-[7px] border border-subtle bg-app p-1.5 text-[0.72rem] text-text-primary focus:border-accent focus:outline-none"
                 >
                   <option value="all">All</option>
                   <option value="photo">Photos</option>
@@ -1394,7 +1178,7 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
                 </select>
               </form>
 
-              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+              <div className="flex flex-wrap gap-1">
                 {PHOTO_CHIPS.map((chip) => (
                   <button
                     key={chip}
@@ -1403,16 +1187,12 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
                       setPhotoQuery(chip);
                       void runPhotoSearch(chip, photoType, 1);
                     }}
-                    style={{
-                      padding: '3px 7px',
-                      borderRadius: '999px',
-                      border: '1px solid var(--border-subtle)',
-                      background: photoQuery.toLowerCase() === chip ? 'rgba(37,99,235,0.28)' : 'var(--bg-panel-elevated)',
-                      color: photoQuery.toLowerCase() === chip ? '#93c5fd' : 'var(--text-secondary)',
-                      fontSize: '0.67rem',
-                      fontWeight: 600,
-                      cursor: 'pointer'
-                    }}
+                    className={cn(
+                      'cursor-pointer rounded-full border border-subtle px-[7px] py-[3px] text-[0.67rem] font-semibold transition-colors',
+                      photoQuery.toLowerCase() === chip
+                        ? 'bg-blue-600/28 text-blue-300'
+                        : 'bg-panel-elevated text-text-secondary hover:bg-hover'
+                    )}
                   >
                     {chip}
                   </button>
@@ -1420,7 +1200,7 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
               </div>
 
               {photoError && (
-                <div style={{ fontSize: '0.72rem', color: '#fca5a5' }}>{photoError}</div>
+                <div className="text-[0.72rem] text-red-300">{photoError}</div>
               )}
 
               <div
@@ -1436,19 +1216,11 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
                     void runPhotoSearch(photoQuery, photoType, photoPage + 1);
                   }
                 }}
-                style={{
-                  flex: 1,
-                  minHeight: 0,
-                  overflowY: 'auto',
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gridAutoRows: 'max-content',
-                  gap: '8px'
-                }}
+                className="grid min-h-0 flex-1 auto-rows-max grid-cols-2 gap-2 overflow-y-auto"
               >
                 {photoLoading ? (
-                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '0.76rem' }}>
-                    <Loader2 size={16} /> Loading...
+                  <div className="col-span-full p-6 text-center text-[0.76rem] text-text-muted">
+                    <Loader2 size={16} className="mx-auto mb-1 animate-spin" /> Loading...
                   </div>
                 ) : (
                   photoResults.map((hit) => {
@@ -1468,38 +1240,21 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
                             })
                           );
                         }}
-                        style={{
-                          borderRadius: '8px',
-                          overflow: 'hidden',
-                          border: '1px solid var(--border-subtle)',
-                          background: 'var(--bg-panel-elevated)',
-                          display: 'flex',
-                          flexDirection: 'column'
-                        }}
+                        className="flex flex-col overflow-hidden rounded-lg border border-subtle bg-panel-elevated"
                       >
-                        <div style={{ width: '100%', height: '80px', flexShrink: 0, background: '#020617' }}>
+                        <div className="h-20 w-full shrink-0 bg-slate-950">
                           <img
                             src={hit.webformatURL || hit.previewURL}
                             alt={hit.tags}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            className="h-full w-full object-cover"
                           />
                         </div>
-                        <div style={{ display: 'flex', gap: '3px', padding: '4px' }}>
+                        <div className="flex gap-[3px] p-1">
                           <button
                             type="button"
                             disabled={Boolean(downloadingId)}
                             onClick={() => void handleUsePhoto(hit, 'layer')}
-                            style={{
-                              flex: 1,
-                              padding: '4px',
-                              borderRadius: '5px',
-                              border: 'none',
-                              background: '#2563eb',
-                              color: '#fff',
-                              fontSize: '0.65rem',
-                              fontWeight: 600,
-                              cursor: 'pointer'
-                            }}
+                            className="flex-1 cursor-pointer rounded-[5px] border-0 bg-blue-600 p-1 text-[0.65rem] font-semibold text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
                           >
                             {isBusy ? '...' : '+ Layer'}
                           </button>
@@ -1507,17 +1262,7 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
                             type="button"
                             disabled={Boolean(downloadingId)}
                             onClick={() => void handleUsePhoto(hit, 'background')}
-                            style={{
-                              flex: 1,
-                              padding: '4px',
-                              borderRadius: '5px',
-                              border: '1px solid var(--border-subtle)',
-                              background: 'transparent',
-                              color: 'var(--text-primary)',
-                              fontSize: '0.65rem',
-                              fontWeight: 600,
-                              cursor: 'pointer'
-                            }}
+                            className="flex-1 cursor-pointer rounded-[5px] border border-subtle bg-transparent p-1 text-[0.65rem] font-semibold text-text-primary transition-colors hover:bg-hover disabled:opacity-50"
                           >
                             Set BG
                           </button>
@@ -1527,7 +1272,7 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
                   })
                 )}
                 {photoLoadingMore && (
-                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '10px', color: 'var(--text-muted)', fontSize: '0.72rem' }}>
+                  <div className="col-span-full p-2.5 text-center text-[0.72rem] text-text-muted">
                     Loading more...
                   </div>
                 )}

@@ -23,6 +23,7 @@ import { useTerminology } from '../hooks/useTerminology';
 import { FittedMainScreenFrame } from './ScaledMainScreenPreview';
 import { ScreenStreamReceiver, buildIceServers } from '../utils/webrtcRoom';
 import { MAIN_ROOM_CAMERA_ID, buildOverflowLiveState } from '../utils/overflowState';
+import { cn } from '../utils/cn';
 
 export { FittedMainScreenFrame };
 
@@ -382,54 +383,22 @@ export const RemoteViewer: React.FC = () => {
       .AndroidHost;
 
     return (
-      <div
-        style={{
-          width: '100vw',
-          height: '100vh',
-          background: '#000',
-          position: 'relative',
-          overflow: 'hidden',
-          userSelect: 'none',
-          WebkitUserSelect: 'none'
-        }}
-      >
+      <div className="relative h-screen w-screen select-none overflow-hidden bg-black">
         <FittedMainScreenFrame liveState={renderedLiveState} participantStreams={renderedParticipantStreams} />
 
         {/* Top-right Settings + Program pills */}
-        <div
-          style={{
-            position: 'absolute',
-            top: '12px',
-            right: '14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            zIndex: 20
-          }}
-        >
+        <div className="absolute top-3 right-3.5 z-20 flex items-center gap-2">
           <button
             type="button"
             onClick={() => setSettingsOpen(true)}
             aria-label="Settings"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '7px',
-              padding: '8px 12px',
-              borderRadius: '999px',
-              background: 'rgba(0, 0, 0, 0.52)',
-              border: '1px solid rgba(255, 255, 255, 0.16)',
-              color: '#f8fafc',
-              cursor: 'pointer'
-            }}
+            className="inline-flex cursor-pointer items-center gap-[7px] rounded-full border border-white/16 bg-black/52 px-3 py-2 text-slate-50 transition-colors hover:bg-black/70"
           >
             <span
-              style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: connected ? '#10b981' : '#f43f5e'
-              }}
+              className={cn(
+                'h-2 w-2 rounded-full',
+                connected ? 'bg-emerald-500' : 'bg-rose-500'
+              )}
             />
             <Settings size={17} />
           </button>
@@ -437,19 +406,7 @@ export const RemoteViewer: React.FC = () => {
           <button
             type="button"
             onClick={() => setProgramDrawerOpen(true)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 14px',
-              borderRadius: '999px',
-              background: 'rgba(0, 0, 0, 0.52)',
-              border: '1px solid rgba(255, 255, 255, 0.16)',
-              color: '#f8fafc',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-white/16 bg-black/52 px-3.5 py-2 text-[13px] font-semibold text-slate-50 transition-colors hover:bg-black/70"
           >
             <span>Program</span>
             <Menu size={17} />
@@ -461,25 +418,12 @@ export const RemoteViewer: React.FC = () => {
           type="button"
           disabled={!connected}
           onClick={() => sendRemoteCommand('PREV')}
-          style={{
-            position: 'absolute',
-            bottom: '16px',
-            left: '16px',
-            height: '52px',
-            padding: '0 18px',
-            borderRadius: '16px',
-            background: connected ? 'rgba(0, 0, 0, 0.56)' : 'rgba(0, 0, 0, 0.25)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            color: connected ? '#f8fafc' : 'rgba(148, 163, 184, 0.45)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontSize: '15px',
-            fontWeight: 800,
-            letterSpacing: '0.5px',
-            zIndex: 20,
-            cursor: connected ? 'pointer' : 'default'
-          }}
+          className={cn(
+            'absolute bottom-4 left-4 z-20 inline-flex h-[52px] items-center gap-2 rounded-2xl border border-white/20 px-[18px] text-[15px] font-extrabold tracking-[0.5px] transition-colors',
+            connected
+              ? 'cursor-pointer bg-black/56 text-slate-50 hover:bg-black/75'
+              : 'cursor-default bg-black/25 text-slate-400/45'
+          )}
         >
           <ArrowLeft size={19} />
           <span>PREV</span>
@@ -490,27 +434,12 @@ export const RemoteViewer: React.FC = () => {
           type="button"
           disabled={!connected}
           onClick={() => sendRemoteCommand('NEXT')}
-          style={{
-            position: 'absolute',
-            bottom: '16px',
-            right: '16px',
-            height: '52px',
-            padding: '0 18px',
-            borderRadius: '16px',
-            background: connected ? 'rgba(56, 189, 248, 0.9)' : 'rgba(0, 0, 0, 0.25)',
-            border: connected
-              ? '1px solid #38bdf8'
-              : '1px solid rgba(255, 255, 255, 0.1)',
-            color: connected ? '#090d16' : 'rgba(148, 163, 184, 0.45)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontSize: '15px',
-            fontWeight: 800,
-            letterSpacing: '0.5px',
-            zIndex: 20,
-            cursor: connected ? 'pointer' : 'default'
-          }}
+          className={cn(
+            'absolute right-4 bottom-4 z-20 inline-flex h-[52px] items-center gap-2 rounded-2xl border px-[18px] text-[15px] font-extrabold tracking-[0.5px] transition-colors',
+            connected
+              ? 'cursor-pointer border-sky-400 bg-sky-400/90 text-[#090d16] hover:bg-sky-400'
+              : 'cursor-default border-white/10 bg-black/25 text-slate-400/45'
+          )}
         >
           <span>NEXT</span>
           <ArrowRight size={19} />
@@ -520,50 +449,18 @@ export const RemoteViewer: React.FC = () => {
         {programDrawerOpen && (
           <div
             onClick={() => setProgramDrawerOpen(false)}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0, 0, 0, 0.55)',
-              zIndex: 40,
-              display: 'flex',
-              justifyContent: 'flex-end'
-            }}
+            className="fixed inset-0 z-40 flex justify-end bg-black/55"
           >
             <aside
               onClick={(e) => e.stopPropagation()}
-              style={{
-                width: 'min(340px, 84vw)',
-                height: '100%',
-                background: '#131b2e',
-                borderLeft: '1px solid #2b3a55',
-                display: 'flex',
-                flexDirection: 'column',
-                padding: '16px',
-                gap: '12px',
-                color: '#f8fafc'
-              }}
+              className="flex h-full w-[min(340px,84vw)] flex-col gap-3 border-l border-[#2b3a55] bg-[#131b2e] p-4 text-slate-50"
             >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '8px'
-                }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontWeight: 700,
-                      fontSize: '16px',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
-                    }}
-                  >
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="truncate text-base font-bold">
                     {liveState?.programName || 'Program Items'}
                   </div>
-                  <div style={{ fontSize: '12px', color: '#94a3b8' }}>
+                  <div className="text-xs text-slate-400">
                     {programItems.length} item{programItems.length === 1 ? '' : 's'}
                   </div>
                 </div>
@@ -571,43 +468,17 @@ export const RemoteViewer: React.FC = () => {
                   type="button"
                   onClick={() => setProgramDrawerOpen(false)}
                   aria-label="Close program panel"
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#94a3b8',
-                    cursor: 'pointer',
-                    padding: '4px'
-                  }}
+                  className="cursor-pointer border-0 bg-transparent p-1 text-slate-400 hover:text-slate-100"
                 >
                   <X size={20} />
                 </button>
               </div>
 
-              <div style={{ height: '1px', background: 'rgba(43, 58, 85, 0.7)' }} />
+              <div className="h-px bg-[#2b3a55]/70" />
 
-              <div
-                style={{
-                  flex: 1,
-                  minHeight: 0,
-                  overflowY: 'auto',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px'
-                }}
-              >
+              <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
                 {programItems.length === 0 ? (
-                  <div
-                    style={{
-                      flex: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#94a3b8',
-                      fontSize: '13px',
-                      textAlign: 'center',
-                      padding: '16px'
-                    }}
-                  >
+                  <div className="flex flex-1 items-center justify-center p-4 text-center text-[13px] text-slate-400">
                     {connected
                       ? 'No items in the current program.'
                       : 'Reconnecting to desktop presenter...'}
@@ -623,59 +494,28 @@ export const RemoteViewer: React.FC = () => {
                           sendRemoteCommand('SELECT_ITEM', item.id);
                           setProgramDrawerOpen(false);
                         }}
-                        style={{
-                          textAlign: 'left',
-                          width: '100%',
-                          padding: '11px 12px',
-                          borderRadius: '12px',
-                          background: isActive ? 'rgba(56, 189, 248, 0.16)' : '#1b263b',
-                          border: isActive
-                            ? '1.5px solid #38bdf8'
-                            : '1px solid rgba(43, 58, 85, 0.7)',
-                          color: '#f8fafc',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '4px'
-                        }}
+                        className={cn(
+                          'flex w-full cursor-pointer flex-col gap-1 rounded-xl px-3 py-[11px] text-left text-slate-50 transition-colors',
+                          isActive
+                            ? 'border-[1.5px] border-sky-400 bg-sky-400/16'
+                            : 'border border-[#2b3a55]/70 bg-[#1b263b] hover:bg-[#22304a]'
+                        )}
                       >
-                        <div
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            fontSize: '11px',
-                            fontWeight: 700
-                          }}
-                        >
-                          <span style={{ color: isActive ? '#38bdf8' : '#94a3b8' }}>
+                        <div className="flex items-center justify-between text-[11px] font-bold">
+                          <span className={isActive ? 'text-sky-400' : 'text-slate-400'}>
                             {item.type.toUpperCase()}
                           </span>
-                          <span style={{ color: isActive ? '#10b981' : '#94a3b8' }}>
+                          <span className={isActive ? 'text-emerald-500' : 'text-slate-400'}>
                             {isActive
                               ? 'LIVE'
                               : `${item.blockCount} slide${item.blockCount === 1 ? '' : 's'}`}
                           </span>
                         </div>
-                        <div
-                          style={{
-                            fontSize: '14px',
-                            fontWeight: isActive ? 700 : 600,
-                            lineHeight: 1.3
-                          }}
-                        >
+                        <div className={cn('text-sm leading-[1.3]', isActive ? 'font-bold' : 'font-semibold')}>
                           {item.title}
                         </div>
                         {item.subtitle && (
-                          <div
-                            style={{
-                              fontSize: '12px',
-                              color: '#94a3b8',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis'
-                            }}
-                          >
+                          <div className="truncate text-xs text-slate-400">
                             {item.subtitle}
                           </div>
                         )}
@@ -692,46 +532,19 @@ export const RemoteViewer: React.FC = () => {
         {settingsOpen && (
           <div
             onClick={() => setSettingsOpen(false)}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0, 0, 0, 0.65)',
-              zIndex: 50,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '16px'
-            }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4"
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              style={{
-                width: 'min(420px, 92vw)',
-                background: '#131b2e',
-                border: '1px solid #2b3a55',
-                borderRadius: '18px',
-                padding: '18px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '14px',
-                color: '#f8fafc'
-              }}
+              className="flex w-[min(420px,92vw)] flex-col gap-3.5 rounded-[18px] border border-[#2b3a55] bg-[#131b2e] p-[18px] text-slate-50"
             >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 font-bold">
                   <span
-                    style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      background: connected ? '#10b981' : '#f43f5e'
-                    }}
+                    className={cn(
+                      'h-2 w-2 rounded-full',
+                      connected ? 'bg-emerald-500' : 'bg-rose-500'
+                    )}
                   />
                   <span>Settings</span>
                 </div>
@@ -739,24 +552,19 @@ export const RemoteViewer: React.FC = () => {
                   type="button"
                   onClick={() => setSettingsOpen(false)}
                   aria-label="Close settings"
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#94a3b8',
-                    cursor: 'pointer'
-                  }}
+                  className="cursor-pointer border-0 bg-transparent text-slate-400 hover:text-slate-100"
                 >
                   <X size={20} />
                 </button>
               </div>
 
-              <div style={{ height: '1px', background: 'rgba(43, 58, 85, 0.7)' }} />
+              <div className="h-px bg-[#2b3a55]/70" />
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#38bdf8' }}>
+              <div className="flex flex-col gap-2">
+                <div className="text-[11px] font-bold text-sky-400">
                   SCREEN OVERRIDES
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                <div className="grid grid-cols-3 gap-2">
                   {[
                     {
                       label: 'Clear',
@@ -785,19 +593,15 @@ export const RemoteViewer: React.FC = () => {
                       type="button"
                       disabled={!connected}
                       onClick={() => sendRemoteCommand(btn.action)}
+                      className={cn(
+                        'inline-flex h-[42px] items-center justify-center gap-[5px] rounded-[10px] border text-xs transition-colors',
+                        btn.active ? 'font-bold' : 'font-medium',
+                        connected ? 'cursor-pointer' : 'cursor-default'
+                      )}
                       style={{
-                        height: '42px',
-                        borderRadius: '10px',
                         background: btn.active ? `${btn.color}33` : '#1b263b',
-                        border: `1px solid ${btn.active ? btn.color : '#2b3a55'}`,
-                        color: btn.active ? btn.color : '#f8fafc',
-                        fontSize: '12px',
-                        fontWeight: btn.active ? 700 : 500,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '5px',
-                        cursor: connected ? 'pointer' : 'default'
+                        borderColor: btn.active ? btn.color : '#2b3a55',
+                        color: btn.active ? btn.color : '#f8fafc'
                       }}
                     >
                       {btn.icon}
@@ -811,20 +615,7 @@ export const RemoteViewer: React.FC = () => {
                     type="button"
                     disabled={!connected}
                     onClick={() => sendRemoteCommand('CLEAR_OVERRIDE')}
-                    style={{
-                      height: '40px',
-                      borderRadius: '10px',
-                      background: 'rgba(16, 185, 129, 0.2)',
-                      border: '1px solid rgba(16, 185, 129, 0.5)',
-                      color: '#10b981',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                      cursor: 'pointer'
-                    }}
+                    className="inline-flex h-10 cursor-pointer items-center justify-center gap-1.5 rounded-[10px] border border-emerald-500/50 bg-emerald-500/20 text-[13px] font-semibold text-emerald-500 transition-colors hover:bg-emerald-500/30"
                   >
                     <RotateCcw size={15} />
                     <span>Restore Live Screen</span>
@@ -834,23 +625,14 @@ export const RemoteViewer: React.FC = () => {
 
               {androidHost?.openSettings && (
                 <>
-                  <div style={{ height: '1px', background: 'rgba(43, 58, 85, 0.7)' }} />
+                  <div className="h-px bg-[#2b3a55]/70" />
                   <button
                     type="button"
                     onClick={() => {
                       setSettingsOpen(false);
                       androidHost.openSettings?.();
                     }}
-                    style={{
-                      height: '42px',
-                      borderRadius: '10px',
-                      background: '#1b263b',
-                      border: '1px solid #2b3a55',
-                      color: '#38bdf8',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      cursor: 'pointer'
-                    }}
+                    className="h-[42px] cursor-pointer rounded-[10px] border border-[#2b3a55] bg-[#1b263b] text-[13px] font-semibold text-sky-400 transition-colors hover:bg-[#22304a]"
                   >
                     Change Desktop Server / Scan LAN
                   </button>
@@ -865,35 +647,22 @@ export const RemoteViewer: React.FC = () => {
 
   if (chromeless) {
     return (
-      <div style={{ width: '100vw', height: '100vh', background: '#000', overflow: 'hidden' }}>
+      <div className="h-screen w-screen overflow-hidden bg-black">
         <FittedMainScreenFrame liveState={renderedLiveState} participantStreams={renderedParticipantStreams} />
       </div>
     );
   }
 
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#000', overflow: 'hidden', position: 'relative' }}>
+    <div className="relative h-screen w-screen overflow-hidden bg-black">
       <button
         type="button"
         onClick={handleToggleFullscreen}
         title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-        style={{
-          position: 'absolute',
-          top: '12px',
-          right: '12px',
-          zIndex: 60,
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '6px 10px',
-          borderRadius: '8px',
-          border: '1px solid rgba(148, 163, 184, 0.35)',
-          background: 'rgba(15, 23, 42, 0.55)',
-          color: '#f8fafc',
-          fontSize: '0.75rem',
-          fontWeight: 600,
-          opacity: isFullscreen ? 0.45 : 0.75
-        }}
+        className={cn(
+          'absolute top-3 right-3 z-60 inline-flex items-center gap-1.5 rounded-lg border border-slate-400/35 bg-slate-900/55 px-2.5 py-1.5 text-[0.75rem] font-semibold text-slate-50 transition-opacity hover:opacity-100',
+          isFullscreen ? 'opacity-45' : 'opacity-75'
+        )}
       >
         {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
       </button>

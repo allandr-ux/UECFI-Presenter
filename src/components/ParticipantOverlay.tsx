@@ -4,6 +4,7 @@ import type {
   RemoteParticipant,
   StudioBoxRect
 } from '../../shared/types';
+import { cn } from '../utils/cn';
 
 export const DEFAULT_STUDIO_BACKGROUND = 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)';
 
@@ -65,11 +66,13 @@ export const ParticipantVideoTile: React.FC<VideoTileProps> = ({
 
   return (
     <div
+      className={cn(
+        'relative h-full w-full overflow-hidden bg-black',
+        frameless
+          ? 'border-0 shadow-none'
+          : 'border-2 border-sky-400/45 shadow-[0_16px_40px_rgba(0,0,0,0.55)]'
+      )}
       style={{
-        position: 'relative',
-        width: '100%',
-        height: '100%',
-        background: '#000',
         borderRadius: frameless
           ? 0
           : borderRadius !== undefined
@@ -77,9 +80,6 @@ export const ParticipantVideoTile: React.FC<VideoTileProps> = ({
             : compact
               ? '12px'
               : '16px',
-        overflow: 'hidden',
-        border: frameless ? 'none' : '2px solid rgba(56, 189, 248, 0.45)',
-        boxShadow: frameless ? 'none' : '0 16px 40px rgba(0, 0, 0, 0.55)',
         transition: frameless
           ? 'border-radius 380ms cubic-bezier(0.22, 1, 0.36, 1), border-color 280ms ease, box-shadow 280ms ease'
           : 'border-radius 520ms cubic-bezier(0.4, 0, 0.2, 1), border-color 320ms ease, box-shadow 320ms ease'
@@ -90,60 +90,45 @@ export const ParticipantVideoTile: React.FC<VideoTileProps> = ({
         autoPlay
         playsInline
         muted={!enableAudio || isMuted}
-        style={{
-          width: '100%',
-          height: '100%',
-          objectFit,
-          transform: 'translateZ(0)',
-          backfaceVisibility: 'hidden',
-          opacity: isVideoHidden || !stream ? 0.15 : 1
-        }}
+        className={cn(
+          'h-full w-full [backface-visibility:hidden] [transform:translateZ(0)]',
+          objectFit === 'contain' ? 'object-contain' : 'object-cover',
+          isVideoHidden || !stream ? 'opacity-15' : 'opacity-100'
+        )}
       />
       {(isVideoHidden || !stream) && (
         <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#94a3b8',
-            fontSize: compact ? '0.8rem' : '1.4rem',
-            fontWeight: 600
-          }}
+          className={cn(
+            'absolute inset-0 flex items-center justify-center font-semibold text-slate-400',
+            compact ? 'text-[0.8rem]' : 'text-[1.4rem]'
+          )}
         >
           {stream ? 'Camera Off' : 'Connecting video...'}
         </div>
       )}
       {showNameplate && participant && (
         <div
+          className="absolute flex max-w-[46%] flex-col bg-slate-950/86 text-slate-50 backdrop-blur-sm"
           style={{
-            position: 'absolute',
             left: `${36 * s}px`,
             bottom: `${36 * s}px`,
-            maxWidth: '46%',
             padding: `${14 * s}px ${24 * s}px`,
             borderRadius: `${12 * s}px`,
-            background: 'rgba(2, 6, 23, 0.86)',
-            backdropFilter: 'blur(8px)',
             borderLeft: `${Math.max(1.5, 5 * s)}px solid #38bdf8`,
             boxShadow: `0 ${10 * s}px ${28 * s}px rgba(0, 0, 0, 0.45)`,
-            color: '#f8fafc',
-            display: 'flex',
-            flexDirection: 'column',
             gap: `${3 * s}px`
           }}
         >
           {participant.title && (
-            <div style={{ fontSize: `${18 * s}px`, color: '#93c5fd', fontWeight: 600, lineHeight: 1.15 }}>
+            <div className="font-semibold leading-[1.15] text-blue-300" style={{ fontSize: `${18 * s}px` }}>
               {participant.title}
             </div>
           )}
-          <div style={{ fontSize: `${28 * s}px`, fontWeight: 700, lineHeight: 1.2 }}>
+          <div className="font-bold leading-[1.2]" style={{ fontSize: `${28 * s}px` }}>
             {participant.name}
           </div>
           {participant.centroOrPosition && (
-            <div style={{ fontSize: `${18 * s}px`, color: '#cbd5e1', fontWeight: 500, lineHeight: 1.2 }}>
+            <div className="font-medium leading-[1.2] text-slate-300" style={{ fontSize: `${18 * s}px` }}>
               {participant.centroOrPosition}
             </div>
           )}

@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { cn } from '../utils/cn';
 
 interface ActiveTooltip {
   text: string;
@@ -216,62 +217,28 @@ export const HtmlTooltipLayer: React.FC = () => {
       popover="manual"
       role="tooltip"
       aria-hidden={!active}
+      className={cn(
+        'pointer-events-none fixed inset-auto z-[2147483647] m-0 overflow-visible border-0 bg-transparent p-0 transition-opacity duration-[110ms] ease-out',
+        active && coords.ready ? 'opacity-100' : 'opacity-0'
+      )}
       style={{
-        position: 'fixed',
-        inset: 'auto',
         top: `${coords.top}px`,
-        left: `${coords.left}px`,
-        margin: 0,
-        padding: 0,
-        border: 'none',
-        background: 'transparent',
-        overflow: 'visible',
-        pointerEvents: 'none',
-        zIndex: 2147483647,
-        opacity: active && coords.ready ? 1 : 0,
-        transition: 'opacity 110ms ease-out'
+        left: `${coords.left}px`
       }}
     >
       {active && (
-        <div
-          style={{
-            position: 'relative',
-            background: '#1a1e23',
-            color: '#f1f5f9',
-            border: '1px solid rgba(255, 255, 255, 0.14)',
-            borderRadius: '6px',
-            padding: '5px 10px',
-            fontSize: '0.75rem',
-            fontWeight: 500,
-            lineHeight: 1.35,
-            maxWidth: '280px',
-            textAlign: 'center',
-            boxShadow: '0 6px 18px rgba(0, 0, 0, 0.5)',
-            whiteSpace: 'normal',
-            wordBreak: 'break-word'
-          }}
-        >
+        <div className="relative max-w-[280px] break-words rounded-md border border-white/14 bg-[#1a1e23] px-2.5 py-[5px] text-center text-[0.75rem] font-medium leading-[1.35] whitespace-normal text-slate-100 shadow-[0_6px_18px_rgba(0,0,0,0.5)]">
           {active.text}
           <span
             aria-hidden="true"
+            className={cn(
+              'absolute h-2 w-2 rotate-45 bg-[#1a1e23]',
+              coords.placement === 'bottom'
+                ? '-top-[5px] border-t border-l border-white/14'
+                : '-bottom-[5px] border-r border-b border-white/14'
+            )}
             style={{
-              position: 'absolute',
-              left: `${coords.arrowLeft - 4}px`,
-              width: '8px',
-              height: '8px',
-              background: '#1a1e23',
-              transform: 'rotate(45deg)',
-              ...(coords.placement === 'bottom'
-                ? {
-                    top: '-5px',
-                    borderTop: '1px solid rgba(255, 255, 255, 0.14)',
-                    borderLeft: '1px solid rgba(255, 255, 255, 0.14)'
-                  }
-                : {
-                    bottom: '-5px',
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.14)',
-                    borderRight: '1px solid rgba(255, 255, 255, 0.14)'
-                  })
+              left: `${coords.arrowLeft - 4}px`
             }}
           />
         </div>

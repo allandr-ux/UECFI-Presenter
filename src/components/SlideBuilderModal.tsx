@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { cn } from '../utils/cn';
 import {
   AlignCenter,
   AlignLeft,
@@ -1570,15 +1571,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
     <dialog
       ref={dialogRef}
       aria-labelledby={titleId}
-      style={{
-        maxWidth: '100vw',
-        maxHeight: '100vh',
-        width: '100vw',
-        height: '100vh',
-        margin: 0,
-        borderRadius: 0,
-        border: 'none'
-      }}
+      className="m-0 h-screen max-h-screen w-screen max-w-[100vw] rounded-none border-0"
       onClose={() => {
         if (dialogRef.current) dialogRef.current.returnValue = '';
         onClose();
@@ -1586,57 +1579,29 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
     >
       <form
         onSubmit={handleSaveDeck}
-        style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%' }}
+        className="flex h-screen w-full flex-col"
       >
         {/* Canva-Style Top Header Bar */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '8px 16px',
-            background: 'linear-gradient(90deg, #1e1b4b 0%, #312e81 45%, #1e293b 100%)',
-            borderBottom: '1px solid rgba(255,255,255,0.1)',
-            gap: '12px',
-            flexShrink: 0
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '4px 10px',
-                borderRadius: '8px',
-                background: 'linear-gradient(135deg, #7c3aed 0%, #2563eb 100%)',
-                color: '#fff',
-                fontWeight: 800,
-                fontSize: '0.88rem',
-                letterSpacing: '0.02em',
-                flexShrink: 0
-              }}
-            >
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-[linear-gradient(90deg,#1e1b4b_0%,#312e81_45%,#1e293b_100%)] px-4 py-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <div className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[linear-gradient(135deg,#7c3aed_0%,#2563eb_100%)] px-2.5 py-1 text-[0.88rem] font-extrabold tracking-[0.02em] text-white">
               <Sparkles size={14} />
-              <h2 id={titleId} style={{ margin: 0, fontSize: '0.88rem', fontWeight: 800 }}>
+              <h2 id={titleId} className="m-0 text-[0.88rem] font-extrabold">
                 {studioMode ? 'Studio Canvas' : 'Canvas'}
               </h2>
             </div>
 
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <div className="inline-flex items-center gap-1">
               <button
                 type="button"
                 disabled={!canUndo}
                 onClick={handleUndo}
                 title="Undo (Cmd/Ctrl+Z)"
-                style={{
-                  ...btnStyle,
-                  padding: '6px 8px',
-                  background: 'rgba(255,255,255,0.08)',
-                  borderColor: 'rgba(255,255,255,0.14)',
-                  color: '#fff',
-                  opacity: canUndo ? 1 : 0.35
-                }}
+                className={cn(
+                  BTN_CLS,
+                  'border-white/14 bg-white/8 px-2 py-1.5 text-white hover:bg-white/15',
+                  !canUndo && 'opacity-35'
+                )}
               >
                 <Undo2 size={14} />
               </button>
@@ -1645,14 +1610,11 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                 disabled={!canRedo}
                 onClick={handleRedo}
                 title="Redo (Cmd/Ctrl+Shift+Z)"
-                style={{
-                  ...btnStyle,
-                  padding: '6px 8px',
-                  background: 'rgba(255,255,255,0.08)',
-                  borderColor: 'rgba(255,255,255,0.14)',
-                  color: '#fff',
-                  opacity: canRedo ? 1 : 0.35
-                }}
+                className={cn(
+                  BTN_CLS,
+                  'border-white/14 bg-white/8 px-2 py-1.5 text-white hover:bg-white/15',
+                  !canRedo && 'opacity-35'
+                )}
               >
                 <Redo2 size={14} />
               </button>
@@ -1666,14 +1628,10 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                   setPresBox(DEFAULT_PRESENTATION_BOX);
                   setPartBox(DEFAULT_PARTICIPANT_BOX);
                 }}
-                style={{
-                  ...btnStyle,
-                  padding: '6px 10px',
-                  background: 'rgba(255,255,255,0.08)',
-                  borderColor: 'rgba(255,255,255,0.14)',
-                  color: '#e2e8f0',
-                  fontSize: '0.76rem'
-                }}
+                className={cn(
+                  BTN_CLS,
+                  'border-white/14 bg-white/8 px-2.5 py-1.5 text-[0.76rem] text-slate-200 hover:bg-white/15'
+                )}
                 title="Reset Presentation & Speaker boxes to default positions"
               >
                 Reset Studio Boxes
@@ -1685,33 +1643,21 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Untitled Design..."
-                style={{
-                  ...inputStyle,
-                  maxWidth: '300px',
-                  padding: '6px 10px',
-                  background: 'rgba(15, 23, 42, 0.55)',
-                  borderColor: 'rgba(255,255,255,0.18)',
-                  color: '#fff',
-                  fontWeight: 600
-                }}
+                className={cn(
+                  INPUT_CLS,
+                  'max-w-[300px] border-white/18 bg-slate-900/55 px-2.5 py-1.5 font-semibold text-white'
+                )}
               />
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          <div className="flex shrink-0 items-center gap-2">
             <button
               type="submit"
-              style={{
-                padding: '7px 16px',
-                borderRadius: '8px',
-                border: 'none',
-                background: justSaved ? '#10b981' : '#7c3aed',
-                color: '#fff',
-                fontWeight: 700,
-                fontSize: '0.82rem',
-                transition: 'background 150ms ease',
-                cursor: 'pointer'
-              }}
+              className={cn(
+                'cursor-pointer rounded-lg border-0 px-4 py-[7px] text-[0.82rem] font-bold text-white transition-colors duration-150',
+                justSaved ? 'bg-emerald-500' : 'bg-violet-600 hover:bg-violet-500'
+              )}
             >
               {justSaved ? 'Saved ✓' : t.editor.save}
             </button>
@@ -1719,13 +1665,10 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
               type="button"
               onClick={onClose}
               aria-label={t.editor.cancel}
-              style={{
-                ...btnStyle,
-                padding: '6px 8px',
-                background: 'rgba(255,255,255,0.08)',
-                borderColor: 'rgba(255,255,255,0.14)',
-                color: '#fff'
-              }}
+              className={cn(
+                BTN_CLS,
+                'border-white/14 bg-white/8 px-2 py-1.5 text-white hover:bg-white/15'
+              )}
             >
               <X size={16} />
             </button>
@@ -1738,7 +1681,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
           type="file"
           accept="image/*"
           onChange={handleImageUpload}
-          style={{ display: 'none' }}
+          className="hidden"
         />
 
         {/* Hidden local 3D model (.glb) upload input */}
@@ -1747,25 +1690,15 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
           type="file"
           accept=".glb,model/gltf-binary"
           onChange={handleGlbUpload}
-          style={{ display: 'none' }}
+          className="hidden"
         />
 
         {/* Canva-Style Workspace: Far-Left Icon Rail + Collapsible Drawer + Center Studio */}
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden' }}>
+        <div className="flex min-h-0 flex-1 overflow-hidden">
           {/* Far-Left Vertical Icon Rail */}
           <nav
             aria-label="Canvas Tools"
-            style={{
-              width: '68px',
-              flexShrink: 0,
-              background: '#0b0f19',
-              borderRight: '1px solid var(--border-subtle)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              padding: '10px 4px',
-              gap: '6px'
-            }}
+            className="flex w-[68px] shrink-0 flex-col items-center gap-1.5 border-r border-subtle bg-[#0b0f19] px-1 py-2.5"
           >
             {(
               [
@@ -1782,21 +1715,12 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveRailTab((prev) => (prev === tab.id ? null : tab.id))}
-                  style={{
-                    width: '58px',
-                    padding: '8px 2px',
-                    borderRadius: '10px',
-                    border: 'none',
-                    background: active ? 'rgba(124, 58, 237, 0.25)' : 'transparent',
-                    color: active ? '#ddd6fe' : '#94a3b8',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '4px',
-                    fontSize: '0.64rem',
-                    fontWeight: active ? 700 : 500,
-                    cursor: 'pointer'
-                  }}
+                  className={cn(
+                    'flex w-[58px] cursor-pointer flex-col items-center gap-1 rounded-[10px] border-0 px-0.5 py-2 text-[0.64rem] transition-colors',
+                    active
+                      ? 'bg-violet-600/25 font-bold text-violet-200'
+                      : 'bg-transparent font-medium text-slate-400 hover:bg-white/5 hover:text-slate-200'
+                  )}
                 >
                   {tab.icon}
                   <span>{tab.label}</span>
@@ -1807,58 +1731,22 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
 
           {/* Collapsible Left Drawer (320px) */}
           {activeRailTab && (
-            <aside
-              style={{
-                width: '320px',
-                flexShrink: 0,
-                background: '#111827',
-                borderRight: '1px solid var(--border-subtle)',
-                display: 'flex',
-                flexDirection: 'column',
-                minHeight: 0,
-                overflow: 'hidden'
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '10px 12px',
-                  borderBottom: '1px solid var(--border-subtle)'
-                }}
-              >
-                <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'capitalize' }}>
+            <aside className="flex min-h-0 w-[320px] shrink-0 flex-col overflow-hidden border-r border-subtle bg-gray-900">
+              <div className="flex items-center justify-between border-b border-subtle px-3 py-2.5">
+                <span className="text-[0.8rem] font-bold capitalize">
                   {activeRailTab}
                 </span>
                 <button
                   type="button"
                   onClick={() => setActiveRailTab(null)}
                   title="Collapse panel for larger canvas"
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    padding: '2px',
-                    display: 'inline-flex',
-                    cursor: 'pointer'
-                  }}
+                  className="inline-flex cursor-pointer border-0 bg-transparent p-0.5 text-text-muted hover:text-text-primary"
                 >
                   <ChevronLeft size={16} />
                 </button>
               </div>
 
-              <div
-                style={{
-                  flex: 1,
-                  minHeight: 0,
-                  overflowY: 'auto',
-                  padding: '12px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '14px'
-                }}
-              >
+              <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto p-3">
                 {activeRailTab === 'elements' && (
                   <CanvasElementsDrawer
                     onAddShape={handleAddShape}
@@ -1971,36 +1859,15 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                     <button
                       type="button"
                       onClick={() => handleAddText('heading')}
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        borderRadius: '10px',
-                        border: 'none',
-                        background: '#7c3aed',
-                        color: '#fff',
-                        fontWeight: 700,
-                        fontSize: '0.84rem',
-                        cursor: 'pointer'
-                      }}
+                      className="w-full cursor-pointer rounded-[10px] border-0 bg-violet-600 px-3 py-2.5 text-[0.84rem] font-bold text-white transition-colors hover:bg-violet-500"
                     >
                       + Add a text box
                     </button>
-                    <span style={sectionTitleStyle}>Quick Text Styles</span>
+                    <span className={SECTION_TITLE_CLS}>Quick Text Styles</span>
                     <button
                       type="button"
                       onClick={() => handleAddText('heading')}
-                      style={{
-                        width: '100%',
-                        textAlign: 'left',
-                        padding: '12px',
-                        borderRadius: '10px',
-                        border: '1px solid var(--border-subtle)',
-                        background: 'var(--bg-panel-elevated)',
-                        color: '#fff',
-                        fontSize: '1.15rem',
-                        fontWeight: 800,
-                        cursor: 'pointer'
-                      }}
+                      className="w-full cursor-pointer rounded-[10px] border border-subtle bg-panel-elevated p-3 text-left text-[1.15rem] font-extrabold text-white transition-colors hover:bg-hover"
                     >
                       Add a heading
                     </button>
@@ -2008,18 +1875,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                       <button
                         type="button"
                         onClick={handleAddParticipantWidget}
-                        style={{
-                          width: '100%',
-                          textAlign: 'left',
-                          padding: '10px 12px',
-                          borderRadius: '10px',
-                          border: '1px solid rgba(251, 191, 36, 0.45)',
-                          background: 'rgba(251, 191, 36, 0.12)',
-                          color: '#fde68a',
-                          fontSize: '0.84rem',
-                          fontWeight: 700,
-                          cursor: 'pointer'
-                        }}
+                        className="w-full cursor-pointer rounded-[10px] border border-amber-400/45 bg-amber-400/12 px-3 py-2.5 text-left text-[0.84rem] font-bold text-amber-200 transition-colors hover:bg-amber-400/20"
                       >
                         + Speaker Name / Title
                       </button>
@@ -2027,40 +1883,18 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                     <button
                       type="button"
                       onClick={() => handleAddText('subheading')}
-                      style={{
-                        width: '100%',
-                        textAlign: 'left',
-                        padding: '10px 12px',
-                        borderRadius: '10px',
-                        border: '1px solid var(--border-subtle)',
-                        background: 'var(--bg-panel-elevated)',
-                        color: '#e2e8f0',
-                        fontSize: '0.92rem',
-                        fontWeight: 600,
-                        cursor: 'pointer'
-                      }}
+                      className="w-full cursor-pointer rounded-[10px] border border-subtle bg-panel-elevated px-3 py-2.5 text-left text-[0.92rem] font-semibold text-slate-200 transition-colors hover:bg-hover"
                     >
                       Add a subheading
                     </button>
                     <button
                       type="button"
                       onClick={() => handleAddText('body')}
-                      style={{
-                        width: '100%',
-                        textAlign: 'left',
-                        padding: '10px 12px',
-                        borderRadius: '10px',
-                        border: '1px solid var(--border-subtle)',
-                        background: 'var(--bg-panel-elevated)',
-                        color: '#cbd5e1',
-                        fontSize: '0.78rem',
-                        fontWeight: 400,
-                        cursor: 'pointer'
-                      }}
+                      className="w-full cursor-pointer rounded-[10px] border border-subtle bg-panel-elevated px-3 py-2.5 text-left text-[0.78rem] font-normal text-slate-300 transition-colors hover:bg-hover"
                     >
                       Add a little bit of body text
                     </button>
-                    <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                    <p className="m-0 text-[0.72rem] leading-[1.45] text-text-muted">
                       Tip: Double-click any text box on the canvas to type directly inside it.
                     </p>
                   </>
@@ -2071,34 +1905,14 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                     <button
                       type="button"
                       onClick={() => imgFileRef.current?.click()}
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        borderRadius: '10px',
-                        border: 'none',
-                        background: '#7c3aed',
-                        color: '#fff',
-                        fontWeight: 700,
-                        fontSize: '0.84rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '7px',
-                        cursor: 'pointer'
-                      }}
+                      className="flex w-full cursor-pointer items-center justify-center gap-[7px] rounded-[10px] border-0 bg-violet-600 p-3 text-[0.84rem] font-bold text-white transition-colors hover:bg-violet-500"
                     >
                       <Upload size={15} /> Upload Image File
                     </button>
                     <button
                       type="button"
                       onClick={() => glbFileRef.current?.click()}
-                      style={{
-                        ...btnStyle,
-                        width: '100%',
-                        padding: '10px',
-                        borderColor: 'rgba(167, 139, 250, 0.45)',
-                        color: '#ddd6fe'
-                      }}
+                      className={cn(BTN_CLS, 'w-full border-violet-400/45 p-2.5 text-violet-200 hover:bg-hover')}
                       title="Import a binary glTF (.glb) 3D model"
                     >
                       <Box size={14} /> Upload 3D Model (.glb)
@@ -2106,33 +1920,21 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setActiveRailTab('elements')}
-                      style={{ ...btnStyle, width: '100%', padding: '10px' }}
+                      className={cn(BTN_CLS, 'w-full p-2.5 hover:bg-hover')}
                     >
                       <ImageIcon size={14} /> Browse Elements &amp; Photos
                     </button>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        marginTop: '4px'
-                      }}
-                    >
-                      <span style={sectionTitleStyle}>
+                    <div className="mt-1 flex items-center justify-between">
+                      <span className={SECTION_TITLE_CLS}>
                         Your Uploads ({uploadedImages.length})
                       </span>
                     </div>
                     {uploadedImages.length === 0 ? (
-                      <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                      <p className="m-0 text-[0.72rem] leading-[1.45] text-text-muted">
                         Uploaded and stock images are stored locally so your presentation stays 100% offline-ready.
                       </p>
                     ) : (
-                      <div
-                        style={{
-                          columns: 2,
-                          columnGap: '8px'
-                        }}
-                      >
+                      <div className="columns-2 gap-2">
                         {uploadedImages.map((item) => (
                           <div
                             key={item.fileName}
@@ -2142,26 +1944,13 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                             }}
                             onClick={() => addImageUrlToSlide(item.url, 'Uploaded Image')}
                             title="Click to add to slide, or drag onto a Frame"
-                            style={{
-                              position: 'relative',
-                              breakInside: 'avoid',
-                              marginBottom: '8px',
-                              borderRadius: '8px',
-                              overflow: 'hidden',
-                              border: '1px solid var(--border-subtle)',
-                              background: 'var(--bg-panel-elevated)',
-                              cursor: 'pointer'
-                            }}
+                            className="relative mb-2 cursor-pointer break-inside-avoid overflow-hidden rounded-lg border border-subtle bg-panel-elevated"
                           >
                             <img
                               src={item.url}
                               alt=""
                               loading="lazy"
-                              style={{
-                                width: '100%',
-                                height: 'auto',
-                                display: 'block'
-                              }}
+                              className="block h-auto w-full"
                             />
                             <button
                               type="button"
@@ -2173,22 +1962,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                                   await refreshUploadedImages();
                                 })();
                               }}
-                              style={{
-                                position: 'absolute',
-                                top: '4px',
-                                right: '4px',
-                                width: '20px',
-                                height: '20px',
-                                borderRadius: '999px',
-                                border: 'none',
-                                background: 'rgba(15, 23, 42, 0.78)',
-                                color: '#f8fafc',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                opacity: 0.85
-                              }}
+                              className="absolute top-1 right-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border-0 bg-slate-900/78 text-slate-50 opacity-85 hover:opacity-100"
                             >
                               <X size={11} />
                             </button>
@@ -2201,45 +1975,35 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
 
                 {activeRailTab === 'background' && (
                   <>
-                    <span style={sectionTitleStyle}>Slide {activeSlideIdx + 1} Background</span>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                    <span className={SECTION_TITLE_CLS}>Slide {activeSlideIdx + 1} Background</span>
+                    <div className="grid grid-cols-4 gap-2">
                       {THEME_PRESETS.map((preset) => (
                         <button
                           key={preset.name}
                           type="button"
                           title={preset.name}
                           onClick={() => updateActiveSlideBackground(preset.value)}
-                          style={{
-                            aspectRatio: '16 / 10',
-                            borderRadius: '8px',
-                            background: preset.value,
-                            border:
-                              activeSlideBg === preset.value
-                                ? '2px solid #a78bfa'
-                                : '1px solid var(--border-subtle)',
-                            cursor: 'pointer'
-                          }}
+                          className={cn(
+                            'aspect-[16/10] cursor-pointer rounded-lg',
+                            activeSlideBg === preset.value
+                              ? 'border-2 border-violet-400'
+                              : 'border border-subtle'
+                          )}
+                          style={{ background: preset.value }}
                         />
                       ))}
                     </div>
-                    <label style={fieldLabelStyle}>
+                    <label className={FIELD_LABEL_CLS}>
                       <span>Solid Color</span>
                       <input
                         type="color"
                         value={activeSlideBg.startsWith('#') ? activeSlideBg : '#0f172a'}
                         onChange={(e) => updateActiveSlideBackground(e.target.value)}
-                        style={{
-                          width: '100%',
-                          height: '34px',
-                          border: '1px solid var(--border-subtle)',
-                          borderRadius: '8px',
-                          background: 'transparent',
-                          cursor: 'pointer'
-                        }}
+                        className="h-[34px] w-full cursor-pointer rounded-lg border border-subtle bg-transparent"
                       />
                     </label>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <span style={sectionTitleStyle}>Custom Background Image</span>
+                    <div className="flex flex-col gap-1.5">
+                      <span className={SECTION_TITLE_CLS}>Custom Background Image</span>
                       <BackgroundImagePicker
                         value={activeSlideBg}
                         onSelect={updateActiveSlideBackground}
@@ -2249,10 +2013,10 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                 )}
 
                 {activeRailTab === 'layers' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <span style={sectionTitleStyle}>Layers ({elements.length}) — Drag to Reorder</span>
+                  <div className="flex flex-col gap-1.5">
+                    <span className={SECTION_TITLE_CLS}>Layers ({elements.length}) — Drag to Reorder</span>
                     {elements.length === 0 ? (
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      <div className="text-[0.78rem] text-text-muted">
                         No elements on this slide yet.
                       </div>
                     ) : (
@@ -2296,36 +2060,17 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                                   return desc.map((item, i) => ({ ...item, zIndex: total - i }));
                                 });
                               }}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                padding: '6px 8px',
-                                borderRadius: '8px',
-                                border: '1px solid',
-                                borderColor: isSel ? '#8b5cf6' : 'var(--border-subtle)',
-                                background: isSel
-                                  ? 'rgba(139,92,246,0.18)'
-                                  : 'var(--bg-panel-elevated)'
-                              }}
+                              className={cn(
+                                'flex items-center gap-1 rounded-lg border px-2 py-1.5',
+                                isSel
+                                  ? 'border-violet-500 bg-violet-500/18'
+                                  : 'border-subtle bg-panel-elevated'
+                              )}
                             >
                               <button
                                 type="button"
                                 onClick={() => setSelectedElIds(expandWithGroupIds([el.id], elements))}
-                                style={{
-                                  flex: 1,
-                                  minWidth: 0,
-                                  textAlign: 'left',
-                                  background: 'transparent',
-                                  border: 'none',
-                                  padding: 0,
-                                  fontSize: '0.75rem',
-                                  color: 'var(--text-primary)',
-                                  whiteSpace: 'nowrap',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  cursor: 'pointer'
-                                }}
+                                className="min-w-0 flex-1 cursor-pointer truncate border-0 bg-transparent p-0 text-left text-[0.75rem] text-text-primary"
                               >
                                 {label}
                               </button>
@@ -2344,7 +2089,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                                   setSelectedElId(clone.id);
                                 }}
                                 title="Duplicate Layer"
-                                style={{ ...btnStyle, padding: '3px' }}
+                                className={cn(BTN_CLS, 'p-[3px] hover:bg-hover')}
                               >
                                 <Copy size={11} />
                               </button>
@@ -2353,7 +2098,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                                 disabled={visualIdx === 0}
                                 onClick={() => moveElementLayer(el.id, 1)}
                                 title="Move Forward"
-                                style={{ ...btnStyle, padding: '3px', opacity: visualIdx === 0 ? 0.35 : 1 }}
+                                className={cn(BTN_CLS, 'p-[3px] hover:bg-hover', visualIdx === 0 && 'opacity-35')}
                               >
                                 <ArrowUp size={11} />
                               </button>
@@ -2362,11 +2107,11 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                                 disabled={visualIdx === arr.length - 1}
                                 onClick={() => moveElementLayer(el.id, -1)}
                                 title="Move Backward"
-                                style={{
-                                  ...btnStyle,
-                                  padding: '3px',
-                                  opacity: visualIdx === arr.length - 1 ? 0.35 : 1
-                                }}
+                                className={cn(
+                                  BTN_CLS,
+                                  'p-[3px]',
+                                  visualIdx === arr.length - 1 && 'opacity-35'
+                                )}
                               >
                                 <ArrowDown size={11} />
                               </button>
@@ -2381,23 +2126,11 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
           )}
 
           {/* Center Studio Column: Contextual Top Toolbar + Stage + Bottom Slide Filmstrip */}
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+          <div className="relative flex min-w-0 flex-1 flex-col">
             {/* Canva-Style Contextual Top Formatting Toolbar */}
             <div
               onClick={(e) => e.stopPropagation()}
-              style={{
-                minHeight: '46px',
-                padding: '6px 14px',
-                background: '#0f172a',
-                borderBottom: '1px solid var(--border-subtle)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                flexWrap: 'wrap',
-                flexShrink: 0,
-                position: 'relative',
-                zIndex: 30
-              }}
+              className="relative z-30 flex min-h-[46px] shrink-0 flex-wrap items-center gap-2 border-b border-subtle bg-[#0f172a] px-3.5 py-1.5"
             >
               {selectedElements.length > 1 ? (
                 (() => {
@@ -2408,17 +2141,17 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                   const hasAnyGroup = selectedElements.some((el) => el.groupId);
                   return (
                     <>
-                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#ddd6fe' }}>
+                      <span className="text-[0.78rem] font-bold text-[#ddd6fe]">
                         {selectedElements.length} selected
                       </span>
-                      <div style={{ width: '1px', height: '18px', background: 'var(--border-subtle)' }} />
+                      <div className="h-[18px] w-px bg-subtle" />
                       {!isAlreadySingleGroup && (
-                        <button type="button" onClick={handleGroupSelected} style={btnStyle}>
+                        <button type="button" onClick={handleGroupSelected} className={BTN_CLS}>
                           Group
                         </button>
                       )}
                       {hasAnyGroup && (
-                        <button type="button" onClick={handleUngroupSelected} style={btnStyle}>
+                        <button type="button" onClick={handleUngroupSelected} className={BTN_CLS}>
                           Ungroup
                         </button>
                       )}
@@ -2446,7 +2179,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                           updateActiveElements((prev) => [...prev, ...clones]);
                           setSelectedElIds(clones.map((c) => c.id));
                         }}
-                        style={btnStyle}
+                        className={BTN_CLS}
                       >
                         <Copy size={13} /> Duplicate
                       </button>
@@ -2457,7 +2190,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                           updateActiveElements((prev) => prev.filter((el) => !toRemove.has(el.id)));
                           setSelectedElIds([]);
                         }}
-                        style={{ ...btnStyle, borderColor: '#7f1d1d', color: '#fca5a5' }}
+                        className={cn(BTN_CLS, 'border-[#7f1d1d] text-[#fca5a5]')}
                       >
                         <Trash2 size={13} /> Delete
                       </button>
@@ -2469,39 +2202,28 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setActiveRailTab('background')}
-                    style={{
-                      ...btnStyle,
-                      padding: '4px 9px',
-                      gap: '6px'
-                    }}
+                    className={cn(BTN_CLS, 'gap-1.5 px-[9px] py-1')}
                   >
                     <span
-                      style={{
-                        width: '14px',
-                        height: '14px',
-                        borderRadius: '4px',
-                        background: activeSlideBg,
-                        border: '1px solid rgba(255,255,255,0.35)'
-                      }}
+                      className="h-3.5 w-3.5 rounded-[4px] border border-white/35"
+                      style={{ background: activeSlideBg }}
                     />
                     Background
                   </button>
-                  <button type="button" onClick={() => handleAddText('heading')} style={btnStyle}>
+                  <button type="button" onClick={() => handleAddText('heading')} className={BTN_CLS}>
                     <Type size={13} /> + Text
                   </button>
                   <button
                     type="button"
                     onClick={() => setActiveRailTab('elements')}
-                    style={{
-                      ...btnStyle,
-                      borderColor: 'rgba(139, 92, 246, 0.5)',
-                      background: 'rgba(124, 58, 237, 0.16)',
-                      color: '#ddd6fe'
-                    }}
+                    className={cn(
+                      BTN_CLS,
+                      'border-[rgba(139,92,246,0.5)] bg-[rgba(124,58,237,0.16)] text-[#ddd6fe]'
+                    )}
                   >
                     <Sparkles size={13} /> Elements
                   </button>
-                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                  <span className="ml-auto text-[0.74rem] text-text-muted">
                     Click an item to format • Drag canvas to multi-select
                   </span>
                 </>
@@ -2514,7 +2236,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                         aria-label="Font family"
                         value={selectedEl.fontFamily ?? LOCAL_FONTS[0].value}
                         onChange={(e) => updateSelectedEl({ fontFamily: e.target.value })}
-                        style={{ ...inputStyle, width: '132px', padding: '4px 8px', fontSize: '0.78rem' }}
+                        className={cn(INPUT_CLS, 'w-[132px] px-2 py-1 text-[0.78rem]')}
                       >
                         {LOCAL_FONTS.map((f) => (
                           <option key={f.value} value={f.value}>
@@ -2524,31 +2246,14 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                       </select>
 
                       {/* Canva-style - [Size] + stepper */}
-                      <div
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          border: '1px solid var(--border-subtle)',
-                          borderRadius: '7px',
-                          overflow: 'hidden',
-                          background: 'var(--bg-app)'
-                        }}
-                      >
+                      <div className="inline-flex items-center overflow-hidden rounded-[7px] border border-subtle bg-app">
                         <button
                           type="button"
                           aria-label="Decrease font size"
                           onClick={() =>
                             updateSelectedEl({ fontSize: Math.max(8, (selectedEl.fontSize ?? 56) - 1) })
                           }
-                          style={{
-                            width: '24px',
-                            height: '26px',
-                            border: 'none',
-                            background: 'transparent',
-                            color: 'var(--text-primary)',
-                            fontWeight: 700,
-                            cursor: 'pointer'
-                          }}
+                          className="h-[26px] w-6 cursor-pointer border-0 bg-transparent font-bold text-text-primary"
                         >
                           −
                         </button>
@@ -2564,18 +2269,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                               updateSelectedEl({ fontSize: Math.max(8, Math.min(700, parsed)) });
                             }
                           }}
-                          style={{
-                            width: '44px',
-                            height: '26px',
-                            border: 'none',
-                            borderLeft: '1px solid var(--border-subtle)',
-                            borderRight: '1px solid var(--border-subtle)',
-                            background: 'transparent',
-                            color: 'var(--text-primary)',
-                            textAlign: 'center',
-                            fontSize: '0.78rem',
-                            fontVariantNumeric: 'tabular-nums'
-                          }}
+                          className="h-[26px] w-11 border-0 border-x border-subtle bg-transparent text-center text-[0.78rem] tabular-nums text-text-primary focus:outline-none"
                         />
                         <button
                           type="button"
@@ -2583,15 +2277,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                           onClick={() =>
                             updateSelectedEl({ fontSize: Math.min(700, (selectedEl.fontSize ?? 56) + 1) })
                           }
-                          style={{
-                            width: '24px',
-                            height: '26px',
-                            border: 'none',
-                            background: 'transparent',
-                            color: 'var(--text-primary)',
-                            fontWeight: 700,
-                            cursor: 'pointer'
-                          }}
+                          className="h-[26px] w-6 cursor-pointer border-0 bg-transparent font-bold text-text-primary"
                         >
                           +
                         </button>
@@ -2603,18 +2289,10 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                         aria-label="Text color"
                         value={selectedEl.color ?? '#ffffff'}
                         onChange={(e) => updateSelectedEl({ color: e.target.value })}
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          padding: 0,
-                          border: '1px solid var(--border-subtle)',
-                          borderRadius: '6px',
-                          background: 'transparent',
-                          cursor: 'pointer'
-                        }}
+                        className="h-7 w-7 cursor-pointer rounded-[6px] border border-subtle bg-transparent p-0"
                       />
 
-                      <div style={{ width: '1px', height: '18px', background: 'var(--border-subtle)' }} />
+                      <div className="h-[18px] w-px bg-subtle" />
 
                       <button
                         type="button"
@@ -2624,15 +2302,13 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                             fontWeight: (selectedEl.fontWeight ?? '700') === '400' ? '700' : '400'
                           })
                         }
-                        style={{
-                          ...btnStyle,
-                          padding: '4px 8px',
-                          fontWeight: 800,
-                          background:
-                            (selectedEl.fontWeight ?? '700') !== '400'
-                              ? 'rgba(124,58,237,0.3)'
-                              : 'transparent'
-                        }}
+                        className={cn(
+                          BTN_CLS,
+                          'px-2 py-1 font-extrabold',
+                          (selectedEl.fontWeight ?? '700') !== '400'
+                            ? 'bg-[rgba(124,58,237,0.3)]'
+                            : 'bg-transparent'
+                        )}
                       >
                         B
                       </button>
@@ -2644,12 +2320,13 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                             fontStyle: selectedEl.fontStyle === 'italic' ? 'normal' : 'italic'
                           })
                         }
-                        style={{
-                          ...btnStyle,
-                          padding: '5px 7px',
-                          background:
-                            selectedEl.fontStyle === 'italic' ? 'rgba(124,58,237,0.3)' : 'transparent'
-                        }}
+                        className={cn(
+                          BTN_CLS,
+                          'px-[7px] py-[5px]',
+                          selectedEl.fontStyle === 'italic'
+                            ? 'bg-[rgba(124,58,237,0.3)]'
+                            : 'bg-transparent'
+                        )}
                       >
                         <Italic size={13} />
                       </button>
@@ -2662,19 +2339,18 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                               selectedEl.textDecoration === 'underline' ? 'none' : 'underline'
                           })
                         }
-                        style={{
-                          ...btnStyle,
-                          padding: '5px 7px',
-                          background:
-                            selectedEl.textDecoration === 'underline'
-                              ? 'rgba(124,58,237,0.3)'
-                              : 'transparent'
-                        }}
+                        className={cn(
+                          BTN_CLS,
+                          'px-[7px] py-[5px]',
+                          selectedEl.textDecoration === 'underline'
+                            ? 'bg-[rgba(124,58,237,0.3)]'
+                            : 'bg-transparent'
+                        )}
                       >
                         <Underline size={13} />
                       </button>
 
-                      <div style={{ width: '1px', height: '18px', background: 'var(--border-subtle)' }} />
+                      <div className="h-[18px] w-px bg-subtle" />
 
                       {(
                         [
@@ -2688,14 +2364,13 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                           type="button"
                           title={`Align ${a.align}`}
                           onClick={() => updateSelectedEl({ textAlign: a.align })}
-                          style={{
-                            ...btnStyle,
-                            padding: '5px 6px',
-                            background:
-                              (selectedEl.textAlign ?? 'center') === a.align
-                                ? 'rgba(124,58,237,0.3)'
-                                : 'transparent'
-                          }}
+                          className={cn(
+                            BTN_CLS,
+                            'px-1.5 py-[5px]',
+                            (selectedEl.textAlign ?? 'center') === a.align
+                              ? 'bg-[rgba(124,58,237,0.3)]'
+                              : 'bg-transparent'
+                          )}
                         >
                           {a.icon}
                         </button>
@@ -2706,12 +2381,13 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                         onClick={() =>
                           setActivePopover((prev) => (prev === 'effects' ? null : 'effects'))
                         }
-                        style={{
-                          ...btnStyle,
-                          padding: '5px 9px',
-                          background:
-                            activePopover === 'effects' ? 'rgba(124,58,237,0.3)' : 'transparent'
-                        }}
+                        className={cn(
+                          BTN_CLS,
+                          'px-[9px] py-[5px]',
+                          activePopover === 'effects'
+                            ? 'bg-[rgba(124,58,237,0.3)]'
+                            : 'bg-transparent'
+                        )}
                       >
                         Effects &amp; Spacing
                       </button>
@@ -2726,12 +2402,13 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                         onClick={() =>
                           setActivePopover((prev) => (prev === 'shape' ? null : 'shape'))
                         }
-                        style={{
-                          ...btnStyle,
-                          padding: '5px 9px',
-                          background:
-                            activePopover === 'shape' ? 'rgba(124,58,237,0.3)' : 'transparent'
-                        }}
+                        className={cn(
+                          BTN_CLS,
+                          'px-[9px] py-[5px]',
+                          activePopover === 'shape'
+                            ? 'bg-[rgba(124,58,237,0.3)]'
+                            : 'bg-transparent'
+                        )}
                       >
                         <Square size={13} /> Shape
                       </button>
@@ -2744,26 +2421,10 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                             : '#1e293b'
                         }
                         onChange={(e) => updateSelectedEl({ backgroundColor: e.target.value })}
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          padding: 0,
-                          border: '1px solid var(--border-subtle)',
-                          borderRadius: '6px',
-                          background: 'transparent',
-                          cursor: 'pointer'
-                        }}
+                        className="h-7 w-7 cursor-pointer rounded-[6px] border border-subtle bg-transparent p-0"
                       />
                       {(!selectedEl.shapeType || selectedEl.shapeType === 'rectangle') && (
-                        <label
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            fontSize: '0.73rem',
-                            color: 'var(--text-secondary)'
-                          }}
-                        >
+                        <label className="inline-flex items-center gap-[5px] text-[0.73rem] text-text-secondary">
                           Radius
                           <input
                             type="range"
@@ -2771,7 +2432,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                             max={120}
                             value={selectedEl.borderRadius ?? 0}
                             onChange={(e) => updateSelectedEl({ borderRadius: Number(e.target.value) })}
-                            style={{ width: '64px' }}
+                            className="w-16"
                           />
                         </label>
                       )}
@@ -2792,24 +2453,18 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                         }
                         setActivePopover((p) => (p === '3d' ? null : '3d'));
                       }}
-                      style={{
-                        ...btnStyle,
-                        padding: '5px 10px',
-                        background:
-                          activePopover === '3d' ||
+                      className={cn(
+                        BTN_CLS,
+                        'px-2.5 py-[5px]',
+                        activePopover === '3d' ||
                           selectedEl.kind === 'model3d' ||
                           selectedEl.threeD?.enabled
-                            ? 'rgba(124,58,237,0.3)'
-                            : 'transparent',
-                        borderColor:
-                          selectedEl.kind === 'model3d' || selectedEl.threeD?.enabled
-                            ? '#a78bfa'
-                            : 'var(--border-subtle)',
-                        color:
-                          selectedEl.kind === 'model3d' || selectedEl.threeD?.enabled
-                            ? '#ddd6fe'
-                            : 'var(--text-primary)'
-                      }}
+                          ? 'bg-[rgba(124,58,237,0.3)]'
+                          : 'bg-transparent',
+                        selectedEl.kind === 'model3d' || selectedEl.threeD?.enabled
+                          ? 'border-[#a78bfa] text-[#ddd6fe]'
+                          : 'border-subtle text-text-primary'
+                      )}
                       title={
                         selectedEl.kind === 'model3d'
                           ? '3D Model motion & angle controls'
@@ -2820,7 +2475,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                     </button>
                   )}
                   {selectedEl.kind === 'image' && selectedEl.svgTemplate && (
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                    <div className="inline-flex items-center gap-[5px]">
                       {['#ffffff', '#fde047', '#93c5fd', '#86efac', '#f9a8d4'].map((swatch) => (
                         <button
                           key={swatch}
@@ -2831,18 +2486,13 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                               imageSrc: buildColoredSvgDataUrl(selectedEl.svgTemplate!, swatch)
                             })
                           }
-                          style={{
-                            width: '18px',
-                            height: '18px',
-                            borderRadius: '999px',
-                            background: swatch,
-                            border:
-                              (selectedEl.color || '#ffffff').toLowerCase() === swatch
-                                ? '2px solid #a78bfa'
-                                : '1px solid rgba(255,255,255,0.3)',
-                            padding: 0,
-                            cursor: 'pointer'
-                          }}
+                          className={cn(
+                            'h-[18px] w-[18px] cursor-pointer rounded-full p-0',
+                            (selectedEl.color || '#ffffff').toLowerCase() === swatch
+                              ? 'border-2 border-[#a78bfa]'
+                              : 'border border-white/30'
+                          )}
+                          style={{ background: swatch }}
                         />
                       ))}
                       <input
@@ -2855,15 +2505,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                             imageSrc: buildColoredSvgDataUrl(selectedEl.svgTemplate!, e.target.value)
                           })
                         }
-                        style={{
-                          width: '26px',
-                          height: '26px',
-                          padding: 0,
-                          border: '1px solid var(--border-subtle)',
-                          borderRadius: '6px',
-                          background: 'transparent',
-                          cursor: 'pointer'
-                        }}
+                        className="h-[26px] w-[26px] cursor-pointer rounded-[6px] border border-subtle bg-transparent p-0"
                       />
                     </div>
                   )}
@@ -2876,25 +2518,9 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                         title="Divider Color"
                         value={selectedEl.color ?? '#ffffff'}
                         onChange={(e) => updateSelectedEl({ color: e.target.value })}
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          padding: 0,
-                          border: '1px solid var(--border-subtle)',
-                          borderRadius: '6px',
-                          background: 'transparent',
-                          cursor: 'pointer'
-                        }}
+                        className="h-7 w-7 cursor-pointer rounded-[6px] border border-subtle bg-transparent p-0"
                       />
-                      <label
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          fontSize: '0.73rem',
-                          color: 'var(--text-secondary)'
-                        }}
-                      >
+                      <label className="inline-flex items-center gap-[5px] text-[0.73rem] text-text-secondary">
                         Thickness
                         <input
                           type="range"
@@ -2902,7 +2528,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                           max={24}
                           value={selectedEl.thickness ?? 4}
                           onChange={(e) => updateSelectedEl({ thickness: Number(e.target.value) })}
-                          style={{ width: '70px' }}
+                          className="w-[70px]"
                         />
                       </label>
                     </>
@@ -2912,15 +2538,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                   {selectedEl.kind === 'frame' && (
                     <>
                       {(selectedEl.frameShape === 'square' || selectedEl.frameShape === 'rounded') && (
-                        <label
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            fontSize: '0.73rem',
-                            color: 'var(--text-secondary)'
-                          }}
-                        >
+                        <label className="inline-flex items-center gap-[5px] text-[0.73rem] text-text-secondary">
                           Radius
                           <input
                             type="range"
@@ -2933,7 +2551,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                             onChange={(e) =>
                               updateSelectedEl({ borderRadius: Number(e.target.value) })
                             }
-                            style={{ width: '68px' }}
+                            className="w-[68px]"
                           />
                         </label>
                       )}
@@ -2946,22 +2564,13 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                                 prev === selectedEl.id ? null : selectedEl.id
                               )
                             }
-                            style={{
-                              ...btnStyle,
-                              padding: '5px 9px',
-                              background:
-                                editingFrameId === selectedEl.id
-                                  ? 'rgba(124, 58, 237, 0.35)'
-                                  : 'transparent',
-                              borderColor:
-                                editingFrameId === selectedEl.id
-                                  ? '#8b5cf6'
-                                  : 'var(--border-subtle)',
-                              color:
-                                editingFrameId === selectedEl.id
-                                  ? '#ddd6fe'
-                                  : 'var(--text-primary)'
-                            }}
+                            className={cn(
+                              BTN_CLS,
+                              'px-[9px] py-[5px]',
+                              editingFrameId === selectedEl.id
+                                ? 'border-[#8b5cf6] bg-[rgba(124,58,237,0.35)] text-[#ddd6fe]'
+                                : 'border-subtle bg-transparent text-text-primary'
+                            )}
                           >
                             {editingFrameId === selectedEl.id ? 'Done Crop' : 'Crop / Adjust'}
                           </button>
@@ -2978,12 +2587,10 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                                 imageRotation: undefined
                               });
                             }}
-                            style={{
-                              ...btnStyle,
-                              padding: '5px 9px',
-                              borderColor: 'rgba(245, 158, 11, 0.45)',
-                              color: '#fde68a'
-                            }}
+                            className={cn(
+                              BTN_CLS,
+                              'border-[rgba(245,158,11,0.45)] px-[9px] py-[5px] text-[#fde68a]'
+                            )}
                           >
                             Clear Photo
                           </button>
@@ -3001,11 +2608,11 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                         type="button"
                         title="Flip Horizontal"
                         onClick={() => updateSelectedEl({ flipX: !selectedEl.flipX })}
-                        style={{
-                          ...btnStyle,
-                          padding: '5px 7px',
-                          background: selectedEl.flipX ? 'rgba(124,58,237,0.3)' : 'transparent'
-                        }}
+                        className={cn(
+                          BTN_CLS,
+                          'px-[7px] py-[5px]',
+                          selectedEl.flipX ? 'bg-[rgba(124,58,237,0.3)]' : 'bg-transparent'
+                        )}
                       >
                         <FlipHorizontal2 size={13} />
                       </button>
@@ -3013,11 +2620,11 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                         type="button"
                         title="Flip Vertical"
                         onClick={() => updateSelectedEl({ flipY: !selectedEl.flipY })}
-                        style={{
-                          ...btnStyle,
-                          padding: '5px 7px',
-                          background: selectedEl.flipY ? 'rgba(124,58,237,0.3)' : 'transparent'
-                        }}
+                        className={cn(
+                          BTN_CLS,
+                          'px-[7px] py-[5px]',
+                          selectedEl.flipY ? 'bg-[rgba(124,58,237,0.3)]' : 'bg-transparent'
+                        )}
                       >
                         <FlipVertical2 size={13} />
                       </button>
@@ -3025,15 +2632,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                   )}
 
                   {selectedEl.kind !== 'text' && (
-                    <label
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                        fontSize: '0.73rem',
-                        color: 'var(--text-secondary)'
-                      }}
-                    >
+                    <label className="inline-flex items-center gap-[5px] text-[0.73rem] text-text-secondary">
                       Opacity
                       <input
                         type="range"
@@ -3042,41 +2641,39 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                         step={0.05}
                         value={selectedEl.opacity ?? 1}
                         onChange={(e) => updateSelectedEl({ opacity: Number(e.target.value) })}
-                        style={{ width: '64px' }}
+                        className="w-16"
                       />
                     </label>
                   )}
 
-                  <div style={{ width: '1px', height: '18px', background: 'var(--border-subtle)' }} />
+                  <div className="h-[18px] w-px bg-subtle" />
 
                   <button
                     type="button"
                     onClick={() =>
                       setActivePopover((prev) => (prev === 'animate' ? null : 'animate'))
                     }
-                    style={{
-                      ...btnStyle,
-                      padding: '5px 9px',
-                      background:
-                        activePopover === 'animate' ||
+                    className={cn(
+                      BTN_CLS,
+                      'px-[9px] py-[5px]',
+                      activePopover === 'animate' ||
                         (selectedEl.animation && selectedEl.animation !== 'none')
-                          ? 'rgba(124,58,237,0.3)'
-                          : 'transparent',
-                      color:
-                        selectedEl.animation && selectedEl.animation !== 'none'
-                          ? '#ddd6fe'
-                          : 'var(--text-primary)'
-                    }}
+                        ? 'bg-[rgba(124,58,237,0.3)]'
+                        : 'bg-transparent',
+                      selectedEl.animation && selectedEl.animation !== 'none'
+                        ? 'text-[#ddd6fe]'
+                        : 'text-text-primary'
+                    )}
                   >
                     <Wand2 size={13} /> Animate
                   </button>
 
-                  <div style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <div className="ml-auto inline-flex items-center gap-1">
                     <button
                       type="button"
                       title="Bring Forward"
                       onClick={() => moveElementLayer(selectedEl.id, 1)}
-                      style={{ ...btnStyle, padding: '5px 6px' }}
+                      className={cn(BTN_CLS, 'px-1.5 py-[5px]')}
                     >
                       <ArrowUp size={13} />
                     </button>
@@ -3084,7 +2681,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                       type="button"
                       title="Send Backward"
                       onClick={() => moveElementLayer(selectedEl.id, -1)}
-                      style={{ ...btnStyle, padding: '5px 6px' }}
+                      className={cn(BTN_CLS, 'px-1.5 py-[5px]')}
                     >
                       <ArrowDown size={13} />
                     </button>
@@ -3103,7 +2700,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                         updateActiveElements((prev) => [...prev, clone]);
                         setSelectedElId(clone.id);
                       }}
-                      style={{ ...btnStyle, padding: '5px 6px' }}
+                      className={cn(BTN_CLS, 'px-1.5 py-[5px]')}
                     >
                       <Copy size={13} />
                     </button>
@@ -3114,7 +2711,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                         updateActiveElements((prev) => prev.filter((el) => el.id !== selectedEl.id));
                         setSelectedElId(null);
                       }}
-                      style={{ ...btnStyle, padding: '5px 6px', borderColor: '#7f1d1d', color: '#fca5a5' }}
+                      className={cn(BTN_CLS, 'border-[#7f1d1d] px-1.5 py-[5px] text-[#fca5a5]')}
                     >
                       <Trash2 size={13} />
                     </button>
@@ -3128,12 +2725,12 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                 const boxLabel =
                   selectedStudioBox === 'presentation' ? 'Presentation Box' : 'Speaker / Camera Box';
                 return (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#ddd6fe' }}>
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span className="text-[0.8rem] font-bold text-[#ddd6fe]">
                       {boxLabel}
                     </span>
-                    <div style={{ width: '1px', height: '18px', background: 'var(--border-subtle)' }} />
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                    <div className="h-[18px] w-px bg-subtle" />
+                    <label className="inline-flex items-center gap-1.5 text-[0.76rem] text-text-secondary">
                       <span>Radius ({box.borderRadius ?? 16}px)</span>
                       <input
                         type="range"
@@ -3142,10 +2739,10 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                         step={2}
                         value={box.borderRadius ?? 16}
                         onChange={(e) => setBox({ ...box, borderRadius: Number(e.target.value) })}
-                        style={{ width: '80px' }}
+                        className="w-20"
                       />
                     </label>
-                    <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                    <span className="text-[0.74rem] text-text-muted">
                       X {Math.round(box.x)}% · Y {Math.round(box.y)}% · {Math.round(box.width)}% × {Math.round(box.height)}%
                     </span>
                   </div>
@@ -3154,40 +2751,18 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
 
               {/* FLOATING POPOVERS BELOW CONTEXTUAL TOOLBAR */}
               {selectedEl && activePopover === 'effects' && selectedEl.kind === 'text' && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: '14px',
-                    marginTop: '6px',
-                    width: '280px',
-                    padding: '12px',
-                    borderRadius: '12px',
-                    background: '#111827',
-                    border: '1px solid var(--border-subtle)',
-                    boxShadow: '0 18px 40px rgba(0,0,0,0.65)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px',
-                    zIndex: 50
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={sectionTitleStyle}>Text Effects &amp; Spacing</span>
+                <div className="absolute left-3.5 top-full z-50 mt-1.5 flex w-[280px] flex-col gap-2.5 rounded-xl border border-subtle bg-[#111827] p-3 shadow-[0_18px_40px_rgba(0,0,0,0.65)]">
+                  <div className="flex items-center justify-between">
+                    <span className={SECTION_TITLE_CLS}>Text Effects &amp; Spacing</span>
                     <button
                       type="button"
                       onClick={() => setActivePopover(null)}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--text-muted)',
-                        cursor: 'pointer'
-                      }}
+                      className="cursor-pointer border-0 bg-transparent text-text-muted"
                     >
                       <X size={14} />
                     </button>
                   </div>
-                  <label style={fieldLabelStyle}>
+                  <label className={FIELD_LABEL_CLS}>
                     <span>Font Size Slider ({selectedEl.fontSize ?? 56}px)</span>
                     <input
                       type="range"
@@ -3198,9 +2773,9 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                       onChange={(e) => updateSelectedEl({ fontSize: Number(e.target.value) })}
                     />
                   </label>
-                  <label style={fieldLabelStyle}>
+                  <label className={FIELD_LABEL_CLS}>
                     <span>Text Outline ({selectedEl.outlineWidth ?? 0}px)</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div className="flex items-center gap-2">
                       <input
                         type="range"
                         min={0}
@@ -3208,17 +2783,17 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                         step={1}
                         value={selectedEl.outlineWidth ?? 0}
                         onChange={(e) => updateSelectedEl({ outlineWidth: Number(e.target.value) })}
-                        style={{ flex: 1 }}
+                        className="flex-1"
                       />
                       <input
                         type="color"
                         value={selectedEl.outlineColor ?? '#000000'}
                         onChange={(e) => updateSelectedEl({ outlineColor: e.target.value })}
-                        style={{ width: '26px', height: '22px', border: 'none', background: 'transparent' }}
+                        className="h-[22px] w-[26px] border-0 bg-transparent"
                       />
                     </div>
                   </label>
-                  <label style={fieldLabelStyle}>
+                  <label className={FIELD_LABEL_CLS}>
                     <span>Line Spacing ({(selectedEl.lineHeight ?? 1.22).toFixed(2)})</span>
                     <input
                       type="range"
@@ -3229,7 +2804,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                       onChange={(e) => updateSelectedEl({ lineHeight: Number(e.target.value) })}
                     />
                   </label>
-                  <label style={fieldLabelStyle}>
+                  <label className={FIELD_LABEL_CLS}>
                     <span>Letter Spacing ({(selectedEl.letterSpacing ?? 0).toFixed(2)}em)</span>
                     <input
                       type="range"
@@ -3244,26 +2819,9 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
               )}
 
               {selectedEl && activePopover === 'shape' && selectedEl.kind === 'shape' && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: '14px',
-                    marginTop: '6px',
-                    width: '240px',
-                    padding: '12px',
-                    borderRadius: '12px',
-                    background: '#111827',
-                    border: '1px solid var(--border-subtle)',
-                    boxShadow: '0 18px 40px rgba(0,0,0,0.65)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px',
-                    zIndex: 50
-                  }}
-                >
-                  <span style={sectionTitleStyle}>Change Shape</span>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+                <div className="absolute left-3.5 top-full z-50 mt-1.5 flex w-[240px] flex-col gap-2 rounded-xl border border-subtle bg-[#111827] p-3 shadow-[0_18px_40px_rgba(0,0,0,0.65)]">
+                  <span className={SECTION_TITLE_CLS}>Change Shape</span>
+                  <div className="grid grid-cols-4 gap-1.5">
                     {SHAPE_OPTIONS.map((opt) => {
                       const active = (selectedEl.shapeType ?? 'rectangle') === opt.id;
                       return (
@@ -3286,19 +2844,14 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                             }
                             setActivePopover(null);
                           }}
-                          style={{
-                            height: '36px',
-                            borderRadius: '7px',
-                            border: '1px solid',
-                            borderColor: active ? '#8b5cf6' : 'var(--border-subtle)',
-                            background: active ? 'rgba(139,92,246,0.2)' : 'var(--bg-panel-elevated)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer'
-                          }}
+                          className={cn(
+                            'flex h-9 cursor-pointer items-center justify-center rounded-[7px] border',
+                            active
+                              ? 'border-[#8b5cf6] bg-[rgba(139,92,246,0.2)]'
+                              : 'border-subtle bg-panel-elevated'
+                          )}
                         >
-                          <div style={{ width: '18px', height: '18px' }}>
+                          <div className="h-[18px] w-[18px]">
                             <CanvasShapeGraphic shapeType={opt.id} fill={active ? '#c4b5fd' : '#cbd5e1'} />
                           </div>
                         </button>
@@ -3309,41 +2862,15 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
               )}
 
               {selectedEl && activePopover === 'animate' && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '100%',
-                    right: '14px',
-                    marginTop: '6px',
-                    width: '270px',
-                    padding: '12px',
-                    borderRadius: '12px',
-                    background: '#111827',
-                    border: '1px solid var(--border-subtle)',
-                    boxShadow: '0 18px 40px rgba(0,0,0,0.65)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px',
-                    zIndex: 50
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={sectionTitleStyle}>Element Animation</span>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <div className="absolute right-3.5 top-full z-50 mt-1.5 flex w-[270px] flex-col gap-2.5 rounded-xl border border-subtle bg-[#111827] p-3 shadow-[0_18px_40px_rgba(0,0,0,0.65)]">
+                  <div className="flex items-center justify-between">
+                    <span className={SECTION_TITLE_CLS}>Element Animation</span>
+                    <div className="inline-flex items-center gap-1.5">
                       {selectedEl.animation && selectedEl.animation !== 'none' && (
                         <button
                           type="button"
                           onClick={() => setAnimReplayNonce((n) => n + 1)}
-                          style={{
-                            padding: '3px 8px',
-                            borderRadius: '6px',
-                            border: '1px solid rgba(56, 189, 248, 0.45)',
-                            background: 'rgba(56, 189, 248, 0.14)',
-                            color: '#7dd3fc',
-                            fontSize: '0.7rem',
-                            fontWeight: 600,
-                            cursor: 'pointer'
-                          }}
+                          className="cursor-pointer rounded-[6px] border border-[rgba(56,189,248,0.45)] bg-[rgba(56,189,248,0.14)] px-2 py-[3px] text-[0.7rem] font-semibold text-[#7dd3fc]"
                         >
                           Replay
                         </button>
@@ -3351,12 +2878,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                       <button
                         type="button"
                         onClick={() => setActivePopover(null)}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'var(--text-muted)',
-                          cursor: 'pointer'
-                        }}
+                        className="cursor-pointer border-0 bg-transparent text-text-muted"
                       >
                         <X size={14} />
                       </button>
@@ -3376,7 +2898,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                       });
                       setAnimReplayNonce((n) => n + 1);
                     }}
-                    style={inputStyle}
+                    className={INPUT_CLS}
                   >
                     <option value="none">None</option>
                     <optgroup label="Entrance (On Slide Show)">
@@ -3396,7 +2918,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                   </select>
                   {selectedEl.animation && selectedEl.animation !== 'none' && (
                     <>
-                      <label style={fieldLabelStyle}>
+                      <label className={FIELD_LABEL_CLS}>
                         <span>Duration ({(selectedEl.animationDuration ?? 0.7).toFixed(1)}s)</span>
                         <input
                           type="range"
@@ -3411,7 +2933,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                         />
                       </label>
                       {!isLoopAnimation(selectedEl.animation) && (
-                        <label style={fieldLabelStyle}>
+                        <label className={FIELD_LABEL_CLS}>
                           <span>Delay ({(selectedEl.animationDelay ?? 0).toFixed(1)}s)</span>
                           <input
                             type="range"
@@ -3437,38 +2959,20 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                 const patch3D = (patch: Partial<typeof td>) =>
                   updateSelectedEl({ threeD: { ...td, ...patch } });
                 return (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '100%',
-                      right: '14px',
-                      marginTop: '6px',
-                      width: '280px',
-                      padding: '12px',
-                      borderRadius: '12px',
-                      background: '#111827',
-                      border: '1px solid var(--border-subtle)',
-                      boxShadow: '0 18px 40px rgba(0,0,0,0.65)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '10px',
-                      zIndex: 50
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={sectionTitleStyle}>{isGlbModel ? '3D Model (.glb)' : '3D Object'}</span>
+                  <div className="absolute right-3.5 top-full z-50 mt-1.5 flex w-[280px] flex-col gap-2.5 rounded-xl border border-subtle bg-[#111827] p-3 shadow-[0_18px_40px_rgba(0,0,0,0.65)]">
+                    <div className="flex items-center justify-between">
+                      <span className={SECTION_TITLE_CLS}>{isGlbModel ? '3D Model (.glb)' : '3D Object'}</span>
                       {!isGlbModel && (
                         <button
                           type="button"
                           onClick={() => patch3D({ enabled: !td.enabled })}
-                          style={{
-                            ...btnStyle,
-                            padding: '4px 10px',
-                            background: td.enabled ? '#7c3aed' : 'transparent',
-                            borderColor: td.enabled ? '#a78bfa' : 'var(--border-subtle)',
-                            color: td.enabled ? '#ffffff' : 'var(--text-secondary)',
-                            fontWeight: 700
-                          }}
+                          className={cn(
+                            BTN_CLS,
+                            'px-2.5 py-1 font-bold',
+                            td.enabled
+                              ? 'border-[#a78bfa] bg-[#7c3aed] text-white'
+                              : 'border-subtle bg-transparent text-text-secondary'
+                          )}
                         >
                           <Box size={12} /> {td.enabled ? '3D On' : '3D Off'}
                         </button>
@@ -3476,7 +2980,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                     </div>
                     {!isGlbModel && (
                       <>
-                    <label style={fieldLabelStyle}>
+                    <label className={FIELD_LABEL_CLS}>
                       <span>Depth ({td.depth.toFixed(2)})</span>
                       <input
                         type="range"
@@ -3487,7 +2991,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                         onChange={(e) => patch3D({ enabled: true, depth: Number(e.target.value) })}
                       />
                     </label>
-                    <label style={fieldLabelStyle}>
+                    <label className={FIELD_LABEL_CLS}>
                       <span>Bevel ({td.bevel.toFixed(3)})</span>
                       <input
                         type="range"
@@ -3498,8 +3002,8 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                         onChange={(e) => patch3D({ enabled: true, bevel: Number(e.target.value) })}
                       />
                     </label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <label style={{ ...fieldLabelStyle, flex: 1 }}>
+                    <div className="flex items-center gap-2">
+                      <label className={cn(FIELD_LABEL_CLS, 'flex-1')}>
                         <span>Edge Finish</span>
                         <select
                           aria-label="3D edge material"
@@ -3514,7 +3018,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                                   : td.edgeColor;
                             patch3D({ enabled: true, material: nextMat, edgeColor: nextColor });
                           }}
-                          style={inputStyle}
+                          className={INPUT_CLS}
                         >
                           <option value="metallic">Metallic</option>
                           <option value="glossy">Glossy</option>
@@ -3524,28 +3028,20 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                           <option value="neon">Neon Glow</option>
                         </select>
                       </label>
-                      <label style={fieldLabelStyle}>
+                      <label className={FIELD_LABEL_CLS}>
                         <span>Color</span>
                         <input
                           type="color"
                           title="3D Edge Color"
                           value={td.edgeColor}
                           onChange={(e) => patch3D({ enabled: true, edgeColor: e.target.value })}
-                          style={{
-                            width: '34px',
-                            height: '30px',
-                            padding: 0,
-                            border: '1px solid var(--border-subtle)',
-                            borderRadius: '6px',
-                            background: 'transparent',
-                            cursor: 'pointer'
-                          }}
+                          className="h-[30px] w-[34px] cursor-pointer rounded-[6px] border border-subtle bg-transparent p-0"
                         />
                       </label>
                     </div>
                       </>
                     )}
-                    <label style={fieldLabelStyle}>
+                    <label className={FIELD_LABEL_CLS}>
                       <span>3D Animation</span>
                       <select
                         aria-label="3D animation"
@@ -3553,7 +3049,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                         onChange={(e) =>
                           patch3D({ enabled: true, animation: e.target.value as CanvasThreeDAnimation })
                         }
-                        style={inputStyle}
+                        className={INPUT_CLS}
                       >
                         <option value="none">Static</option>
                         <option value="float">Float</option>
@@ -3564,7 +3060,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                       </select>
                     </label>
                     {td.animation !== 'none' && (
-                      <label style={fieldLabelStyle}>
+                      <label className={FIELD_LABEL_CLS}>
                         <span>Speed ({td.speed.toFixed(1)}x)</span>
                         <input
                           type="range"
@@ -3576,7 +3072,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                         />
                       </label>
                     )}
-                    <label style={fieldLabelStyle}>
+                    <label className={FIELD_LABEL_CLS}>
                       <span>Angle Y ({td.tiltY}°)</span>
                       <input
                         type="range"
@@ -4487,17 +3983,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
             {!studioMode && (
             <div
               onClick={(e) => e.stopPropagation()}
-              style={{
-                height: '68px',
-                flexShrink: 0,
-                background: '#0f172a',
-                borderTop: '1px solid var(--border-subtle)',
-                padding: '8px 14px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                overflowX: 'auto'
-              }}
+              className="flex h-[68px] shrink-0 items-center gap-2 overflow-x-auto border-t border-subtle bg-slate-900 px-3.5 py-2"
             >
               {slides.map((s, idx) => {
                 const isActive = idx === activeSlideIdx;
@@ -4560,50 +4046,30 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                       }
                     }}
                     title="Drag to reorder slide"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '6px 10px',
-                      borderRadius: '9px',
-                      border: '2px solid',
-                      borderColor: isDragOver
-                        ? '#38bdf8'
+                    className={cn(
+                      'flex min-w-[148px] max-w-[190px] shrink-0 items-center gap-1.5 rounded-[9px] border-2 px-2.5 py-1.5 transition-[border-color,opacity] duration-120',
+                      isDragOver
+                        ? 'border-sky-400'
                         : isActive
-                          ? '#8b5cf6'
-                          : 'var(--border-subtle)',
-                      boxShadow: isDragOver
-                        ? draggedSlideIdx !== null && draggedSlideIdx < idx
-                          ? 'inset -3px 0 0 #38bdf8'
-                          : 'inset 3px 0 0 #38bdf8'
-                        : undefined,
-                      background: isActive ? 'rgba(124, 58, 237, 0.2)' : 'var(--bg-panel-elevated)',
-                      minWidth: '148px',
-                      maxWidth: '190px',
-                      flexShrink: 0,
-                      opacity: isDragging ? 0.45 : 1,
-                      cursor: isDragging ? 'grabbing' : 'grab',
-                      transition: 'border-color 120ms ease, opacity 120ms ease'
-                    }}
+                          ? 'border-violet-500'
+                          : 'border-subtle',
+                      isActive ? 'bg-violet-600/20' : 'bg-panel-elevated',
+                      isDragging ? 'cursor-grabbing opacity-45' : 'cursor-grab opacity-100',
+                      isDragOver &&
+                        (draggedSlideIdx !== null && draggedSlideIdx < idx
+                          ? 'shadow-[inset_-3px_0_0_#38bdf8]'
+                          : 'shadow-[inset_3px_0_0_#38bdf8]')
+                    )}
                   >
                     <GripVertical
                       size={12}
-                      style={{ color: 'var(--text-secondary)', opacity: 0.65, flexShrink: 0 }}
+                      className="shrink-0 text-text-secondary opacity-65"
                     />
                     <span
-                      style={{
-                        width: '20px',
-                        height: '20px',
-                        borderRadius: '5px',
-                        background: isActive ? '#7c3aed' : 'rgba(255,255,255,0.08)',
-                        color: '#fff',
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0
-                      }}
+                      className={cn(
+                        'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-[5px] text-[0.7rem] font-bold text-white',
+                        isActive ? 'bg-violet-600' : 'bg-white/8'
+                      )}
                     >
                       {idx + 1}
                     </span>
@@ -4627,17 +4093,10 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                           )
                         );
                       }}
-                      style={{
-                        flex: 1,
-                        minWidth: 0,
-                        background: 'transparent',
-                        border: 'none',
-                        padding: '1px 2px',
-                        color: 'var(--text-primary)',
-                        fontSize: '0.76rem',
-                        fontWeight: isActive ? 700 : 500,
-                        outline: 'none'
-                      }}
+                      className={cn(
+                        'min-w-0 flex-1 border-0 bg-transparent px-0.5 py-px text-[0.76rem] text-text-primary outline-none',
+                        isActive ? 'font-bold' : 'font-medium'
+                      )}
                     />
                     <button
                       type="button"
@@ -4661,7 +4120,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                         const firstId = cloneEls[0]?.id ?? null;
                         setSelectedElIds(firstId ? expandWithGroupIds([firstId], cloneEls) : []);
                       }}
-                      style={{ background: 'transparent', border: 'none', padding: '2px', color: 'var(--text-secondary)', opacity: 0.8, cursor: 'pointer' }}
+                      className="cursor-pointer border-0 bg-transparent p-0.5 text-text-secondary opacity-80 hover:opacity-100"
                       title="Duplicate slide"
                     >
                       <Copy size={12} />
@@ -4675,7 +4134,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                           setSlides(nextSlides);
                           setActiveSlideIdx(Math.max(0, Math.min(activeSlideIdx, nextSlides.length - 1)));
                         }}
-                        style={{ background: 'transparent', border: 'none', padding: '2px', color: '#fca5a5', opacity: 0.8, cursor: 'pointer' }}
+                        className="cursor-pointer border-0 bg-transparent p-0.5 text-red-300 opacity-80 hover:opacity-100"
                         title={t.editor.delete}
                       >
                         <Trash2 size={12} />
@@ -4697,20 +4156,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                   setEditingTextId(null);
                   pushHistory(nextSlides, bgRef.current);
                 }}
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: '9px',
-                  border: '1px dashed rgba(139, 92, 246, 0.55)',
-                  background: 'rgba(124, 58, 237, 0.12)',
-                  color: '#ddd6fe',
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  flexShrink: 0,
-                  cursor: 'pointer'
-                }}
+                className="inline-flex shrink-0 cursor-pointer items-center gap-[5px] rounded-[9px] border border-dashed border-violet-500/55 bg-violet-600/12 px-3.5 py-2 text-[0.78rem] font-bold text-violet-200 transition-colors hover:bg-violet-600/22"
               >
                 <Plus size={14} /> Add Slide
               </button>
@@ -4724,43 +4170,13 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
   );
 };
 
-const sectionTitleStyle: React.CSSProperties = {
-  fontSize: '0.72rem',
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  color: 'var(--text-secondary)'
-};
+const SECTION_TITLE_CLS =
+  'text-[0.72rem] font-bold uppercase tracking-[0.06em] text-text-secondary';
 
-const fieldLabelStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '4px',
-  fontSize: '0.74rem',
-  color: 'var(--text-secondary)',
-  fontWeight: 600
-};
+const FIELD_LABEL_CLS = 'flex flex-col gap-1 text-[0.74rem] font-semibold text-text-secondary';
 
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '6px 8px',
-  borderRadius: '7px',
-  border: '1px solid var(--border-subtle)',
-  background: 'var(--bg-app)',
-  color: 'var(--text-primary)',
-  fontSize: '0.82rem',
-  fontFamily: 'inherit'
-};
+const INPUT_CLS =
+  'w-full rounded-[7px] border border-subtle bg-app px-2 py-1.5 font-[inherit] text-[0.82rem] text-text-primary focus:border-accent focus:outline-none';
 
-const btnStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: '5px',
-  padding: '6px 10px',
-  borderRadius: '7px',
-  border: '1px solid var(--border-subtle)',
-  background: 'var(--bg-panel-elevated)',
-  fontSize: '0.78rem',
-  fontWeight: 600
-};
+const BTN_CLS =
+  'inline-flex items-center justify-center gap-[5px] rounded-[7px] border border-subtle bg-panel-elevated px-2.5 py-1.5 text-[0.78rem] font-semibold transition-colors';

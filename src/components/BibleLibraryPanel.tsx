@@ -7,6 +7,7 @@ import { readTextFileWithEncoding } from '../utils/textEncoding';
 import { smartSearchBooks } from '../utils/bookSearch';
 import { loadImportedBibles, saveImportedBible } from '../utils/bibleStorage';
 import { notifyBibleSettingsChanged } from '../utils/bibleVerseResolver';
+import { cn } from '../utils/cn';
 
 interface BibleLibraryPanelProps {
   onProjectVerseItem: (item: ProgramItem, startBlockIndex: number) => void;
@@ -267,9 +268,9 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: '6px', padding: '8px' }}>
+    <div className="flex h-full min-h-0 flex-col gap-1.5 p-2">
       {/* Top Bar: Search + Bible Settings Modal Trigger + Add to Program */}
-      <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+      <div className="flex items-center gap-1">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -280,17 +281,11 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
               setActiveVerseNum(null);
             }
           }}
-          style={{ position: 'relative', flex: 1 }}
+          className="relative flex-1"
         >
           <Search
             size={12}
-            style={{
-              position: 'absolute',
-              left: '8px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: 'var(--text-muted)'
-            }}
+            className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-text-muted"
           />
           <input
             type="search"
@@ -308,15 +303,7 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
               }
             }}
             placeholder={t.bible.searchPlaceholder}
-            style={{
-              width: '100%',
-              padding: '5px 8px 5px 26px',
-              borderRadius: '6px',
-              border: '1px solid var(--border-subtle)',
-              background: 'var(--bg-app)',
-              color: 'var(--text-primary)',
-              fontSize: '0.76rem'
-            }}
+            className="w-full rounded-md border border-subtle bg-app py-[5px] pr-2 pl-[26px] text-[0.76rem] text-text-primary focus:border-accent focus:outline-none"
           />
         </form>
 
@@ -324,17 +311,7 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
           type="button"
           onClick={() => setSettingsOpen(true)}
           title={`${t.bible.primaryBible} / ${t.bible.verseLayout}`}
-          style={{
-            padding: '5px 8px',
-            borderRadius: '6px',
-            border: '1px solid var(--border-subtle)',
-            background: 'var(--bg-panel-elevated)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            fontSize: '0.73rem',
-            fontWeight: 600
-          }}
+          className="inline-flex items-center gap-1 rounded-md border border-subtle bg-panel-elevated px-2 py-[5px] text-[0.73rem] font-semibold transition-colors hover:bg-hover"
         >
           <Settings2 size={13} />
           Bibles
@@ -344,20 +321,12 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
           type="button"
           onClick={() => onOpenAiSearch?.()}
           title="AI Bible Search (Ctrl/Cmd + K)"
-          style={{
-            padding: '5px 8px',
-            borderRadius: '6px',
-            border: `1px solid ${aiSearchOpen ? '#f59e0b' : 'rgba(245, 158, 11, 0.45)'}`,
-            background: aiSearchOpen ? 'rgba(245, 158, 11, 0.28)' : 'rgba(245, 158, 11, 0.14)',
-            color: aiSearchOpen ? '#fef3c7' : '#fcd34d',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            fontSize: '0.73rem',
-            fontWeight: 600,
-            flexShrink: 0,
-            whiteSpace: 'nowrap'
-          }}
+          className={cn(
+            'inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md border px-2 py-[5px] text-[0.73rem] font-semibold transition-colors',
+            aiSearchOpen
+              ? 'border-amber-500 bg-amber-500/28 text-amber-100'
+              : 'border-amber-500/45 bg-amber-500/14 text-amber-300 hover:bg-amber-500/22'
+          )}
         >
           <Sparkles size={13} />
           AI Search
@@ -365,23 +334,11 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
       </div>
 
       {/* 3-Column Browser: Books | Chapter | Verse */}
-      <div
-        style={{
-          flex: 1,
-          minHeight: 0,
-          display: 'grid',
-          gridTemplateColumns: '1.25fr 0.65fr 1.7fr',
-          gap: '1px',
-          background: 'var(--border-subtle)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: '8px',
-          overflow: 'hidden'
-        }}
-      >
+      <div className="grid min-h-0 flex-1 grid-cols-[1.25fr_0.65fr_1.7fr] gap-px overflow-hidden rounded-lg border border-subtle bg-subtle">
         {/* Column 1: Books */}
-        <div style={colWrapperStyle}>
-          <div style={colHeaderStyle}>{t.bible.book}s</div>
-          <div ref={bookScrollRef} style={colScrollStyle}>
+        <div className={COL_WRAPPER_CLS}>
+          <div className={COL_HEADER_CLS}>{t.bible.book}s</div>
+          <div ref={bookScrollRef} className={COL_SCROLL_CLS}>
             {filteredBooks.map(({ book: b, idx }) => {
               const selected = idx === bookIndex;
               return (
@@ -394,7 +351,7 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
                     setChapterNum(b.chapters[0]?.number ?? 1);
                     setActiveVerseNum(null);
                   }}
-                  style={colItemBtnStyle(selected)}
+                  className={colItemBtnCls(selected)}
                 >
                   {b.name}
                 </button>
@@ -404,9 +361,9 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
         </div>
 
         {/* Column 2: Chapter */}
-        <div style={colWrapperStyle}>
-          <div style={colHeaderStyle}>{t.bible.chapter}</div>
-          <div ref={chapterScrollRef} style={colScrollStyle}>
+        <div className={COL_WRAPPER_CLS}>
+          <div className={COL_HEADER_CLS}>{t.bible.chapter}</div>
+          <div ref={chapterScrollRef} className={COL_SCROLL_CLS}>
             {chapters.map((c) => {
               const selected = c.number === activeChapter?.number;
               return (
@@ -420,11 +377,7 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
                     const item = buildChapterItem(bookIndex, c.number);
                     if (item) onSelectVerseChapter?.(item);
                   }}
-                  style={{
-                    ...colItemBtnStyle(selected),
-                    textAlign: 'center',
-                    fontVariantNumeric: 'tabular-nums'
-                  }}
+                  className={cn(colItemBtnCls(selected), 'text-center tabular-nums')}
                 >
                   {c.number}
                 </button>
@@ -434,9 +387,9 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
         </div>
 
         {/* Column 3: Verse */}
-        <div style={colWrapperStyle}>
-          <div style={colHeaderStyle}>Verse</div>
-          <div ref={verseScrollRef} style={colScrollStyle}>
+        <div className={COL_WRAPPER_CLS}>
+          <div className={COL_HEADER_CLS}>Verse</div>
+          <div ref={verseScrollRef} className={COL_SCROLL_CLS}>
             {activeChapter?.verses.map((v, idx) => {
               const selected = v.number === activeVerseNum;
               return (
@@ -447,25 +400,15 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
                   onClick={() => handlePreviewVerse(idx, v.number)}
                   onDoubleClick={() => handleProjectVerse(idx, v.number)}
                   title="Click to preview chapter · Double-click to present"
-                  style={{
-                    ...colItemBtnStyle(selected),
-                    display: 'flex',
-                    gap: '5px',
-                    alignItems: 'flex-start',
-                    lineHeight: 1.3
-                  }}
+                  className={cn(
+                    colItemBtnCls(selected),
+                    'flex items-start gap-[5px] leading-[1.3]'
+                  )}
                 >
-                  <span style={{ color: '#60a5fa', fontWeight: 700, flexShrink: 0 }}>
+                  <span className="shrink-0 font-bold text-blue-400">
                     {v.number}
                   </span>
-                  <span
-                    style={{
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden'
-                    }}
-                  >
+                  <span className="line-clamp-2">
                     {v.text}
                   </span>
                 </button>
@@ -479,7 +422,7 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
       <dialog
         ref={modalRef}
         aria-labelledby={modalTitleId}
-        style={{ maxWidth: '460px', width: 'min(92vw, 460px)' }}
+        className="w-[min(92vw,460px)] max-w-[460px]"
         onClose={() => {
           if (modalRef.current) modalRef.current.returnValue = '';
           setImportError(null);
@@ -487,23 +430,17 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
           setSettingsOpen(false);
         }}
       >
-        <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 id={modalTitleId} style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>
+        <div className="flex flex-col gap-4 px-[22px] py-5">
+          <div className="flex items-center justify-between">
+            <h2 id={modalTitleId} className="m-0 text-[1.05rem] font-bold">
               {t.contentTypes.verse} — {t.bible.primaryBible} & {t.bible.verseLayout}
             </h2>
-            <form method="dialog" style={{ margin: 0 }}>
+            <form method="dialog" className="m-0">
               <button
                 type="submit"
                 value="close"
                 aria-label={t.editor.cancel}
-                style={{
-                  background: 'transparent',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '8px',
-                  padding: '6px',
-                  display: 'inline-flex'
-                }}
+                className="inline-flex rounded-lg border border-subtle bg-transparent p-1.5 transition-colors hover:bg-hover"
               >
                 <X size={15} />
               </button>
@@ -516,41 +453,29 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
               type="file"
               accept=".xml,text/xml,application/xml"
               onChange={handleImportFile}
-              style={{ display: 'none' }}
+              className="hidden"
             />
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              style={{
-                width: '100%',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                padding: '9px 12px',
-                borderRadius: '8px',
-                border: '1px solid var(--accent)',
-                background: 'rgba(59,130,246,0.16)',
-                fontSize: '0.84rem',
-                fontWeight: 600
-              }}
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-accent bg-blue-500/16 px-3 py-[9px] text-[0.84rem] font-semibold transition-colors hover:bg-blue-500/24"
             >
               <Upload size={15} />
               {t.bible.importXml}
             </button>
             {importError && (
-              <div style={{ fontSize: '0.76rem', color: '#f87171', marginTop: '6px' }}>
+              <div className="mt-1.5 text-[0.76rem] text-red-400">
                 {importError}
               </div>
             )}
             {importSuccess && (
-              <div style={{ fontSize: '0.76rem', color: '#4ade80', marginTop: '6px' }}>
+              <div className="mt-1.5 text-[0.76rem] text-green-400">
                 {importSuccess}
               </div>
             )}
           </div>
 
-          <label style={labelStyle}>
+          <label className={LABEL_CLS}>
             <span>{t.bible.primaryBible}</span>
             <select
               value={primaryId}
@@ -560,7 +485,7 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
                 setChapterNum(1);
                 setActiveVerseNum(null);
               }}
-              style={selectStyle}
+              className={SELECT_CLS}
             >
               {bibles.map((b) => (
                 <option key={b.id} value={b.id}>
@@ -570,12 +495,12 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
             </select>
           </label>
 
-          <label style={labelStyle}>
+          <label className={LABEL_CLS}>
             <span>{t.bible.secondaryBible}</span>
             <select
               value={secondaryId}
               onChange={(e) => setSecondaryId(e.target.value)}
-              style={selectStyle}
+              className={SELECT_CLS}
             >
               <option value="">{t.bible.none}</option>
               {bibles
@@ -589,29 +514,29 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
           </label>
 
           {secondaryBible && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[0.75rem] font-semibold text-text-secondary">
                 {t.bible.verseLayout}
               </span>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+              <div className="grid grid-cols-3 gap-1.5">
                 <button
                   type="button"
                   onClick={() => setLayout('primary')}
-                  style={layoutBtnStyle(layout === 'primary')}
+                  className={layoutBtnCls(layout === 'primary')}
                 >
                   {t.bible.primary}
                 </button>
                 <button
                   type="button"
                   onClick={() => setLayout('secondary')}
-                  style={layoutBtnStyle(layout === 'secondary')}
+                  className={layoutBtnCls(layout === 'secondary')}
                 >
                   {t.bible.secondary}
                 </button>
                 <button
                   type="button"
                   onClick={() => setLayout('stacked')}
-                  style={layoutBtnStyle(layout === 'stacked')}
+                  className={layoutBtnCls(layout === 'stacked')}
                 >
                   {t.bible.stacked}
                 </button>
@@ -624,75 +549,32 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
   );
 };
 
-const colWrapperStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  minHeight: 0,
-  background: 'var(--bg-app)'
-};
+const COL_WRAPPER_CLS = 'flex min-h-0 flex-col bg-app';
 
-const colHeaderStyle: React.CSSProperties = {
-  padding: '5px 7px',
-  fontSize: '0.7rem',
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  color: 'var(--text-muted)',
-  background: 'var(--bg-panel)',
-  borderBottom: '1px solid var(--border-subtle)',
-  flexShrink: 0
-};
+const COL_HEADER_CLS =
+  'shrink-0 border-b border-subtle bg-panel px-[7px] py-[5px] text-[0.7rem] font-bold uppercase tracking-[0.05em] text-text-muted';
 
-const colScrollStyle: React.CSSProperties = {
-  flex: 1,
-  minHeight: 0,
-  overflowY: 'auto',
-  display: 'flex',
-  flexDirection: 'column',
-  padding: '3px',
-  gap: '2px'
-};
+const COL_SCROLL_CLS = 'flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-[3px]';
 
-function colItemBtnStyle(selected: boolean): React.CSSProperties {
-  return {
-    textAlign: 'left',
-    padding: '5px 6px',
-    borderRadius: '5px',
-    border: 'none',
-    background: selected ? 'rgba(59,130,246,0.22)' : 'transparent',
-    color: selected ? '#93c5fd' : 'var(--text-primary)',
-    fontSize: '0.75rem',
-    fontWeight: selected ? 700 : 400
-  };
+function colItemBtnCls(selected: boolean): string {
+  return cn(
+    'rounded-[5px] border-0 px-1.5 py-[5px] text-left text-[0.75rem] transition-colors',
+    selected
+      ? 'bg-blue-500/22 font-bold text-blue-300'
+      : 'bg-transparent font-normal text-text-primary hover:bg-hover/60'
+  );
 }
 
-const labelStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '4px',
-  fontSize: '0.76rem',
-  color: 'var(--text-secondary)',
-  fontWeight: 600
-};
+const LABEL_CLS = 'flex flex-col gap-1 text-[0.76rem] font-semibold text-text-secondary';
 
-const selectStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '7px 10px',
-  borderRadius: '8px',
-  border: '1px solid var(--border-subtle)',
-  background: 'var(--bg-app)',
-  color: 'var(--text-primary)',
-  fontSize: '0.84rem'
-};
+const SELECT_CLS =
+  'w-full rounded-lg border border-subtle bg-app px-2.5 py-[7px] text-[0.84rem] text-text-primary focus:border-accent focus:outline-none';
 
-function layoutBtnStyle(active: boolean): React.CSSProperties {
-  return {
-    padding: '7px 8px',
-    borderRadius: '8px',
-    border: '1px solid',
-    borderColor: active ? 'var(--accent)' : 'var(--border-subtle)',
-    background: active ? 'rgba(59,130,246,0.16)' : 'var(--bg-panel-elevated)',
-    fontSize: '0.78rem',
-    fontWeight: 600
-  };
+function layoutBtnCls(active: boolean): string {
+  return cn(
+    'rounded-lg border px-2 py-[7px] text-[0.78rem] font-semibold transition-colors',
+    active
+      ? 'border-accent bg-blue-500/16'
+      : 'border-subtle bg-panel-elevated hover:bg-hover'
+  );
 }

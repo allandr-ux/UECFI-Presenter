@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import type { BibleLayoutMode, BibleVersion, ProgramItem, SlideBlock } from '../../shared/types';
 import { loadImportedBibles } from '../utils/bibleStorage';
+import { cn } from '../utils/cn';
 import {
   buildBibleSearchIndex,
   searchIndexedBibles,
@@ -58,12 +59,7 @@ function highlightText(text: string, terms: string[]): React.ReactNode {
     idx % 2 === 1 ? (
       <mark
         key={idx}
-        style={{
-          background: 'rgba(251, 191, 36, 0.25)',
-          color: '#fde68a',
-          borderRadius: '3px',
-          padding: '0 2px'
-        }}
+        className="rounded-[3px] bg-amber-400/25 px-0.5 text-amber-200"
       >
         {part}
       </mark>
@@ -144,11 +140,11 @@ function groupResultsByVerse(
   return Array.from(map.values());
 }
 
-const MATCH_BADGE: Record<BibleSearchResult['matchType'], { label: string; color: string }> = {
-  reference: { label: 'Reference', color: '#60a5fa' },
-  phrase: { label: 'Exact Phrase', color: '#34d399' },
-  exact: { label: 'Keywords', color: '#a78bfa' },
-  fuzzy: { label: 'Fuzzy Match', color: '#fbbf24' }
+const MATCH_BADGE: Record<BibleSearchResult['matchType'], { label: string; className: string }> = {
+  reference: { label: 'Reference', className: 'text-blue-400' },
+  phrase: { label: 'Exact Phrase', className: 'text-emerald-400' },
+  exact: { label: 'Keywords', className: 'text-violet-400' },
+  fuzzy: { label: 'Fuzzy Match', className: 'text-amber-400' }
 };
 
 export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
@@ -524,66 +520,34 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
     return (
       <div
         key={group.key}
-        style={{
-          borderRadius: '10px',
-          border: '1px solid',
-          borderColor: group.aiReason ? 'rgba(251, 191, 36, 0.35)' : 'var(--border-subtle)',
-          background: 'var(--bg-panel)',
-          padding: '12px 14px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px'
-        }}
+        className={cn(
+          'flex flex-col gap-2 rounded-[10px] border bg-panel px-3.5 py-3',
+          group.aiReason ? 'border-amber-400/35' : 'border-subtle'
+        )}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <strong style={{ fontSize: '0.86rem', color: '#93c5fd' }}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <strong className="text-[0.86rem] text-blue-300">
               {res.bookName} {res.chapterNum}:{res.verseNum}
             </strong>
             {group.aiReason ? (
-              <span
-                style={{
-                  fontSize: '0.68rem',
-                  fontWeight: 700,
-                  color: '#fbbf24',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '3px'
-                }}
-              >
+              <span className="inline-flex items-center gap-[3px] text-[0.68rem] font-bold text-amber-400">
                 <Sparkles size={10} />
                 AI
               </span>
             ) : (
-              <span
-                style={{
-                  fontSize: '0.68rem',
-                  fontWeight: 700,
-                  color: badge.color
-                }}
-              >
+              <span className={cn('text-[0.68rem] font-bold', badge.className)}>
                 {badge.label}
               </span>
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => handleGoLive(res)}
               title="Project verse immediately"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '4px 9px',
-                borderRadius: '6px',
-                border: '1px solid var(--accent)',
-                background: 'rgba(59,130,246,0.18)',
-                color: '#93c5fd',
-                fontSize: '0.73rem',
-                fontWeight: 700
-              }}
+              className="inline-flex items-center gap-1 rounded-md border border-accent bg-blue-500/18 px-[9px] py-1 text-[0.73rem] font-bold text-blue-300 transition-colors hover:bg-blue-500/28"
             >
               <Play size={11} />
               Go Live
@@ -592,18 +556,7 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
               type="button"
               onClick={() => handleOpenChapter(res)}
               title="Open chapter in Content Grid"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '4px 9px',
-                borderRadius: '6px',
-                border: '1px solid var(--border-subtle)',
-                background: 'var(--bg-panel-elevated)',
-                color: 'var(--text-primary)',
-                fontSize: '0.73rem',
-                fontWeight: 600
-              }}
+              className="inline-flex items-center gap-1 rounded-md border border-subtle bg-panel-elevated px-[9px] py-1 text-[0.73rem] font-semibold text-text-primary transition-colors hover:bg-hover"
             >
               <BookOpen size={11} />
               Chapter
@@ -612,18 +565,7 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
               type="button"
               onClick={() => handleAddSingleVerse(res)}
               title="Add verse to Program"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '4px 9px',
-                borderRadius: '6px',
-                border: '1px solid var(--border-subtle)',
-                background: 'var(--bg-panel-elevated)',
-                color: 'var(--text-primary)',
-                fontSize: '0.73rem',
-                fontWeight: 600
-              }}
+              className="inline-flex items-center gap-1 rounded-md border border-subtle bg-panel-elevated px-[9px] py-1 text-[0.73rem] font-semibold text-text-primary transition-colors hover:bg-hover"
             >
               <Plus size={11} />
               Program
@@ -632,46 +574,42 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
         </div>
 
         {group.aiReason && (
-          <div style={{ fontSize: '0.76rem', color: '#fde68a', fontStyle: 'italic' }}>
+          <div className="text-[0.76rem] italic text-amber-200">
             {group.aiReason}
           </div>
         )}
 
         <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: hasTwoSideBySide ? '1fr 1fr' : '1fr',
-            gap: '12px'
-          }}
+          className={cn(
+            'grid gap-3',
+            hasTwoSideBySide ? 'grid-cols-2' : 'grid-cols-1'
+          )}
         >
           {group.primaryEntry && (
             <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '4px',
-                paddingRight: hasTwoSideBySide ? '12px' : 0,
-                borderRight: hasTwoSideBySide ? '1px solid var(--border-subtle)' : 'none'
-              }}
+              className={cn(
+                'flex flex-col gap-1',
+                hasTwoSideBySide && 'border-r border-subtle pr-3'
+              )}
             >
               {!group.aiReason && (
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#93c5fd' }}>
+                <span className="text-[0.7rem] font-bold text-blue-300">
                   {group.primaryEntry.bible.title}
                 </span>
               )}
-              <div style={{ fontSize: '0.85rem', lineHeight: 1.48, color: 'var(--text-primary)' }}>
+              <div className="text-[0.85rem] leading-[1.48] text-text-primary">
                 {highlightText(group.primaryEntry.text, group.highlightTerms)}
               </div>
             </div>
           )}
           {group.secondaryEntry && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div className="flex flex-col gap-1">
               {!group.aiReason && (
-                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#86efac' }}>
+                <span className="text-[0.7rem] font-bold text-green-300">
                   {group.secondaryEntry.bible.title}
                 </span>
               )}
-              <div style={{ fontSize: '0.85rem', lineHeight: 1.48, color: 'var(--text-primary)' }}>
+              <div className="text-[0.85rem] leading-[1.48] text-text-primary">
                 {highlightText(group.secondaryEntry.text, group.highlightTerms)}
               </div>
             </div>
@@ -682,25 +620,15 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, background: 'var(--bg-app)' }}>
+    <div className="flex h-full min-h-0 flex-col bg-app">
       {/* Header */}
-      <div
-        style={{
-          padding: '10px 14px',
-          borderBottom: '1px solid var(--border-subtle)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          background: 'var(--bg-panel)',
-          gap: '10px'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Sparkles size={16} style={{ color: '#fbbf24' }} />
-          <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>
+      <div className="flex items-center justify-between gap-2.5 border-b border-subtle bg-panel px-3.5 py-2.5">
+        <div className="flex items-center gap-2">
+          <Sparkles size={16} className="text-amber-400" />
+          <span className="text-[0.88rem] font-bold">
             Smart Bible Search
           </span>
-          <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+          <span className="text-[0.74rem] text-text-muted">
             ({bibles.length} {bibles.length === 1 ? 'XML' : 'XMLs'})
           </span>
         </div>
@@ -708,18 +636,7 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
         <button
           type="button"
           onClick={onClose}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-            padding: '5px 10px',
-            borderRadius: '7px',
-            border: '1px solid var(--border-subtle)',
-            background: 'var(--bg-panel-elevated)',
-            color: 'var(--text-primary)',
-            fontSize: '0.76rem',
-            fontWeight: 600
-          }}
+          className="inline-flex items-center gap-[5px] rounded-[7px] border border-subtle bg-panel-elevated px-2.5 py-[5px] text-[0.76rem] font-semibold text-text-primary transition-colors hover:bg-hover"
         >
           <ArrowLeft size={13} />
           Back to Content Grid
@@ -727,26 +644,12 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
       </div>
 
       {/* Search Bar & XML Filter Pills */}
-      <div
-        style={{
-          padding: '12px 16px',
-          borderBottom: '1px solid var(--border-subtle)',
-          background: 'var(--bg-panel)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '10px'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1 }}>
+      <div className="flex flex-col gap-2.5 border-b border-subtle bg-panel px-4 py-3">
+        <div className="flex items-center gap-2">
+          <div className="relative flex flex-1 items-center">
             <Search
               size={16}
-              style={{
-                position: 'absolute',
-                left: '12px',
-                color: 'var(--text-muted)',
-                pointerEvents: 'none'
-              }}
+              className="pointer-events-none absolute left-3 text-text-muted"
             />
             <input
               ref={inputRef}
@@ -763,15 +666,7 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
                 }
               }}
               placeholder='Search references ("jn 3:16"), keywords, or describe the passage for AI...'
-              style={{
-                width: '100%',
-                padding: '10px 36px 10px 38px',
-                borderRadius: '10px',
-                border: '1px solid var(--accent)',
-                background: 'var(--bg-app)',
-                color: 'var(--text-primary)',
-                fontSize: '0.9rem'
-              }}
+              className="w-full rounded-[10px] border border-accent bg-app py-2.5 pr-9 pl-[38px] text-[0.9rem] text-text-primary focus:outline-none"
             />
             {rawQuery && (
               <button
@@ -782,15 +677,7 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
                   setAiError(null);
                 }}
                 aria-label="Clear search"
-                style={{
-                  position: 'absolute',
-                  right: '8px',
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  padding: '4px',
-                  display: 'inline-flex'
-                }}
+                className="absolute right-2 inline-flex border-0 bg-transparent p-1 text-text-muted hover:text-text-primary"
               >
                 <X size={15} />
               </button>
@@ -802,20 +689,7 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
             onClick={() => handleAiSearch()}
             disabled={!rawQuery.trim() || aiLoading}
             title="Ask AI to find passages matching a description or story"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '10px 14px',
-              borderRadius: '10px',
-              border: '1px solid rgba(251, 191, 36, 0.55)',
-              background: 'rgba(245, 158, 11, 0.16)',
-              color: '#fde68a',
-              fontSize: '0.82rem',
-              fontWeight: 700,
-              flexShrink: 0,
-              opacity: !rawQuery.trim() || aiLoading ? 0.5 : 1
-            }}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-[10px] border border-amber-400/55 bg-amber-500/16 px-3.5 py-2.5 text-[0.82rem] font-bold text-amber-200 transition-colors hover:bg-amber-500/24 disabled:opacity-50"
           >
             <Sparkles size={14} />
             {aiLoading ? 'Searching AI...' : 'Ask AI'}
@@ -826,37 +700,27 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
             onClick={() => setKeyPanelOpen((prev) => !prev)}
             aria-label={hasAnyAiKey ? 'AI API keys configured' : 'Set AI API keys'}
             title={hasAnyAiKey ? 'AI Keys Set (click to edit)' : 'Set Gemini / Groq API keys'}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '10px',
-              borderRadius: '10px',
-              border: '1px solid',
-              borderColor: hasAnyAiKey ? 'rgba(52, 211, 153, 0.4)' : 'rgba(251, 191, 36, 0.45)',
-              background: hasAnyAiKey ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-              color: hasAnyAiKey ? '#6ee7b7' : '#fcd34d',
-              flexShrink: 0
-            }}
+            className={cn(
+              'inline-flex shrink-0 items-center justify-center rounded-[10px] border p-2.5 transition-colors',
+              hasAnyAiKey
+                ? 'border-emerald-400/40 bg-emerald-500/12 text-emerald-300 hover:bg-emerald-500/20'
+                : 'border-amber-400/45 bg-amber-500/12 text-amber-300 hover:bg-amber-500/20'
+            )}
           >
             <KeyRound size={15} />
           </button>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+        <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
             onClick={() => setBibleFilter('all')}
-            style={{
-              padding: '4px 10px',
-              borderRadius: '999px',
-              border: '1px solid',
-              borderColor: bibleFilter === 'all' ? 'var(--accent)' : 'var(--border-subtle)',
-              background: bibleFilter === 'all' ? 'rgba(59,130,246,0.2)' : 'var(--bg-panel-elevated)',
-              color: bibleFilter === 'all' ? '#93c5fd' : 'var(--text-secondary)',
-              fontSize: '0.73rem',
-              fontWeight: 600
-            }}
+            className={cn(
+              'rounded-full border px-2.5 py-1 text-[0.73rem] font-semibold transition-colors',
+              bibleFilter === 'all'
+                ? 'border-accent bg-blue-500/20 text-blue-300'
+                : 'border-subtle bg-panel-elevated text-text-secondary hover:bg-hover'
+            )}
           >
             All Bibles ({bibles.length})
           </button>
@@ -867,16 +731,12 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
                 key={b.id}
                 type="button"
                 onClick={() => setBibleFilter(b.id)}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '999px',
-                  border: '1px solid',
-                  borderColor: active ? 'var(--accent)' : 'var(--border-subtle)',
-                  background: active ? 'rgba(59,130,246,0.2)' : 'var(--bg-panel-elevated)',
-                  color: active ? '#93c5fd' : 'var(--text-secondary)',
-                  fontSize: '0.73rem',
-                  fontWeight: 600
-                }}
+                className={cn(
+                  'rounded-full border px-2.5 py-1 text-[0.73rem] font-semibold transition-colors',
+                  active
+                    ? 'border-accent bg-blue-500/20 text-blue-300'
+                    : 'border-subtle bg-panel-elevated text-text-secondary hover:bg-hover'
+                )}
               >
                 {b.title}
               </button>
@@ -886,38 +746,24 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
       </div>
 
       {/* Results Area */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto px-4 py-3.5">
         {aiError && (
-          <div
-            style={{
-              padding: '10px 12px',
-              borderRadius: '8px',
-              border: '1px solid rgba(239, 68, 68, 0.45)',
-              background: 'rgba(239, 68, 68, 0.12)',
-              color: '#fca5a5',
-              fontSize: '0.8rem'
-            }}
-          >
+          <div className="rounded-lg border border-red-500/45 bg-red-500/12 px-3 py-2.5 text-[0.8rem] text-red-300">
             {aiError}
           </div>
         )}
 
         {aiOutcome && (groupedAiResults.length > 0 || aiOutcome.unmatchedSuggestions.length > 0) && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '6px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#fbbf24', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+          <div className="mb-1.5 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-[5px] text-[0.78rem] font-bold text-amber-400">
                 <Sparkles size={13} />
                 AI Matches ({groupedAiResults.length}){aiOutcome.provider ? ` · ${aiOutcome.provider}` : ''}
               </span>
               <button
                 type="button"
                 onClick={() => setAiOutcome(null)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  fontSize: '0.73rem'
-                }}
+                className="border-0 bg-transparent text-[0.73rem] text-text-muted hover:text-text-primary"
               >
                 Dismiss AI results
               </button>
@@ -926,43 +772,27 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
             {aiOutcome.unmatchedSuggestions.map((sugg, idx) => (
               <div
                 key={`unmatched-${idx}`}
-                style={{
-                  borderRadius: '8px',
-                  border: '1px dashed var(--border-subtle)',
-                  padding: '10px 12px',
-                  fontSize: '0.8rem',
-                  color: 'var(--text-secondary)'
-                }}
+                className="rounded-lg border border-dashed border-subtle px-3 py-2.5 text-[0.8rem] text-text-secondary"
               >
-                <strong style={{ color: '#fde68a' }}>
+                <strong className="text-amber-200">
                   {sugg.book} {sugg.chapter}:{sugg.verseStart}
                   {sugg.verseEnd > sugg.verseStart ? `-${sugg.verseEnd}` : ''}
                 </strong>{' '}
-                — {sugg.reason} <span style={{ color: 'var(--text-muted)' }}>(not in loaded XMLs)</span>
+                — {sugg.reason} <span className="text-text-muted">(not in loaded XMLs)</span>
               </div>
             ))}
           </div>
         )}
 
         {!debouncedQuery.trim() && !aiOutcome ? (
-          <div
-            style={{
-              margin: 'auto',
-              maxWidth: '540px',
-              textAlign: 'center',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-              color: 'var(--text-muted)'
-            }}
-          >
-            <div style={{ fontSize: '0.92rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+          <div className="m-auto flex max-w-[540px] flex-col gap-3 text-center text-text-muted">
+            <div className="text-[0.92rem] font-semibold text-text-secondary">
               Intelligent Search &amp; AI Lookup
             </div>
-            <div style={{ fontSize: '0.8rem', lineHeight: 1.5 }}>
-              Type a reference or keywords for instant local search, or describe what you are looking for and click <strong style={{ color: '#fde68a' }}>Ask AI</strong>.
+            <div className="text-[0.8rem] leading-normal">
+              Type a reference or keywords for instant local search, or describe what you are looking for and click <strong className="text-amber-200">Ask AI</strong>.
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px', marginTop: '4px' }}>
+            <div className="mt-1 flex flex-wrap justify-center gap-2">
               {[
                 'John 3:16',
                 'Psalms 23:1-2',
@@ -979,15 +809,7 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
                       handleAiSearch(sample);
                     }
                   }}
-                  style={{
-                    padding: '5px 11px',
-                    borderRadius: '999px',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'var(--bg-panel)',
-                    color: '#93c5fd',
-                    fontSize: '0.76rem',
-                    fontWeight: 600
-                  }}
+                  className="rounded-full border border-subtle bg-panel px-[11px] py-[5px] text-[0.76rem] font-semibold text-blue-300 transition-colors hover:bg-hover"
                 >
                   {sample}
                 </button>
@@ -995,26 +817,15 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
             </div>
           </div>
         ) : results.length === 0 && !aiOutcome ? (
-          <div style={{ margin: 'auto', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+          <div className="m-auto flex flex-col items-center gap-2.5 text-center">
+            <div className="text-[0.88rem] text-text-muted">
               No literal matches found for "{debouncedQuery}" in loaded Bibles.
             </div>
             <button
               type="button"
               onClick={() => handleAiSearch()}
               disabled={aiLoading}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '7px 14px',
-                borderRadius: '8px',
-                border: '1px solid rgba(251, 191, 36, 0.55)',
-                background: 'rgba(245, 158, 11, 0.16)',
-                color: '#fde68a',
-                fontSize: '0.8rem',
-                fontWeight: 700
-              }}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-400/55 bg-amber-500/16 px-3.5 py-[7px] text-[0.8rem] font-bold text-amber-200 transition-colors hover:bg-amber-500/24 disabled:opacity-50"
             >
               <Sparkles size={14} />
               {aiLoading ? 'Searching with AI...' : 'Find with AI'}
@@ -1022,7 +833,7 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
           </div>
         ) : results.length > 0 ? (
           <>
-            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+            <div className="text-[0.76rem] text-text-muted">
               Showing {results.length} {results.length === 100 ? 'top ' : ''}local result{results.length === 1 ? '' : 's'}
             </div>
             {results.map(renderResultCard)}
@@ -1034,52 +845,37 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
       <dialog
         ref={settingsDialogRef}
         aria-labelledby={settingsTitleId}
-        style={{ maxWidth: '720px', width: 'min(94vw, 720px)' }}
+        className="w-[min(94vw,720px)] max-w-[720px]"
         onClose={() => {
           if (settingsDialogRef.current) settingsDialogRef.current.returnValue = '';
           setKeyPanelOpen(false);
         }}
       >
-        <form onSubmit={handleSaveAiKeys} style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 id={settingsTitleId} style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>
+        <form onSubmit={handleSaveAiKeys} className="flex flex-col">
+          <div className="flex flex-col gap-3.5 px-5 py-[18px]">
+            <div className="flex items-center justify-between">
+              <h2 id={settingsTitleId} className="m-0 text-base font-bold">
                 AI Search Settings
               </h2>
               <button
                 type="button"
                 onClick={() => setKeyPanelOpen(false)}
                 aria-label="Close"
-                style={{
-                  background: 'transparent',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '8px',
-                  padding: '5px',
-                  display: 'inline-flex'
-                }}
+                className="inline-flex rounded-lg border border-subtle bg-transparent p-[5px] transition-colors hover:bg-hover"
               >
                 <X size={14} />
               </button>
             </div>
 
             {/* Primary Provider */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+            <div className="flex flex-col gap-[5px]">
+              <label className="text-[0.8rem] font-bold text-text-primary">
                 Primary Provider
               </label>
               <select
                 value={primaryProviderInput}
                 onChange={(e) => setPrimaryProviderInput(e.target.value as AiProviderPref)}
-                style={{
-                  width: '100%',
-                  padding: '9px 11px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border-subtle)',
-                  background: 'var(--bg-app)',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.84rem',
-                  fontWeight: 600
-                }}
+                className="w-full rounded-lg border border-subtle bg-app px-[11px] py-[9px] text-[0.84rem] font-semibold text-text-primary focus:border-accent focus:outline-none"
               >
                 <option value="gemini">Gemini (with Groq fallback)</option>
                 <option value="groq">Groq (with Gemini fallback)</option>
@@ -1087,67 +883,34 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
             </div>
 
             {/* 2-Column Provider Grid */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '14px',
-                alignItems: 'start'
-              }}
-            >
+            <div className="grid grid-cols-2 items-start gap-3.5">
               {/* Column 1: Groq */}
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  padding: '12px',
-                  borderRadius: '10px',
-                  border: '1px solid var(--border-subtle)',
-                  background: 'var(--bg-panel)'
-                }}
-              >
-                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#c084fc' }}>
+              <div className="flex flex-col gap-2 rounded-[10px] border border-subtle bg-panel p-3">
+                <div className="text-[0.82rem] font-bold text-purple-400">
                   Groq
                 </div>
 
-                <label style={{ fontSize: '0.76rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                <label className="text-[0.76rem] font-semibold text-text-secondary">
                   API Key
                 </label>
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <div className="relative flex items-center">
                   <input
                     type={showGroqKey ? 'text' : 'password'}
                     value={groqKeyInput}
                     onChange={(e) => setGroqKeyInput(e.target.value)}
                     placeholder="gsk_..."
-                    style={{
-                      width: '100%',
-                      padding: '8px 34px 8px 10px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border-subtle)',
-                      background: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.82rem'
-                    }}
+                    className="w-full rounded-lg border border-subtle bg-app py-2 pr-[34px] pl-2.5 text-[0.82rem] text-text-primary focus:border-accent focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => setShowGroqKey((prev) => !prev)}
                     aria-label={showGroqKey ? 'Hide Groq API key' : 'Show Groq API key'}
-                    style={{
-                      position: 'absolute',
-                      right: '7px',
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'var(--text-muted)',
-                      padding: '4px',
-                      display: 'inline-flex'
-                    }}
+                    className="absolute right-[7px] inline-flex border-0 bg-transparent p-1 text-text-muted hover:text-text-primary"
                   >
                     {showGroqKey ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
                 </div>
-                <div style={{ fontSize: '0.71rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <div className="flex items-center gap-1 text-[0.71rem] text-text-muted">
                   <KeyRound size={11} />
                   <span>
                     Free key:{' '}
@@ -1155,14 +918,14 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
                       href="https://console.groq.com/keys"
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ color: '#c084fc', fontWeight: 700, textDecoration: 'underline' }}
+                      className="font-bold text-purple-400 underline"
                     >
                       console.groq.com/keys
                     </a>
                   </span>
                 </div>
 
-                <label style={{ fontSize: '0.76rem', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '2px' }}>
+                <label className="mt-0.5 text-[0.76rem] font-semibold text-text-secondary">
                   Model
                 </label>
                 <select
@@ -1179,16 +942,7 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
                       setGroqModelInput(val);
                     }
                   }}
-                  style={{
-                    width: '100%',
-                    padding: '8px 10px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.8rem',
-                    fontWeight: 600
-                  }}
+                  className="w-full rounded-lg border border-subtle bg-app px-2.5 py-2 text-[0.8rem] font-semibold text-text-primary focus:border-accent focus:outline-none"
                 >
                   {GROQ_MODEL_OPTIONS.map((opt) => (
                     <option key={opt.id} value={opt.id}>
@@ -1203,15 +957,7 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
                     value={groqModelInput}
                     onChange={(e) => setGroqModelInput(e.target.value)}
                     placeholder="Custom Groq model ID..."
-                    style={{
-                      width: '100%',
-                      padding: '7px 10px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--accent)',
-                      background: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.78rem'
-                    }}
+                    className="w-full rounded-lg border border-accent bg-app px-2.5 py-[7px] text-[0.78rem] text-text-primary focus:outline-none"
                   />
                 )}
 
@@ -1219,20 +965,7 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
                   type="button"
                   onClick={() => handleTestProvider('groq')}
                   disabled={testingGroq}
-                  style={{
-                    marginTop: '4px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    padding: '7px 10px',
-                    borderRadius: '7px',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'var(--bg-panel-elevated)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.76rem',
-                    fontWeight: 600
-                  }}
+                  className="mt-1 inline-flex items-center justify-center gap-1.5 rounded-[7px] border border-subtle bg-panel-elevated px-2.5 py-[7px] text-[0.76rem] font-semibold text-text-primary transition-colors hover:bg-hover disabled:opacity-50"
                 >
                   <Plug size={12} />
                   {testingGroq ? 'Testing Groq...' : 'Test Groq'}
@@ -1240,16 +973,12 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
 
                 {groqTestStatus && (
                   <div
-                    style={{
-                      padding: '6px 8px',
-                      borderRadius: '6px',
-                      fontSize: '0.73rem',
-                      fontWeight: 600,
-                      border: '1px solid',
-                      borderColor: groqTestStatus.ok ? 'rgba(52, 211, 153, 0.45)' : 'rgba(239, 68, 68, 0.45)',
-                      background: groqTestStatus.ok ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-                      color: groqTestStatus.ok ? '#6ee7b7' : '#fca5a5'
-                    }}
+                    className={cn(
+                      'rounded-md border px-2 py-1.5 text-[0.73rem] font-semibold',
+                      groqTestStatus.ok
+                        ? 'border-emerald-400/45 bg-emerald-500/12 text-emerald-300'
+                        : 'border-red-500/45 bg-red-500/12 text-red-300'
+                    )}
                   >
                     {groqTestStatus.message}
                   </div>
@@ -1257,58 +986,32 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
               </div>
 
               {/* Column 2: Gemini */}
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  padding: '12px',
-                  borderRadius: '10px',
-                  border: '1px solid var(--border-subtle)',
-                  background: 'var(--bg-panel)'
-                }}
-              >
-                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#93c5fd' }}>
+              <div className="flex flex-col gap-2 rounded-[10px] border border-subtle bg-panel p-3">
+                <div className="text-[0.82rem] font-bold text-blue-300">
                   Gemini
                 </div>
 
-                <label style={{ fontSize: '0.76rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                <label className="text-[0.76rem] font-semibold text-text-secondary">
                   API Key
                 </label>
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <div className="relative flex items-center">
                   <input
                     type={showGeminiKey ? 'text' : 'password'}
                     value={geminiKeyInput}
                     onChange={(e) => setGeminiKeyInput(e.target.value)}
                     placeholder="AIza..."
-                    style={{
-                      width: '100%',
-                      padding: '8px 34px 8px 10px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border-subtle)',
-                      background: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.82rem'
-                    }}
+                    className="w-full rounded-lg border border-subtle bg-app py-2 pr-[34px] pl-2.5 text-[0.82rem] text-text-primary focus:border-accent focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => setShowGeminiKey((prev) => !prev)}
                     aria-label={showGeminiKey ? 'Hide Gemini API key' : 'Show Gemini API key'}
-                    style={{
-                      position: 'absolute',
-                      right: '7px',
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'var(--text-muted)',
-                      padding: '4px',
-                      display: 'inline-flex'
-                    }}
+                    className="absolute right-[7px] inline-flex border-0 bg-transparent p-1 text-text-muted hover:text-text-primary"
                   >
                     {showGeminiKey ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
                 </div>
-                <div style={{ fontSize: '0.71rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <div className="flex items-center gap-1 text-[0.71rem] text-text-muted">
                   <KeyRound size={11} />
                   <span>
                     Free key:{' '}
@@ -1316,14 +1019,14 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
                       href="https://aistudio.google.com/api-keys"
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ color: '#93c5fd', fontWeight: 700, textDecoration: 'underline' }}
+                      className="font-bold text-blue-300 underline"
                     >
                       aistudio.google.com/api-keys
                     </a>
                   </span>
                 </div>
 
-                <label style={{ fontSize: '0.76rem', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '2px' }}>
+                <label className="mt-0.5 text-[0.76rem] font-semibold text-text-secondary">
                   Model
                 </label>
                 <select
@@ -1340,16 +1043,7 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
                       setGeminiModelInput(val);
                     }
                   }}
-                  style={{
-                    width: '100%',
-                    padding: '8px 10px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'var(--bg-app)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.8rem',
-                    fontWeight: 600
-                  }}
+                  className="w-full rounded-lg border border-subtle bg-app px-2.5 py-2 text-[0.8rem] font-semibold text-text-primary focus:border-accent focus:outline-none"
                 >
                   {GEMINI_MODEL_OPTIONS.map((opt) => (
                     <option key={opt.id} value={opt.id}>
@@ -1364,15 +1058,7 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
                     value={geminiModelInput}
                     onChange={(e) => setGeminiModelInput(e.target.value)}
                     placeholder="Custom Gemini model ID..."
-                    style={{
-                      width: '100%',
-                      padding: '7px 10px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--accent)',
-                      background: 'var(--bg-app)',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.78rem'
-                    }}
+                    className="w-full rounded-lg border border-accent bg-app px-2.5 py-[7px] text-[0.78rem] text-text-primary focus:outline-none"
                   />
                 )}
 
@@ -1380,20 +1066,7 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
                   type="button"
                   onClick={() => handleTestProvider('gemini')}
                   disabled={testingGemini}
-                  style={{
-                    marginTop: '4px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    padding: '7px 10px',
-                    borderRadius: '7px',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'var(--bg-panel-elevated)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.76rem',
-                    fontWeight: 600
-                  }}
+                  className="mt-1 inline-flex items-center justify-center gap-1.5 rounded-[7px] border border-subtle bg-panel-elevated px-2.5 py-[7px] text-[0.76rem] font-semibold text-text-primary transition-colors hover:bg-hover disabled:opacity-50"
                 >
                   <Plug size={12} />
                   {testingGemini ? 'Testing Gemini...' : 'Test Gemini'}
@@ -1401,16 +1074,12 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
 
                 {geminiTestStatus && (
                   <div
-                    style={{
-                      padding: '6px 8px',
-                      borderRadius: '6px',
-                      fontSize: '0.73rem',
-                      fontWeight: 600,
-                      border: '1px solid',
-                      borderColor: geminiTestStatus.ok ? 'rgba(52, 211, 153, 0.45)' : 'rgba(239, 68, 68, 0.45)',
-                      background: geminiTestStatus.ok ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-                      color: geminiTestStatus.ok ? '#6ee7b7' : '#fca5a5'
-                    }}
+                    className={cn(
+                      'rounded-md border px-2 py-1.5 text-[0.73rem] font-semibold',
+                      geminiTestStatus.ok
+                        ? 'border-emerald-400/45 bg-emerald-500/12 text-emerald-300'
+                        : 'border-red-500/45 bg-red-500/12 text-red-300'
+                    )}
                   >
                     {geminiTestStatus.message}
                   </div>
@@ -1420,43 +1089,17 @@ export const BibleSearchPanel: React.FC<BibleSearchPanelProps> = ({
           </div>
 
           {/* Footer */}
-          <div
-            style={{
-              padding: '12px 20px',
-              borderTop: '1px solid var(--border-subtle)',
-              background: 'var(--bg-panel)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-              gap: '8px'
-            }}
-          >
+          <div className="flex items-center justify-end gap-2 border-t border-subtle bg-panel px-5 py-3">
             <button
               type="button"
               onClick={() => setKeyPanelOpen(false)}
-              style={{
-                padding: '8px 12px',
-                borderRadius: '8px',
-                border: '1px solid transparent',
-                background: 'transparent',
-                color: 'var(--text-secondary)',
-                fontSize: '0.8rem',
-                fontWeight: 600
-              }}
+              className="rounded-lg border border-transparent bg-transparent px-3 py-2 text-[0.8rem] font-semibold text-text-secondary transition-colors hover:text-text-primary"
             >
               Cancel
             </button>
             <button
               type="submit"
-              style={{
-                padding: '8px 16px',
-                borderRadius: '8px',
-                border: '1px solid rgba(168, 85, 247, 0.7)',
-                background: '#9333ea',
-                color: '#ffffff',
-                fontSize: '0.8rem',
-                fontWeight: 700
-              }}
+              className="rounded-lg border border-purple-500/70 bg-purple-600 px-4 py-2 text-[0.8rem] font-bold text-white transition-colors hover:bg-purple-500"
             >
               Save Settings
             </button>

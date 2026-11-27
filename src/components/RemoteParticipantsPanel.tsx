@@ -36,6 +36,7 @@ import type {
   RemoteParticipant,
   RemoteReturnFeedConfig
 } from '../../shared/types';
+import { cn } from '../utils/cn';
 
 interface PreviewVideoProps {
   stream?: MediaStream;
@@ -62,42 +63,19 @@ const MutedPreviewVideo: React.FC<PreviewVideoProps> = ({
   }, [stream]);
 
   return (
-    <div
-      style={{
-        position: 'relative',
-        width: '128px',
-        height: '72px',
-        borderRadius: '8px',
-        overflow: 'hidden',
-        background: '#020617',
-        border: '1px solid var(--border-subtle)',
-        flexShrink: 0
-      }}
-    >
+    <div className="relative h-[72px] w-32 shrink-0 overflow-hidden rounded-lg border border-subtle bg-slate-950">
       <video
         ref={ref}
         autoPlay
         playsInline
         muted
-        style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          opacity: videoOff || !stream ? 0.2 : 1
-        }}
+        className={cn(
+          'h-full w-full object-cover',
+          videoOff || !stream ? 'opacity-20' : 'opacity-100'
+        )}
       />
       {(videoOff || !stream) && (
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '0.68rem',
-            color: 'var(--text-secondary)'
-          }}
-        >
+        <div className="absolute inset-0 flex items-center justify-center text-[0.68rem] text-text-secondary">
           {stream ? 'Cam Off' : offlineLabel}
         </div>
       )}
@@ -228,64 +206,49 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
     return (
       <div
         key={p.id}
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '10px',
-          padding: '10px 12px',
-          borderRadius: '10px',
-          background: 'var(--bg-panel-elevated)',
-          border: `1px solid ${isLive ? 'rgba(239, 68, 68, 0.55)' : 'var(--border-subtle)'}`
-        }}
+        className={cn(
+          'flex flex-col gap-2.5 rounded-[10px] border bg-panel-elevated px-3 py-2.5',
+          isLive ? 'border-red-500/55' : 'border-subtle'
+        )}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <div className="flex flex-wrap items-center gap-3">
           <MutedPreviewVideo stream={streams.get(p.id)} videoOff={isVideoOff} />
 
-          <div style={{ flex: 1, minWidth: '160px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+          <div className="min-w-[160px] flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <strong className="text-[0.9rem] text-text-primary">
                 {p.title ? `${p.title} ` : ''}
                 {p.name}
               </strong>
               <span
-                style={{
-                  fontSize: '0.68rem',
-                  fontWeight: 700,
-                  padding: '2px 7px',
-                  borderRadius: '999px',
-                  background: p.source === 'online' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(56, 189, 248, 0.18)',
-                  color: p.source === 'online' ? '#d8b4fe' : '#7dd3fc'
-                }}
+                className={cn(
+                  'rounded-full px-[7px] py-0.5 text-[0.68rem] font-bold',
+                  p.source === 'online'
+                    ? 'bg-purple-500/20 text-purple-300'
+                    : 'bg-sky-400/18 text-sky-300'
+                )}
               >
                 {p.source === 'online' ? 'Internet' : 'LAN'}
               </span>
             </div>
             {p.centroOrPosition && (
-              <div style={{ fontSize: '0.76rem', color: '#93c5fd', marginTop: '2px' }}>
+              <div className="mt-0.5 text-[0.76rem] text-blue-300">
                 {p.centroOrPosition}
               </div>
             )}
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+            <div className="mt-1 text-[0.75rem] text-text-secondary">
               {isMuted ? 'Mic muted' : 'Mic active'} • {isVideoOff ? 'Camera off' : 'Camera on'}
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
               onClick={() => onModerate(p.id, isLive ? 'MOVE_TO_GREEN_ROOM' : 'PUT_LIVE')}
-              style={{
-                padding: '6px 10px',
-                borderRadius: '8px',
-                border: 'none',
-                background: isLive ? '#334155' : '#2563eb',
-                color: '#fff',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px'
-              }}
+              className={cn(
+                'inline-flex items-center gap-[5px] rounded-lg border-0 px-2.5 py-1.5 text-[0.78rem] font-semibold text-white transition-colors',
+                isLive ? 'bg-slate-700 hover:bg-slate-600' : 'bg-blue-600 hover:bg-blue-500'
+              )}
             >
               {isLive ? <UserMinus size={13} /> : <UserCheck size={13} />}
               {isLive ? 'To Green Room' : 'Put On Screen'}
@@ -300,24 +263,12 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                     : 'Start 2-way Whisper (hear speaker in your Whisper Output & talk via your Whisper Input mic)'
                 }
                 onClick={() => onToggleMonitorParticipant(p.id)}
-                style={{
-                  padding: '6px 9px',
-                  borderRadius: '8px',
-                  border: monitoredParticipantIds.includes(p.id)
-                    ? '1px solid rgba(56, 189, 248, 0.55)'
-                    : '1px solid var(--border-subtle)',
-                  background: monitoredParticipantIds.includes(p.id)
-                    ? 'rgba(14, 165, 233, 0.22)'
-                    : 'transparent',
-                  color: monitoredParticipantIds.includes(p.id)
-                    ? '#7dd3fc'
-                    : 'var(--text-primary)',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-lg border px-[9px] py-1.5 text-[0.75rem] font-semibold transition-colors',
+                  monitoredParticipantIds.includes(p.id)
+                    ? 'border-sky-400/55 bg-sky-500/22 text-sky-300'
+                    : 'border-subtle bg-transparent text-text-primary hover:bg-hover'
+                )}
               >
                 {monitoredParticipantIds.includes(p.id) ? (
                   <Volume2 size={14} />
@@ -332,15 +283,12 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
               type="button"
               title={p.mutedByOperator ? 'Unmute participant' : 'Mute participant'}
               onClick={() => onModerate(p.id, 'SET_MUTED', !p.mutedByOperator)}
-              style={{
-                padding: '6px 8px',
-                borderRadius: '8px',
-                border: '1px solid var(--border-subtle)',
-                background: p.mutedByOperator ? 'rgba(220, 38, 38, 0.2)' : 'transparent',
-                color: p.mutedByOperator ? '#fca5a5' : 'var(--text-primary)',
-                display: 'inline-flex',
-                alignItems: 'center'
-              }}
+              className={cn(
+                'inline-flex items-center rounded-lg border border-subtle px-2 py-1.5 transition-colors',
+                p.mutedByOperator
+                  ? 'bg-red-600/20 text-red-300'
+                  : 'bg-transparent text-text-primary hover:bg-hover'
+              )}
             >
               {p.mutedByOperator ? <MicOff size={14} /> : <Mic size={14} />}
             </button>
@@ -349,15 +297,12 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
               type="button"
               title={p.videoHiddenByOperator ? 'Show participant video' : 'Hide participant video'}
               onClick={() => onModerate(p.id, 'SET_VIDEO_HIDDEN', !p.videoHiddenByOperator)}
-              style={{
-                padding: '6px 8px',
-                borderRadius: '8px',
-                border: '1px solid var(--border-subtle)',
-                background: p.videoHiddenByOperator ? 'rgba(220, 38, 38, 0.2)' : 'transparent',
-                color: p.videoHiddenByOperator ? '#fca5a5' : 'var(--text-primary)',
-                display: 'inline-flex',
-                alignItems: 'center'
-              }}
+              className={cn(
+                'inline-flex items-center rounded-lg border border-subtle px-2 py-1.5 transition-colors',
+                p.videoHiddenByOperator
+                  ? 'bg-red-600/20 text-red-300'
+                  : 'bg-transparent text-text-primary hover:bg-hover'
+              )}
             >
               {p.videoHiddenByOperator ? <CameraOff size={14} /> : <Camera size={14} />}
             </button>
@@ -366,15 +311,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
               type="button"
               title="Disconnect participant"
               onClick={() => onModerate(p.id, 'KICK')}
-              style={{
-                padding: '6px 8px',
-                borderRadius: '8px',
-                border: '1px solid rgba(239, 68, 68, 0.35)',
-                background: 'transparent',
-                color: '#f87171',
-                display: 'inline-flex',
-                alignItems: 'center'
-              }}
+              className="inline-flex items-center rounded-lg border border-red-500/35 bg-transparent px-2 py-1.5 text-red-400 transition-colors hover:bg-red-500/15"
             >
               <Trash2 size={14} />
             </button>
@@ -382,27 +319,14 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
         </div>
 
         {/* Editable Title, Name, Centro / Position */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'minmax(110px, 0.8fr) minmax(140px, 1fr) minmax(150px, 1.1fr)',
-            gap: '8px'
-          }}
-        >
+        <div className="grid grid-cols-[minmax(110px,0.8fr)_minmax(140px,1fr)_minmax(150px,1.1fr)] gap-2">
           <input
             type="text"
             placeholder="Title"
             aria-label="Participant Title"
             value={p.title ?? ''}
             onChange={(e) => onUpdateParticipantInfo(p.id, { title: e.target.value })}
-            style={{
-              padding: '6px 8px',
-              borderRadius: '7px',
-              border: '1px solid var(--border-subtle)',
-              background: 'var(--bg-app)',
-              color: 'var(--text-primary)',
-              fontSize: '0.78rem'
-            }}
+            className="rounded-[7px] border border-subtle bg-app px-2 py-1.5 text-[0.78rem] text-text-primary focus:border-accent focus:outline-none"
           />
           <input
             type="text"
@@ -410,14 +334,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
             aria-label="Participant Name"
             value={p.name}
             onChange={(e) => onUpdateParticipantInfo(p.id, { name: e.target.value })}
-            style={{
-              padding: '6px 8px',
-              borderRadius: '7px',
-              border: '1px solid var(--border-subtle)',
-              background: 'var(--bg-app)',
-              color: 'var(--text-primary)',
-              fontSize: '0.78rem'
-            }}
+            className="rounded-[7px] border border-subtle bg-app px-2 py-1.5 text-[0.78rem] text-text-primary focus:border-accent focus:outline-none"
           />
           <input
             type="text"
@@ -425,14 +342,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
             aria-label="Participant Centro or Position"
             value={p.centroOrPosition ?? ''}
             onChange={(e) => onUpdateParticipantInfo(p.id, { centroOrPosition: e.target.value })}
-            style={{
-              padding: '6px 8px',
-              borderRadius: '7px',
-              border: '1px solid var(--border-subtle)',
-              background: 'var(--bg-app)',
-              color: 'var(--text-primary)',
-              fontSize: '0.78rem'
-            }}
+            className="rounded-[7px] border border-subtle bg-app px-2 py-1.5 text-[0.78rem] text-text-primary focus:border-accent focus:outline-none"
           />
         </div>
       </div>
@@ -458,73 +368,47 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
   return (
     <section
       aria-labelledby={titleId}
-      style={{
-        flexShrink: 0,
-        background: 'var(--bg-panel)',
-        borderTop: '1px solid var(--border-subtle)',
-        display: 'flex',
-        flexDirection: 'column'
-      }}
+      className="flex shrink-0 flex-col border-t border-subtle bg-panel"
     >
       {/* Collapsible Header + Tab Bar */}
       <div
         onClick={handleToggle}
-        style={{
-          padding: '8px 14px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '10px',
-          cursor: 'pointer',
-          userSelect: 'none',
-          background: open ? 'rgba(15, 23, 42, 0.55)' : 'var(--bg-panel)'
-        }}
+        className={cn(
+          'flex cursor-pointer select-none items-center justify-between gap-2.5 px-3.5 py-2',
+          open ? 'bg-slate-900/55' : 'bg-panel'
+        )}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="flex flex-wrap items-center gap-2">
           <Users size={15} color="#38bdf8" />
-          <h2 id={titleId} style={{ margin: 0, fontSize: '0.84rem', fontWeight: 700 }}>
+          <h2 id={titleId} className="m-0 text-[0.84rem] font-bold">
             Video Feeds
           </h2>
           {open && (
             <div
               onClick={(e) => e.stopPropagation()}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginLeft: '6px' }}
+              className="ml-1.5 inline-flex items-center gap-1.5"
             >
               <button
                 type="button"
                 onClick={() => selectTabOnly('guests')}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '7px',
-                  border: '1px solid var(--border-subtle)',
-                  background:
-                    activeTab === 'guests' ? '#2563eb' : 'var(--bg-panel-elevated)',
-                  color: activeTab === 'guests' ? '#fff' : 'var(--text-primary)',
-                  fontSize: '0.76rem',
-                  fontWeight: 600,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px'
-                }}
+                className={cn(
+                  'inline-flex items-center gap-[5px] rounded-[7px] border border-subtle px-2.5 py-1 text-[0.76rem] font-semibold transition-colors',
+                  activeTab === 'guests'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-panel-elevated text-text-primary hover:bg-hover'
+                )}
               >
                 <Users size={12} /> Green Room ({participants.length})
               </button>
               <button
                 type="button"
                 onClick={() => selectTabOnly('overflow')}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '7px',
-                  border: '1px solid var(--border-subtle)',
-                  background:
-                    activeTab === 'overflow' ? '#059669' : 'var(--bg-panel-elevated)',
-                  color: activeTab === 'overflow' ? '#fff' : 'var(--text-primary)',
-                  fontSize: '0.76rem',
-                  fontWeight: 600,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px'
-                }}
+                className={cn(
+                  'inline-flex items-center gap-[5px] rounded-[7px] border border-subtle px-2.5 py-1 text-[0.76rem] font-semibold transition-colors',
+                  activeTab === 'overflow'
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-panel-elevated text-text-primary hover:bg-hover'
+                )}
               >
                 <Camera size={12} /> Centro Cam {overflowConfig?.enabled ? '• ON' : ''}
               </button>
@@ -534,30 +418,19 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
 
         <div
           onClick={(e) => e.stopPropagation()}
-          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          className="flex items-center gap-1.5"
         >
           {(overflowAngles.length > 0 || overflowCameras.length > 0) &&
             onTogglePreviewCameras && (
               <button
                 type="button"
                 onClick={onTogglePreviewCameras}
-                style={{
-                  padding: '4px 9px',
-                  borderRadius: '7px',
-                  border: '1px solid',
-                  borderColor: previewCamerasOn
-                    ? 'rgba(56, 189, 248, 0.55)'
-                    : 'var(--border-subtle)',
-                  background: previewCamerasOn
-                    ? 'rgba(14, 165, 233, 0.2)'
-                    : 'var(--bg-panel-elevated)',
-                  color: previewCamerasOn ? '#7dd3fc' : 'var(--text-primary)',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px'
-                }}
+                className={cn(
+                  'inline-flex items-center gap-[5px] rounded-[7px] border px-[9px] py-1 text-[0.75rem] font-semibold transition-colors',
+                  previewCamerasOn
+                    ? 'border-sky-400/55 bg-sky-500/20 text-sky-300'
+                    : 'border-subtle bg-panel-elevated text-text-primary hover:bg-hover'
+                )}
                 title={
                   previewCamerasOn
                     ? 'Stop local camera previews (when no camera is live)'
@@ -570,16 +443,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
           <button
             type="button"
             onClick={onOpenSetup}
-            style={{
-              padding: '4px 9px',
-              borderRadius: '7px',
-              border: '1px solid var(--border-subtle)',
-              background: 'var(--bg-panel-elevated)',
-              fontSize: '0.75rem',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px'
-            }}
+            className="inline-flex items-center gap-[5px] rounded-[7px] border border-subtle bg-panel-elevated px-[9px] py-1 text-[0.75rem] transition-colors hover:bg-hover"
             title="Open Settings (Displays, Local Remote, Online Relay)"
           >
             <Settings2 size={12} /> Relay &amp; QR
@@ -589,15 +453,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
             onClick={handleToggle}
             aria-label={open ? 'Collapse Video Feeds' : 'Expand Video Feeds'}
             aria-expanded={open}
-            style={{
-              background: 'var(--bg-panel-elevated)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '7px',
-              padding: '4px 7px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
+            className="inline-flex items-center justify-center rounded-[7px] border border-subtle bg-panel-elevated px-[7px] py-1 transition-colors hover:bg-hover"
           >
             {open ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
           </button>
@@ -613,17 +469,12 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
             }}
             aria-label={minimized ? 'Restore Video Feeds' : 'Minimize Video Feeds'}
             title={minimized ? 'Show Video Feeds' : 'Minimize Video Feeds (top bar only)'}
-            style={{
-              background: minimized ? 'rgba(56, 189, 248, 0.18)' : 'var(--bg-panel-elevated)',
-              border: '1px solid',
-              borderColor: minimized ? 'rgba(56, 189, 248, 0.5)' : 'var(--border-subtle)',
-              color: minimized ? '#7dd3fc' : 'var(--text-primary)',
-              borderRadius: '7px',
-              padding: '4px 7px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
+            className={cn(
+              'inline-flex items-center justify-center rounded-[7px] border px-[7px] py-1 transition-colors',
+              minimized
+                ? 'border-sky-400/50 bg-sky-400/18 text-sky-300'
+                : 'border-subtle bg-panel-elevated text-text-primary hover:bg-hover'
+            )}
           >
             {minimized ? <Maximize2 size={15} /> : <Minus size={15} />}
           </button>
@@ -633,16 +484,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
       {!minimized &&
         !open &&
         (participants.length > 0 || overflowAngles.length > 0 || overflowCameras.length > 0) && (
-          <div
-            style={{
-              padding: '10px 14px',
-              borderTop: '1px solid var(--border-subtle)',
-              display: 'flex',
-              alignItems: 'stretch',
-              gap: '10px',
-              overflowX: 'auto'
-            }}
-          >
+          <div className="flex items-stretch gap-2.5 overflow-x-auto border-t border-subtle px-3.5 py-2.5">
             {/* Auto Toggle (first item before all camera & guest feeds) */}
             {(() => {
               const isAuto = (overflowConfig?.feedSource ?? 'auto') === 'auto';
@@ -663,33 +505,22 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                       ? 'Auto: Overflow follows Live guest speakers and falls back to Centro Cam'
                       : 'Manual: Click to re-enable Auto switching'
                   }
-                  style={{
-                    flexShrink: 0,
-                    width: '68px',
-                    padding: '8px 6px',
-                    borderRadius: '10px',
-                    border: '1px solid',
-                    borderColor: isAuto ? '#3b82f6' : 'var(--border-subtle)',
-                    background: isAuto ? 'rgba(37, 99, 235, 0.22)' : 'var(--bg-panel-elevated)',
-                    color: isAuto ? '#93c5fd' : 'var(--text-secondary)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px'
-                  }}
+                  className={cn(
+                    'flex w-[68px] shrink-0 flex-col items-center justify-center gap-1.5 rounded-[10px] border px-1.5 py-2 transition-colors',
+                    isAuto
+                      ? 'border-blue-500 bg-blue-600/22 text-blue-300'
+                      : 'border-subtle bg-panel-elevated text-text-secondary hover:bg-hover'
+                  )}
                 >
                   <Radio size={16} />
-                  <span style={{ fontSize: '0.74rem', fontWeight: 700 }}>Auto</span>
+                  <span className="text-[0.74rem] font-bold">Auto</span>
                   <span
-                    style={{
-                      fontSize: '0.62rem',
-                      fontWeight: 700,
-                      padding: '1px 6px',
-                      borderRadius: '999px',
-                      background: isAuto ? '#2563eb' : 'rgba(148, 163, 184, 0.16)',
-                      color: isAuto ? '#fff' : 'var(--text-muted)'
-                    }}
+                    className={cn(
+                      'rounded-full px-1.5 py-px text-[0.62rem] font-bold',
+                      isAuto
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-400/16 text-text-muted'
+                    )}
                   >
                     {isAuto ? 'ON' : 'MANUAL'}
                   </span>
@@ -744,19 +575,12 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
               return (
                 <div
                   key={`collapsed-cam-${cam.id}`}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '6px',
-                    padding: '6px',
-                    borderRadius: '10px',
-                    background: 'var(--bg-panel-elevated)',
-                    border: `1px solid ${isLive ? '#10b981' : 'var(--border-subtle)'}`,
-                    flexShrink: 0,
-                    width: '142px'
-                  }}
+                  className={cn(
+                    'flex w-[142px] shrink-0 flex-col gap-1.5 rounded-[10px] border bg-panel-elevated p-1.5',
+                    isLive ? 'border-emerald-500' : 'border-subtle'
+                  )}
                 >
-                  <div style={{ position: 'relative' }}>
+                  <div className="relative">
                     <MutedPreviewVideo
                       stream={camStream}
                       videoOff={!camStream}
@@ -764,42 +588,18 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                     />
                     {isLive && (
                       <span
-                        style={{
-                          position: 'absolute',
-                          top: '4px',
-                          left: '4px',
-                          padding: '1px 5px',
-                          borderRadius: '4px',
-                          fontSize: '0.62rem',
-                          fontWeight: 700,
-                          background: isStandbyForLiveGuest
-                            ? 'rgba(217, 119, 6, 0.9)'
-                            : '#059669',
-                          color: '#fff'
-                        }}
+                        className={cn(
+                          'absolute top-1 left-1 rounded px-[5px] py-px text-[0.62rem] font-bold text-white',
+                          isStandbyForLiveGuest ? 'bg-amber-600/90' : 'bg-emerald-600'
+                        )}
                       >
                         {isStandbyForLiveGuest ? 'STANDBY' : 'ACTIVE'}
                       </span>
                     )}
                   </div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '6px'
-                    }}
-                  >
+                  <div className="flex items-center justify-between gap-1.5">
                     <span
-                      style={{
-                        fontSize: '0.74rem',
-                        fontWeight: 600,
-                        color: 'var(--text-primary)',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        flex: 1
-                      }}
+                      className="flex-1 truncate text-[0.74rem] font-semibold text-text-primary"
                       title={cam.label}
                     >
                       {cam.label || 'Camera'}
@@ -811,16 +611,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                           onUpdateOverflowConfig?.({ enabled: true, feedSource: 'camera' })
                         }
                         title="Switch Overflow back to this Centro Cam"
-                        style={{
-                          padding: '2px 6px',
-                          borderRadius: '5px',
-                          border: 'none',
-                          background: '#2563eb',
-                          color: '#fff',
-                          fontSize: '0.68rem',
-                          fontWeight: 700,
-                          flexShrink: 0
-                        }}
+                        className="shrink-0 rounded-[5px] border-0 bg-blue-600 px-1.5 py-0.5 text-[0.68rem] font-bold text-white hover:bg-blue-500"
                       >
                         Show
                       </button>
@@ -828,16 +619,12 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                     <button
                       type="button"
                       onClick={handleToggleCam}
-                      style={{
-                        padding: '2px 7px',
-                        borderRadius: '5px',
-                        border: 'none',
-                        background: isLive ? 'rgba(239, 68, 68, 0.22)' : '#059669',
-                        color: isLive ? '#fca5a5' : '#fff',
-                        fontSize: '0.68rem',
-                        fontWeight: 700,
-                        flexShrink: 0
-                      }}
+                      className={cn(
+                        'shrink-0 rounded-[5px] border-0 px-[7px] py-0.5 text-[0.68rem] font-bold transition-colors',
+                        isLive
+                          ? 'bg-red-500/22 text-red-300 hover:bg-red-500/32'
+                          : 'bg-emerald-600 text-white hover:bg-emerald-500'
+                      )}
                     >
                       {isLive ? 'Off' : 'On'}
                     </button>
@@ -851,13 +638,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
               participants.length > 0 && (
                 <div
                   aria-hidden="true"
-                  style={{
-                    width: '1px',
-                    alignSelf: 'stretch',
-                    margin: '4px 2px',
-                    background: 'var(--border-subtle)',
-                    flexShrink: 0
-                  }}
+                  className="mx-0.5 my-1 w-px shrink-0 self-stretch bg-subtle"
                 />
               )}
 
@@ -869,47 +650,19 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
               return (
                 <div
                   key={`collapsed-${p.id}`}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '6px',
-                    padding: '6px',
-                    borderRadius: '10px',
-                    background: 'var(--bg-panel-elevated)',
-                    border: `1px solid ${isLive ? 'rgba(239, 68, 68, 0.65)' : 'var(--border-subtle)'}`,
-                    flexShrink: 0,
-                    width: '142px'
-                  }}
+                  className={cn(
+                    'flex w-[142px] shrink-0 flex-col gap-1.5 rounded-[10px] border bg-panel-elevated p-1.5',
+                    isLive ? 'border-red-500/65' : 'border-subtle'
+                  )}
                 >
-                  <div style={{ position: 'relative' }}>
+                  <div className="relative">
                     <MutedPreviewVideo stream={stream} videoOff={isVideoOff} />
                     {isLive && (
-                      <span
-                        style={{
-                          position: 'absolute',
-                          top: '4px',
-                          left: '4px',
-                          padding: '1px 5px',
-                          borderRadius: '4px',
-                          fontSize: '0.62rem',
-                          fontWeight: 700,
-                          background: '#dc2626',
-                          color: '#fff'
-                        }}
-                      >
+                      <span className="absolute top-1 left-1 rounded bg-red-600 px-[5px] py-px text-[0.62rem] font-bold text-white">
                         LIVE
                       </span>
                     )}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        bottom: '4px',
-                        right: '4px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}
-                    >
+                    <div className="absolute right-1 bottom-1 flex items-center gap-1">
                       {returnFeedConfig?.audioDeviceId &&
                         returnFeedConfig?.autoMuteWhenLive &&
                         onToggleReturnAudioManualUnmute && (
@@ -921,17 +674,10 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                                 : 'Return Audio: Auto-Muted (Unmute)'
                             }
                             onClick={onToggleReturnAudioManualUnmute}
-                            style={{
-                              padding: '3px 5px',
-                              borderRadius: '5px',
-                              border: '1px solid rgba(148, 163, 184, 0.3)',
-                              background: returnAudioManualUnmute
-                                ? 'rgba(5, 150, 105, 0.88)'
-                                : 'rgba(217, 119, 6, 0.88)',
-                              color: '#fff',
-                              display: 'inline-flex',
-                              alignItems: 'center'
-                            }}
+                            className={cn(
+                              'inline-flex items-center rounded-[5px] border border-slate-400/30 px-[5px] py-[3px] text-white',
+                              returnAudioManualUnmute ? 'bg-emerald-600/88' : 'bg-amber-600/88'
+                            )}
                           >
                             <Megaphone size={11} />
                           </button>
@@ -945,17 +691,12 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                               : 'Start 2-way Whisper'
                           }
                           onClick={() => onToggleMonitorParticipant(p.id)}
-                          style={{
-                            padding: '3px 5px',
-                            borderRadius: '5px',
-                            border: '1px solid rgba(148, 163, 184, 0.3)',
-                            background: monitoredParticipantIds.includes(p.id)
-                              ? 'rgba(14, 165, 233, 0.85)'
-                              : 'rgba(15, 23, 42, 0.78)',
-                            color: '#fff',
-                            display: 'inline-flex',
-                            alignItems: 'center'
-                          }}
+                          className={cn(
+                            'inline-flex items-center rounded-[5px] border border-slate-400/30 px-[5px] py-[3px] text-white',
+                            monitoredParticipantIds.includes(p.id)
+                              ? 'bg-sky-500/85'
+                              : 'bg-slate-900/78'
+                          )}
                         >
                           {monitoredParticipantIds.includes(p.id) ? (
                             <Volume2 size={11} />
@@ -968,17 +709,10 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                         type="button"
                         title={p.mutedByOperator ? 'Unmute participant' : 'Mute participant'}
                         onClick={() => onModerate(p.id, 'SET_MUTED', !p.mutedByOperator)}
-                        style={{
-                          padding: '3px 5px',
-                          borderRadius: '5px',
-                          border: '1px solid rgba(148, 163, 184, 0.3)',
-                          background: p.mutedByOperator
-                            ? 'rgba(220, 38, 38, 0.85)'
-                            : 'rgba(15, 23, 42, 0.78)',
-                          color: '#fff',
-                          display: 'inline-flex',
-                          alignItems: 'center'
-                        }}
+                        className={cn(
+                          'inline-flex items-center rounded-[5px] border border-slate-400/30 px-[5px] py-[3px] text-white',
+                          p.mutedByOperator ? 'bg-red-600/85' : 'bg-slate-900/78'
+                        )}
                       >
                         {p.mutedByOperator ? <MicOff size={11} /> : <Mic size={11} />}
                       </button>
@@ -990,40 +724,18 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                             : 'Hide participant video'
                         }
                         onClick={() => onModerate(p.id, 'SET_VIDEO_HIDDEN', !p.videoHiddenByOperator)}
-                        style={{
-                          padding: '3px 5px',
-                          borderRadius: '5px',
-                          border: '1px solid rgba(148, 163, 184, 0.3)',
-                          background: p.videoHiddenByOperator
-                            ? 'rgba(220, 38, 38, 0.85)'
-                            : 'rgba(15, 23, 42, 0.78)',
-                          color: '#fff',
-                          display: 'inline-flex',
-                          alignItems: 'center'
-                        }}
+                        className={cn(
+                          'inline-flex items-center rounded-[5px] border border-slate-400/30 px-[5px] py-[3px] text-white',
+                          p.videoHiddenByOperator ? 'bg-red-600/85' : 'bg-slate-900/78'
+                        )}
                       >
                         {p.videoHiddenByOperator ? <CameraOff size={11} /> : <Camera size={11} />}
                       </button>
                     </div>
                   </div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '6px'
-                    }}
-                  >
+                  <div className="flex items-center justify-between gap-1.5">
                     <span
-                      style={{
-                        fontSize: '0.74rem',
-                        fontWeight: 600,
-                        color: 'var(--text-primary)',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        flex: 1
-                      }}
+                      className="flex-1 truncate text-[0.74rem] font-semibold text-text-primary"
                       title={p.name}
                     >
                       {p.name}
@@ -1033,16 +745,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                         type="button"
                         onClick={() => onUpdateOverflowConfig({ feedSource: 'auto' })}
                         title="Switch Overflow back to this guest's camera without turning off Centro Cam"
-                        style={{
-                          padding: '2px 6px',
-                          borderRadius: '5px',
-                          border: 'none',
-                          background: '#2563eb',
-                          color: '#fff',
-                          fontSize: '0.68rem',
-                          fontWeight: 700,
-                          flexShrink: 0
-                        }}
+                        className="shrink-0 rounded-[5px] border-0 bg-blue-600 px-1.5 py-0.5 text-[0.68rem] font-bold text-white hover:bg-blue-500"
                       >
                         Show
                       </button>
@@ -1052,16 +755,12 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                       onClick={() =>
                         onModerate(p.id, isLive ? 'MOVE_TO_GREEN_ROOM' : 'PUT_LIVE')
                       }
-                      style={{
-                        padding: '2px 7px',
-                        borderRadius: '5px',
-                        border: 'none',
-                        background: isLive ? 'rgba(239, 68, 68, 0.22)' : '#16a34a',
-                        color: isLive ? '#fca5a5' : '#fff',
-                        fontSize: '0.68rem',
-                        fontWeight: 700,
-                        flexShrink: 0
-                      }}
+                      className={cn(
+                        'shrink-0 rounded-[5px] border-0 px-[7px] py-0.5 text-[0.68rem] font-bold transition-colors',
+                        isLive
+                          ? 'bg-red-500/22 text-red-300 hover:bg-red-500/32'
+                          : 'bg-green-600 text-white hover:bg-green-500'
+                      )}
                     >
                       {isLive ? 'Off' : 'Go Live'}
                     </button>
@@ -1073,36 +772,14 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
         )}
 
       {!minimized && open && (
-        <div
-          style={{
-            padding: '14px 16px',
-            maxHeight: '42vh',
-            overflowY: 'auto',
-            borderTop: '1px solid var(--border-subtle)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px'
-          }}
-        >
+        <div className="flex max-h-[42vh] flex-col gap-4 overflow-y-auto border-t border-subtle px-4 py-3.5">
 
         {activeTab === 'guests' ? (
           <>
         {/* Stage Layout Controls */}
-        <section
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '10px',
-            padding: '10px 12px',
-            borderRadius: '10px',
-            background: 'var(--bg-panel-elevated)',
-            border: '1px solid var(--border-subtle)'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginRight: '4px' }}>
+        <section className="flex flex-wrap items-center justify-between gap-2.5 rounded-[10px] border border-subtle bg-panel-elevated px-3 py-2.5">
+          <div className="flex items-center gap-1.5">
+            <span className="mr-1 text-[0.78rem] text-text-secondary">
               Screen Layout:
             </span>
             {(
@@ -1115,18 +792,12 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                 key={opt.id}
                 type="button"
                 onClick={() => onUpdateStageConfig({ layout: opt.id })}
-                style={{
-                  padding: '5px 10px',
-                  borderRadius: '7px',
-                  border: '1px solid var(--border-subtle)',
-                  background: stageConfig.layout === opt.id ? '#2563eb' : 'transparent',
-                  color: stageConfig.layout === opt.id ? '#fff' : 'var(--text-primary)',
-                  fontSize: '0.78rem',
-                  fontWeight: 600,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px'
-                }}
+                className={cn(
+                  'inline-flex items-center gap-[5px] rounded-[7px] border border-subtle px-2.5 py-[5px] text-[0.78rem] font-semibold transition-colors',
+                  stageConfig.layout === opt.id
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-transparent text-text-primary hover:bg-hover'
+                )}
               >
                 {opt.icon}
                 {opt.label}
@@ -1135,16 +806,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
           </div>
 
           {stageConfig.layout === 'full' && (
-            <label
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '0.76rem',
-                color: 'var(--text-secondary)',
-                cursor: 'pointer'
-              }}
-            >
+            <label className="inline-flex cursor-pointer items-center gap-1.5 text-[0.76rem] text-text-secondary">
               <input
                 type="checkbox"
                 checked={stageConfig.fullCropSides !== false}
@@ -1160,18 +822,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
               onClose();
               onOpenStudioEditor();
             }}
-            style={{
-              padding: '5px 10px',
-              borderRadius: '7px',
-              border: '1px solid rgba(56, 189, 248, 0.5)',
-              background: 'rgba(56, 189, 248, 0.14)',
-              color: '#7dd3fc',
-              fontSize: '0.78rem',
-              fontWeight: 600,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px'
-            }}
+            className="inline-flex items-center gap-[5px] rounded-[7px] border border-sky-400/50 bg-sky-400/14 px-2.5 py-[5px] text-[0.78rem] font-semibold text-sky-300 transition-colors hover:bg-sky-400/22"
           >
             <Sliders size={13} /> Customize Studio
           </button>
@@ -1180,30 +831,13 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
             <button
               type="button"
               onClick={onClearAllLive}
-              style={{
-                padding: '5px 10px',
-                borderRadius: '7px',
-                border: '1px solid rgba(239, 68, 68, 0.4)',
-                background: 'rgba(220, 38, 38, 0.14)',
-                color: '#fca5a5',
-                fontSize: '0.76rem',
-                fontWeight: 600
-              }}
+              className="rounded-[7px] border border-red-500/40 bg-red-600/14 px-2.5 py-[5px] text-[0.76rem] font-semibold text-red-300 transition-colors hover:bg-red-600/24"
             >
               Clear Screen
             </button>
           )}
 
-          <label
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.76rem',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer'
-            }}
-          >
+          <label className="inline-flex cursor-pointer items-center gap-1.5 text-[0.76rem] text-text-secondary">
             <input
               type="checkbox"
               checked={Boolean(stageConfig.showNameplate)}
@@ -1252,20 +886,12 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                     e.stopPropagation();
                     setActiveReturnFeedHelp((prev) => (prev === key ? null : key));
                   }}
-                  style={{
-                    padding: 0,
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '999px',
-                    border: 'none',
-                    background: isOpen ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
-                    color: isOpen ? '#38bdf8' : 'var(--text-muted)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    flexShrink: 0
-                  }}
+                  className={cn(
+                    'inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 p-0 transition-colors',
+                    isOpen
+                      ? 'bg-sky-400/25 text-sky-400'
+                      : 'bg-transparent text-text-muted hover:text-text-secondary'
+                  )}
                 >
                   <HelpCircle size={13} />
                 </button>
@@ -1273,23 +899,13 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
             };
 
             return (
-              <section
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  padding: '10px 12px',
-                  borderRadius: '10px',
-                  background: 'var(--bg-panel-elevated)',
-                  border: '1px solid var(--border-subtle)'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              <section className="flex flex-col gap-2 rounded-[10px] border border-subtle bg-panel-elevated px-3 py-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[0.78rem] font-bold text-text-primary">
                     Centro Cam Return Feed (Sent to Remote Speakers)
                   </span>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                  <div className="inline-flex items-center gap-[5px]">
+                    <label className="inline-flex cursor-pointer items-center gap-1.5 text-[0.75rem] text-text-secondary">
                       <input
                         type="checkbox"
                         checked={returnFeedConfig.sendVideo}
@@ -1301,21 +917,14 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <div className="inline-flex items-center gap-[5px]">
+                    <label className="inline-flex items-center gap-1.5 text-[0.75rem] text-text-secondary">
                       Return Audio:
                       <select
                         value={returnFeedConfig.audioDeviceId}
                         onChange={(e) => onUpdateReturnFeedConfig({ audioDeviceId: e.target.value })}
-                        style={{
-                          padding: '4px 8px',
-                          borderRadius: '6px',
-                          border: '1px solid var(--border-subtle)',
-                          background: 'var(--bg-app)',
-                          color: 'var(--text-primary)',
-                          fontSize: '0.76rem'
-                        }}
+                        className="rounded-md border border-subtle bg-app px-2 py-1 text-[0.76rem] text-text-primary focus:border-accent focus:outline-none"
                       >
                         <option value="">Off (Muted)</option>
                         <option value="default">Default Microphone</option>
@@ -1329,8 +938,8 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                     {renderHelpBtn('returnAudio')}
                   </div>
 
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                  <div className="inline-flex items-center gap-[5px]">
+                    <label className="inline-flex cursor-pointer items-center gap-1.5 text-[0.75rem] text-text-secondary">
                       <input
                         type="checkbox"
                         checked={returnFeedConfig.autoMuteWhenLive}
@@ -1348,18 +957,12 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                       <button
                         type="button"
                         onClick={onToggleReturnAudioManualUnmute}
-                        style={{
-                          padding: '4px 10px',
-                          borderRadius: '6px',
-                          border: '1px solid var(--border-subtle)',
-                          background: returnAudioManualUnmute
-                            ? 'rgba(5, 150, 105, 0.22)'
-                            : 'rgba(245, 158, 11, 0.18)',
-                          color: returnAudioManualUnmute ? '#6ee7b7' : '#fcd34d',
-                          fontSize: '0.74rem',
-                          fontWeight: 700,
-                          cursor: 'pointer'
-                        }}
+                        className={cn(
+                          'cursor-pointer rounded-md border border-subtle px-2.5 py-1 text-[0.74rem] font-bold transition-colors',
+                          returnAudioManualUnmute
+                            ? 'bg-emerald-600/22 text-emerald-300'
+                            : 'bg-amber-500/18 text-amber-300'
+                        )}
                       >
                         {returnAudioManualUnmute
                           ? 'Return Audio: Live (Re-mute)'
@@ -1369,39 +972,15 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                 </div>
 
                 {(onSelectMonitorOutputDevice || onSelectWhisperInputDevice) && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      flexWrap: 'wrap',
-                      gap: '10px',
-                      paddingTop: '6px',
-                      borderTop: '1px solid var(--border-subtle)'
-                    }}
-                  >
+                  <div className="flex flex-wrap items-center gap-2.5 border-t border-subtle pt-1.5">
                     {onSelectWhisperInputDevice && (
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                        <label
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            fontSize: '0.75rem',
-                            color: 'var(--text-secondary)'
-                          }}
-                        >
+                      <div className="inline-flex items-center gap-[5px]">
+                        <label className="inline-flex items-center gap-1.5 text-[0.75rem] text-text-secondary">
                           Whisper Input (Mic):
                           <select
                             value={whisperInputDeviceId}
                             onChange={(e) => onSelectWhisperInputDevice(e.target.value)}
-                            style={{
-                              padding: '4px 8px',
-                              borderRadius: '6px',
-                              border: '1px solid var(--border-subtle)',
-                              background: 'var(--bg-app)',
-                              color: 'var(--text-primary)',
-                              fontSize: '0.76rem'
-                            }}
+                            className="rounded-md border border-subtle bg-app px-2 py-1 text-[0.76rem] text-text-primary focus:border-accent focus:outline-none"
                           >
                             <option value="">Off (Listen Only)</option>
                             <option value="default">Default Microphone</option>
@@ -1417,28 +996,13 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                     )}
 
                     {onSelectMonitorOutputDevice && (
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                        <label
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            fontSize: '0.75rem',
-                            color: 'var(--text-secondary)'
-                          }}
-                        >
+                      <div className="inline-flex items-center gap-[5px]">
+                        <label className="inline-flex items-center gap-1.5 text-[0.75rem] text-text-secondary">
                           Whisper Output:
                           <select
                             value={monitorOutputDeviceId}
                             onChange={(e) => onSelectMonitorOutputDevice(e.target.value)}
-                            style={{
-                              padding: '4px 8px',
-                              borderRadius: '6px',
-                              border: '1px solid var(--border-subtle)',
-                              background: 'var(--bg-app)',
-                              color: 'var(--text-primary)',
-                              fontSize: '0.76rem'
-                            }}
+                            className="rounded-md border border-subtle bg-app px-2 py-1 text-[0.76rem] text-text-primary focus:border-accent focus:outline-none"
                           >
                             <option value="">System Default</option>
                             {audioOutputDevices.map((out) => (
@@ -1452,29 +1016,16 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                       </div>
                     )}
 
-                    <span style={{ fontSize: '0.71rem', color: 'var(--text-muted)' }}>
+                    <span className="text-[0.71rem] text-text-muted">
                       2-way private audio with whispered speakers while LIVE audio stays on System Default.
                     </span>
                   </div>
                 )}
 
                 {activeReturnFeedHelp && RETURN_FEED_HELP[activeReturnFeedHelp] && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      justifyContent: 'space-between',
-                      gap: '10px',
-                      padding: '8px 10px',
-                      borderRadius: '8px',
-                      background: 'rgba(14, 165, 233, 0.12)',
-                      border: '1px solid rgba(56, 189, 248, 0.35)',
-                      fontSize: '0.74rem',
-                      color: '#bae6fd'
-                    }}
-                  >
+                  <div className="flex items-start justify-between gap-2.5 rounded-lg border border-sky-400/35 bg-sky-500/12 px-2.5 py-2 text-[0.74rem] text-sky-200">
                     <div>
-                      <strong style={{ color: '#e0f2fe' }}>
+                      <strong className="text-sky-100">
                         {RETURN_FEED_HELP[activeReturnFeedHelp].title}:{' '}
                       </strong>
                       {RETURN_FEED_HELP[activeReturnFeedHelp].text}
@@ -1483,14 +1034,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                       type="button"
                       onClick={() => setActiveReturnFeedHelp(null)}
                       aria-label="Close help"
-                      style={{
-                        border: 'none',
-                        background: 'transparent',
-                        color: '#7dd3fc',
-                        cursor: 'pointer',
-                        padding: '0 2px',
-                        flexShrink: 0
-                      }}
+                      className="shrink-0 cursor-pointer border-0 bg-transparent px-0.5 py-0 text-sky-300 hover:text-sky-100"
                     >
                       <X size={13} />
                     </button>
@@ -1501,33 +1045,33 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
           })()}
 
         {/* Live On Screen */}
-        <section style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', fontWeight: 700, color: '#fca5a5' }}>
+        <section className="flex flex-col gap-2">
+          <div className="flex items-center gap-1.5 text-[0.82rem] font-bold text-red-300">
             <Radio size={14} />
             <span>Live On Screen ({liveParticipants.length})</span>
           </div>
           {liveParticipants.length === 0 ? (
-            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', padding: '8px 0' }}>
+            <div className="py-2 text-[0.82rem] text-text-secondary">
               No participants are currently live on screen.
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="flex flex-col gap-2">
               {liveParticipants.map(renderCard)}
             </div>
           )}
         </section>
 
         {/* Green Room */}
-        <section style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#fde047' }}>
+        <section className="flex flex-col gap-2">
+          <div className="text-[0.82rem] font-bold text-yellow-300">
             Green Room — Waiting ({greenRoomParticipants.length})
           </div>
           {greenRoomParticipants.length === 0 ? (
-            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', padding: '8px 0' }}>
+            <div className="py-2 text-[0.82rem] text-text-secondary">
               No guests waiting in the Green Room. Share the Invite QR &amp; Relay link to invite speakers.
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="flex flex-col gap-2">
               {greenRoomParticipants.map(renderCard)}
             </div>
           )}
@@ -1536,12 +1080,12 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
         ) : (
           overflowConfig &&
           onUpdateOverflowConfig && (
-            <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+            <section className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[0.84rem] text-text-secondary">
                   Main Congregation Room Camera (Muted — Sound System Handles Audio)
                 </span>
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}>
+                <label className="inline-flex cursor-pointer items-center gap-1.5 text-[0.82rem] font-semibold">
                   <input
                     type="checkbox"
                     checked={overflowConfig.enabled}
@@ -1558,36 +1102,16 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                 </label>
               </div>
 
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '10px',
-                  padding: '10px 12px',
-                  borderRadius: '10px',
-                  background: 'var(--bg-panel-elevated)',
-                  border: '1px solid var(--border-subtle)'
-                }}
-              >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              <div className="flex items-center justify-between gap-2.5 rounded-[10px] border border-subtle bg-panel-elevated px-3 py-2.5">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[0.8rem] font-bold text-text-primary">
                     Overflow Feed Source
                   </span>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  <span className="text-[0.72rem] text-text-muted">
                     Switch Overflow between Remote Guest (when live) and Centro Cam
                   </span>
                 </div>
-                <div
-                  style={{
-                    display: 'inline-flex',
-                    background: 'var(--bg-app)',
-                    borderRadius: '8px',
-                    padding: '3px',
-                    border: '1px solid var(--border-subtle)',
-                    flexShrink: 0
-                  }}
-                >
+                <div className="inline-flex shrink-0 rounded-lg border border-subtle bg-app p-[3px]">
                   {(
                     [
                       { id: 'auto', label: 'Auto' },
@@ -1606,15 +1130,12 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                             ...(opt.id === 'camera' ? { enabled: true } : {})
                           })
                         }
-                        style={{
-                          padding: '5px 10px',
-                          borderRadius: '6px',
-                          border: 'none',
-                          fontSize: '0.76rem',
-                          fontWeight: 600,
-                          background: active ? '#2563eb' : 'transparent',
-                          color: active ? '#fff' : 'var(--text-secondary)'
-                        }}
+                        className={cn(
+                          'rounded-md border-0 px-2.5 py-[5px] text-[0.76rem] font-semibold transition-colors',
+                          active
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-transparent text-text-secondary hover:text-text-primary'
+                        )}
                       >
                         {opt.label}
                       </button>
@@ -1623,20 +1144,10 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                 </div>
               </div>
 
-              <div
-                style={{
-                  background: 'var(--bg-panel-elevated)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '12px',
-                  padding: '12px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px'
-                }}
-              >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+              <div className="flex flex-col gap-3 rounded-xl border border-subtle bg-panel-elevated p-3">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[0.78rem] font-bold text-text-secondary">
                       Camera Angles ({overflowAngles.length})
                     </span>
                     {onUpdateOverflowAngles && (
@@ -1651,14 +1162,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                           };
                           onUpdateOverflowAngles([...overflowAngles, newAngle]);
                         }}
-                        style={{
-                          padding: '4px 9px',
-                          borderRadius: '6px',
-                          border: '1px solid var(--border-subtle)',
-                          background: 'var(--bg-app)',
-                          fontSize: '0.74rem',
-                          fontWeight: 600
-                        }}
+                        className="rounded-md border border-subtle bg-app px-[9px] py-1 text-[0.74rem] font-semibold transition-colors hover:bg-hover"
                       >
                         + Add Angle
                       </button>
@@ -1670,12 +1174,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                     return (
                       <div
                         key={angle.id}
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'minmax(110px, 0.8fr) 1fr auto auto',
-                          gap: '6px',
-                          alignItems: 'center'
-                        }}
+                        className="grid grid-cols-[minmax(110px,0.8fr)_1fr_auto_auto] items-center gap-1.5"
                       >
                         <input
                           type="text"
@@ -1688,14 +1187,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                               )
                             );
                           }}
-                          style={{
-                            padding: '5px 8px',
-                            borderRadius: '7px',
-                            border: '1px solid var(--border-subtle)',
-                            background: 'var(--bg-app)',
-                            color: 'var(--text-primary)',
-                            fontSize: '0.76rem'
-                          }}
+                          className="rounded-[7px] border border-subtle bg-app px-2 py-[5px] text-[0.76rem] text-text-primary focus:border-accent focus:outline-none"
                         />
                         <select
                           value={angle.deviceId}
@@ -1706,14 +1198,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                               )
                             );
                           }}
-                          style={{
-                            padding: '5px 8px',
-                            borderRadius: '7px',
-                            border: '1px solid var(--border-subtle)',
-                            background: 'var(--bg-app)',
-                            color: 'var(--text-primary)',
-                            fontSize: '0.76rem'
-                          }}
+                          className="rounded-[7px] border border-subtle bg-app px-2 py-[5px] text-[0.76rem] text-text-primary focus:border-accent focus:outline-none"
                         >
                           {overflowCameras.length === 0 ? (
                             <option value="">Default Camera</option>
@@ -1728,15 +1213,10 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                         <button
                           type="button"
                           onClick={() => onSelectOverflowAngle?.(angle.id)}
-                          style={{
-                            padding: '5px 9px',
-                            borderRadius: '7px',
-                            border: 'none',
-                            background: isActive ? '#059669' : '#334155',
-                            color: '#fff',
-                            fontSize: '0.74rem',
-                            fontWeight: 600
-                          }}
+                          className={cn(
+                            'rounded-[7px] border-0 px-[9px] py-[5px] text-[0.74rem] font-semibold text-white transition-colors',
+                            isActive ? 'bg-emerald-600' : 'bg-slate-700 hover:bg-slate-600'
+                          )}
                         >
                           {isActive ? 'Active' : 'Use'}
                         </button>
@@ -1751,14 +1231,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                                 onSelectOverflowAngle?.(remaining[0].id);
                               }
                             }}
-                            style={{
-                              padding: '5px 6px',
-                              borderRadius: '7px',
-                              border: '1px solid rgba(239, 68, 68, 0.35)',
-                              background: 'transparent',
-                              color: '#f87171',
-                              display: 'inline-flex'
-                            }}
+                            className="inline-flex rounded-[7px] border border-red-500/35 bg-transparent px-1.5 py-[5px] text-red-400 transition-colors hover:bg-red-500/15"
                           >
                             <Trash2 size={13} />
                           </button>
@@ -1768,56 +1241,34 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                   })}
                 </div>
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', justifyContent: 'space-between' }}>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => onUpdateStageConfig({ layout: 'full' })}
-                      style={{
-                        padding: '5px 10px',
-                        borderRadius: '7px',
-                        border: '1px solid var(--border-subtle)',
-                        background: stageConfig.layout === 'full' ? '#2563eb' : 'transparent',
-                        color: stageConfig.layout === 'full' ? '#fff' : 'var(--text-primary)',
-                        fontSize: '0.78rem',
-                        fontWeight: 600,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '5px'
-                      }}
+                      className={cn(
+                        'inline-flex items-center gap-[5px] rounded-[7px] border border-subtle px-2.5 py-[5px] text-[0.78rem] font-semibold transition-colors',
+                        stageConfig.layout === 'full'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-transparent text-text-primary hover:bg-hover'
+                      )}
                     >
                       <Maximize2 size={13} /> Full
                     </button>
                     <button
                       type="button"
                       onClick={() => onUpdateStageConfig({ layout: 'custom' })}
-                      style={{
-                        padding: '5px 10px',
-                        borderRadius: '7px',
-                        border: '1px solid var(--border-subtle)',
-                        background: stageConfig.layout === 'custom' ? '#2563eb' : 'transparent',
-                        color: stageConfig.layout === 'custom' ? '#fff' : 'var(--text-primary)',
-                        fontSize: '0.78rem',
-                        fontWeight: 600,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '5px'
-                      }}
+                      className={cn(
+                        'inline-flex items-center gap-[5px] rounded-[7px] border border-subtle px-2.5 py-[5px] text-[0.78rem] font-semibold transition-colors',
+                        stageConfig.layout === 'custom'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-transparent text-text-primary hover:bg-hover'
+                      )}
                     >
                       <LayoutTemplate size={13} /> Studio
                     </button>
                     {stageConfig.layout === 'full' && (
-                      <label
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          fontSize: '0.76rem',
-                          color: 'var(--text-secondary)',
-                          cursor: 'pointer'
-                        }}
-                      >
+                      <label className="inline-flex cursor-pointer items-center gap-1.5 text-[0.76rem] text-text-secondary">
                         <input
                           type="checkbox"
                           checked={stageConfig.fullCropSides !== false}
@@ -1835,18 +1286,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                           onClose();
                           onOpenStudioEditor();
                         }}
-                        style={{
-                          padding: '5px 10px',
-                          borderRadius: '7px',
-                          border: '1px solid rgba(56, 189, 248, 0.5)',
-                          background: 'rgba(56, 189, 248, 0.14)',
-                          color: '#7dd3fc',
-                          fontSize: '0.78rem',
-                          fontWeight: 600,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px'
-                        }}
+                        className="inline-flex items-center gap-[5px] rounded-[7px] border border-sky-400/50 bg-sky-400/14 px-2.5 py-[5px] text-[0.78rem] font-semibold text-sky-300 transition-colors hover:bg-sky-400/22"
                       >
                         <Sliders size={13} /> Customize Studio
                       </button>
@@ -1855,24 +1295,14 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                 </div>
 
                 {displays.length > 0 && onSelectOverflowDisplay && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>HDMI Display:</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[0.76rem] text-text-secondary">HDMI Display:</span>
                     {displays.map((d) => (
                       <button
                         key={`overflow-${d.id}`}
                         type="button"
                         onClick={() => onSelectOverflowDisplay(d.id)}
-                        style={{
-                          padding: '5px 10px',
-                          borderRadius: '7px',
-                          border: '1px solid var(--border-subtle)',
-                          background: 'var(--bg-app)',
-                          fontSize: '0.76rem',
-                          fontWeight: 600,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px'
-                        }}
+                        className="inline-flex items-center gap-[5px] rounded-[7px] border border-subtle bg-app px-2.5 py-[5px] text-[0.76rem] font-semibold transition-colors hover:bg-hover"
                       >
                         <Monitor size={12} /> {d.label}
                       </button>
@@ -1881,15 +1311,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                       <button
                         type="button"
                         onClick={onCloseOverflowScreen}
-                        style={{
-                          padding: '5px 10px',
-                          borderRadius: '7px',
-                          border: 'none',
-                          background: '#dc2626',
-                          color: '#fff',
-                          fontSize: '0.76rem',
-                          fontWeight: 600
-                        }}
+                        className="rounded-[7px] border-0 bg-red-600 px-2.5 py-[5px] text-[0.76rem] font-semibold text-white transition-colors hover:bg-red-500"
                       >
                         Close Overflow Screen
                       </button>
@@ -1897,40 +1319,22 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
                   </div>
                 )}
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                <div className="flex flex-wrap items-center gap-3.5">
                   {overflowQrDataUrl && (
                     <img
                       src={overflowQrDataUrl}
                       alt="Overflow Room QR Code"
-                      style={{
-                        width: 112,
-                        height: 112,
-                        borderRadius: '8px',
-                        background: '#f8fafc',
-                        padding: '4px',
-                        flexShrink: 0
-                      }}
+                      className="h-28 w-28 shrink-0 rounded-lg bg-slate-50 p-1"
                     />
                   )}
-                  <div style={{ flex: 1, minWidth: '200px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                  <div className="flex min-w-[200px] flex-1 flex-col gap-1.5">
+                    <div className="text-[0.76rem] text-text-secondary">
                       LAN Browser Overflow URL:
                     </div>
-                    <code
-                      style={{
-                        display: 'block',
-                        padding: '7px 10px',
-                        borderRadius: '8px',
-                        background: 'var(--bg-app)',
-                        border: '1px solid var(--border-subtle)',
-                        fontSize: '0.75rem',
-                        wordBreak: 'break-all',
-                        color: '#6ee7b7'
-                      }}
-                    >
+                    <code className="block break-all rounded-lg border border-subtle bg-app px-2.5 py-[7px] text-[0.75rem] text-emerald-300">
                       {overflowUrl}
                     </code>
-                    <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)' }}>
+                    <div className="text-[0.73rem] text-text-muted">
                       Centro Cam never appears on the Main Screen, and is automatically overridden whenever a remote guest is Live.
                     </div>
                   </div>

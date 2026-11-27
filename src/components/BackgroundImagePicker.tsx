@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Image as ImageIcon, Upload, X } from 'lucide-react';
 import { useSavedBgImages } from '../utils/bgImageStore';
 import { saveUserMediaFile } from '../utils/mediaUpload';
+import { cn } from '../utils/cn';
 
 interface BackgroundImagePickerProps {
   value?: string;
@@ -33,31 +34,25 @@ export const BackgroundImagePicker: React.FC<BackgroundImagePickerProps> = ({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+    <div className="flex flex-col gap-1.5">
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*"
         onChange={handleFileChange}
-        style={{ display: 'none' }}
+        className="hidden"
       />
-      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+      <div className="flex flex-wrap items-center gap-[5px]">
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
           title="Upload a new background image"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            padding: compact ? '3px 7px' : '5px 10px',
-            borderRadius: compact ? '6px' : '7px',
-            border: '1px solid var(--border-subtle)',
-            background: compact ? 'var(--bg-app)' : 'var(--bg-panel-elevated)',
-            color: 'var(--text-primary)',
-            fontSize: compact ? '0.7rem' : '0.76rem',
-            fontWeight: 600
-          }}
+          className={cn(
+            'inline-flex items-center gap-1 border border-subtle font-semibold text-text-primary transition-colors hover:bg-hover',
+            compact
+              ? 'rounded-md bg-app px-[7px] py-[3px] text-[0.7rem]'
+              : 'rounded-[7px] bg-panel-elevated px-2.5 py-[5px] text-[0.76rem]'
+          )}
         >
           <Upload size={compact ? 11 : 13} />
           Upload
@@ -68,23 +63,17 @@ export const BackgroundImagePicker: React.FC<BackgroundImagePickerProps> = ({
             type="button"
             onClick={() => setGalleryOpen((prev) => !prev)}
             title="Choose from saved background images"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: compact ? '3px 7px' : '5px 10px',
-              borderRadius: compact ? '6px' : '7px',
-              border: '1px solid',
-              borderColor: galleryOpen ? 'var(--accent)' : 'var(--border-subtle)',
-              background: galleryOpen
-                ? 'rgba(59,130,246,0.16)'
+            className={cn(
+              'inline-flex items-center gap-1 border font-semibold text-text-primary transition-colors',
+              compact
+                ? 'rounded-md px-[7px] py-[3px] text-[0.7rem]'
+                : 'rounded-[7px] px-2.5 py-[5px] text-[0.76rem]',
+              galleryOpen
+                ? 'border-accent bg-blue-500/16'
                 : compact
-                ? 'var(--bg-app)'
-                : 'var(--bg-panel-elevated)',
-              color: 'var(--text-primary)',
-              fontSize: compact ? '0.7rem' : '0.76rem',
-              fontWeight: 600
-            }}
+                ? 'border-subtle bg-app hover:bg-hover'
+                : 'border-subtle bg-panel-elevated hover:bg-hover'
+            )}
           >
             <ImageIcon size={compact ? 11 : 13} />
             Saved ({images.length})
@@ -94,43 +83,27 @@ export const BackgroundImagePicker: React.FC<BackgroundImagePickerProps> = ({
 
       {galleryOpen && images.length > 0 && (
         <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: compact ? 'repeat(3, 1fr)' : 'repeat(auto-fill, minmax(64px, 1fr))',
-            gap: '6px',
-            padding: '8px',
-            borderRadius: '8px',
-            background: 'var(--bg-app)',
-            border: '1px solid var(--border-subtle)',
-            maxHeight: '148px',
-            overflowY: 'auto'
-          }}
+          className={cn(
+            'grid max-h-[148px] gap-1.5 overflow-y-auto rounded-lg border border-subtle bg-app p-2',
+            compact ? 'grid-cols-3' : 'grid-cols-[repeat(auto-fill,minmax(64px,1fr))]'
+          )}
         >
           {images.map((img) => {
             const isSelected = value === img.cssValue;
             return (
               <div
                 key={img.id}
-                style={{
-                  position: 'relative',
-                  aspectRatio: '16 / 10',
-                  borderRadius: '6px',
-                  overflow: 'hidden',
-                  border: isSelected ? '2px solid var(--accent)' : '1px solid var(--border-subtle)'
-                }}
+                className={cn(
+                  'relative aspect-[16/10] overflow-hidden rounded-md',
+                  isSelected ? 'border-2 border-accent' : 'border border-subtle'
+                )}
               >
                 <button
                   type="button"
                   onClick={() => onSelect(img.cssValue)}
                   title={img.name}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    padding: 0,
-                    border: 'none',
-                    background: `url("${img.dataUrl}") center/cover no-repeat`,
-                    display: 'block'
-                  }}
+                  className="block h-full w-full border-0 p-0"
+                  style={{ background: `url("${img.dataUrl}") center/cover no-repeat` }}
                 />
                 <button
                   type="button"
@@ -139,21 +112,7 @@ export const BackgroundImagePicker: React.FC<BackgroundImagePickerProps> = ({
                     deleteImage(img.id);
                   }}
                   title={`Remove ${img.name}`}
-                  style={{
-                    position: 'absolute',
-                    top: '2px',
-                    right: '2px',
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '999px',
-                    border: 'none',
-                    background: 'rgba(0,0,0,0.7)',
-                    color: '#fff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: 0
-                  }}
+                  className="absolute top-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded-full border-0 bg-black/70 p-0 text-white hover:bg-black/90"
                 >
                   <X size={10} />
                 </button>

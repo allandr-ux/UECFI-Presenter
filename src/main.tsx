@@ -226,51 +226,28 @@ const AboutWindowApp: React.FC<{ version: string }> = ({ version }) => {
   }, []);
 
   return (
-    <div
-      style={{
-        width: '100vw',
-        height: '100vh',
-        boxSizing: 'border-box',
-        background: '#111622',
-        color: '#f8fafc',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px 24px',
-        textAlign: 'center',
-        userSelect: 'none',
-        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Inter, sans-serif"
-      }}
-    >
+    <div className="box-border flex h-screen w-screen select-none flex-col items-center justify-center bg-[#111622] px-6 py-5 text-center text-slate-50">
       <img
         src={appIconAbout}
         alt="UECFI Presenter"
         draggable={false}
-        style={{ width: '80px', height: '80px', marginBottom: '12px' }}
+        className="mb-3 h-20 w-20"
       />
-      <div style={{ fontSize: '1.05rem', fontWeight: 700, letterSpacing: '-0.01em' }}>
+      <div className="text-[1.05rem] font-bold tracking-[-0.01em]">
         UECFI Presenter
       </div>
-      <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '4px' }}>
+      <div className="mt-1 text-[0.78rem] text-text-secondary">
         Version {version}
       </div>
       <a
         href="https://apps.uecfi.net"
         target="_blank"
         rel="noreferrer"
-        style={{
-          marginTop: '12px',
-          fontSize: '0.84rem',
-          fontWeight: 500,
-          color: '#60a5fa',
-          textDecoration: 'underline',
-          cursor: 'pointer'
-        }}
+        className="mt-3 cursor-pointer text-[0.84rem] font-medium text-blue-400 underline hover:text-blue-300"
       >
         apps.uecfi.net
       </a>
-      <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '14px' }}>
+      <div className="mt-3.5 text-[0.74rem] text-text-muted">
         Copyright © 2026 by Kurog
       </div>
     </div>

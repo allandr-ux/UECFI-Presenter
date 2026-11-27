@@ -2,6 +2,7 @@ import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Check, Pause, Play, RotateCcw, Tag, X } from 'lucide-react';
 import type { SlideBlock } from '../../shared/types';
 import { flattenSongTimedLines, type TimedLyricLine } from '../utils/timedLyrics';
+import { cn } from '../utils/cn';
 
 interface LyricsSyncModalProps {
   open: boolean;
@@ -200,7 +201,7 @@ export const LyricsSyncModal: React.FC<LyricsSyncModalProps> = ({
     <dialog
       ref={dialogRef}
       aria-labelledby={titleId}
-      style={{ maxWidth: '660px', width: 'min(94vw, 660px)', height: 'min(88vh, 780px)' }}
+      className="h-[min(88vh,780px)] w-[min(94vw,660px)] max-w-[660px]"
       onClose={() => {
         if (dialogRef.current) dialogRef.current.returnValue = '';
         audioRef.current?.pause();
@@ -208,30 +209,24 @@ export const LyricsSyncModal: React.FC<LyricsSyncModalProps> = ({
         onClose();
       }}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '16px 18px', gap: '12px' }}>
+      <div className="flex h-full flex-col gap-3 px-[18px] py-4">
         {/* Modal Title */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 id={titleId} style={{ margin: 0, fontSize: '0.96rem', fontWeight: 700 }}>
+        <div className="flex items-center justify-between">
+          <h2 id={titleId} className="m-0 text-[0.96rem] font-bold">
             Sync Lyrics — {title || 'Untitled Song'}
           </h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            style={{
-              background: 'transparent',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '8px',
-              padding: '5px',
-              display: 'inline-flex'
-            }}
+            className="inline-flex rounded-lg border border-subtle bg-transparent p-[5px] transition-colors hover:bg-hover"
           >
             <X size={14} />
           </button>
         </div>
 
         {/* Transport Bar */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="flex flex-col gap-2">
           {audioUrl && (
             <audio
               ref={audioRef}
@@ -243,24 +238,16 @@ export const LyricsSyncModal: React.FC<LyricsSyncModalProps> = ({
               onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
             />
           )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={handleTogglePlay}
               disabled={!audioUrl}
               title={audioUrl ? 'Play / Pause' : 'Upload an audio track first'}
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '999px',
-                border: 'none',
-                background: '#9333ea',
-                color: '#ffffff',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                opacity: audioUrl ? 1 : 0.45
-              }}
+              className={cn(
+                'inline-flex h-9 w-9 items-center justify-center rounded-full border-0 bg-purple-600 text-white transition-colors hover:bg-purple-500',
+                audioUrl ? 'opacity-100' : 'opacity-45'
+              )}
             >
               {playing ? <Pause size={15} /> : <Play size={15} />}
             </button>
@@ -268,7 +255,7 @@ export const LyricsSyncModal: React.FC<LyricsSyncModalProps> = ({
               type="button"
               onClick={() => handleSkip(-3)}
               disabled={!audioUrl}
-              style={transportChipStyle}
+              className={TRANSPORT_CHIP_CLS}
             >
               -3s
             </button>
@@ -276,24 +263,16 @@ export const LyricsSyncModal: React.FC<LyricsSyncModalProps> = ({
               type="button"
               onClick={() => handleSkip(3)}
               disabled={!audioUrl}
-              style={transportChipStyle}
+              className={TRANSPORT_CHIP_CLS}
             >
               +3s
             </button>
-            <span
-              style={{
-                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                fontSize: '0.9rem',
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-                marginLeft: '4px'
-              }}
-            >
+            <span className="ml-1 font-mono text-[0.9rem] font-bold text-text-primary">
               {formatSyncClock(currentTime)}
             </span>
-            <span style={{ marginLeft: 'auto', fontSize: '0.73rem', color: 'var(--text-muted)' }}>
-              Click any line to re-sync · <kbd style={kbdStyle}>SPACE</kbd> stamp ·{' '}
-              <kbd style={kbdStyle}>⌫</kbd> undo
+            <span className="ml-auto text-[0.73rem] text-text-muted">
+              Click any line to re-sync · <kbd className={KBD_CLS}>SPACE</kbd> stamp ·{' '}
+              <kbd className={KBD_CLS}>⌫</kbd> undo
             </span>
           </div>
 
@@ -309,22 +288,12 @@ export const LyricsSyncModal: React.FC<LyricsSyncModalProps> = ({
               setCurrentTime(next);
               if (audioRef.current) audioRef.current.currentTime = next;
             }}
-            style={{ width: '100%', accentColor: '#9333ea' }}
+            className="w-full accent-purple-600"
           />
         </div>
 
         {/* Line-by-line List */}
-        <div
-          style={{
-            flex: 1,
-            minHeight: 0,
-            overflowY: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '6px',
-            paddingRight: '4px'
-          }}
-        >
+        <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pr-1">
           {initialLines.map((line, idx) => {
             const prevLine = idx > 0 ? initialLines[idx - 1] : null;
             const showSlideBreak = prevLine !== null && prevLine.blockIndex !== line.blockIndex;
@@ -335,18 +304,7 @@ export const LyricsSyncModal: React.FC<LyricsSyncModalProps> = ({
             return (
               <React.Fragment key={line.key}>
                 {showSlideBreak && (
-                  <div
-                    style={{
-                      textAlign: 'center',
-                      fontSize: '0.68rem',
-                      fontWeight: 700,
-                      letterSpacing: '0.1em',
-                      color: 'var(--text-muted)',
-                      padding: '4px 0',
-                      borderRadius: '6px',
-                      background: 'rgba(148, 163, 184, 0.08)'
-                    }}
-                  >
+                  <div className="rounded-md bg-slate-400/8 py-1 text-center text-[0.68rem] font-bold tracking-[0.1em] text-text-muted">
                     --- SLIDE BREAK ---
                   </div>
                 )}
@@ -362,69 +320,51 @@ export const LyricsSyncModal: React.FC<LyricsSyncModalProps> = ({
                       setCurrentTime(timeSec);
                     }
                   }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '10px',
-                    padding: '8px 10px',
-                    borderRadius: '9px',
-                    cursor: 'pointer',
-                    border: isCursor ? '2px solid #9333ea' : '1px solid',
-                    borderColor: isCursor
-                      ? '#9333ea'
+                  className={cn(
+                    'flex cursor-pointer items-center justify-between gap-2.5 rounded-[9px] px-2.5 py-2 transition-colors',
+                    isCursor
+                      ? 'border-2 border-purple-600'
                       : isStamped
-                        ? 'rgba(52, 211, 153, 0.35)'
-                        : 'var(--border-subtle)',
-                    background: isStamped
-                      ? 'rgba(16, 185, 129, 0.1)'
-                      : 'var(--bg-panel-elevated)'
-                  }}
+                        ? 'border border-emerald-400/35'
+                        : 'border border-subtle',
+                    isStamped ? 'bg-emerald-500/10' : 'bg-panel-elevated'
+                  )}
                 >
                   <span
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      fontSize: '0.83rem',
-                      fontWeight: isCursor ? 700 : 500,
-                      color: 'var(--text-primary)',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
-                    }}
+                    className={cn(
+                      'min-w-0 flex-1 truncate text-[0.83rem] text-text-primary',
+                      isCursor ? 'font-bold' : 'font-medium'
+                    )}
                   >
                     {line.text}
                   </span>
 
                   <div
-                    style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}
+                    className="flex shrink-0 items-center gap-1"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <button
                       type="button"
                       onClick={() => handleNudge(line, -0.2)}
-                      style={nudgeBtnStyle}
+                      className={NUDGE_BTN_CLS}
                       title="Earlier by 0.2s"
                     >
                       -0.2s
                     </button>
                     <span
-                      style={{
-                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                        fontSize: '0.76rem',
-                        fontWeight: 700,
-                        padding: '3px 7px',
-                        borderRadius: '6px',
-                        background: isStamped ? 'rgba(16, 185, 129, 0.2)' : 'var(--bg-app)',
-                        color: isStamped ? '#6ee7b7' : 'var(--text-muted)'
-                      }}
+                      className={cn(
+                        'rounded-md px-[7px] py-[3px] font-mono text-[0.76rem] font-bold',
+                        isStamped
+                          ? 'bg-emerald-500/20 text-emerald-300'
+                          : 'bg-app text-text-muted'
+                      )}
                     >
                       [{isStamped ? formatSyncClock(timeSec) : '--:--.--'}]
                     </span>
                     <button
                       type="button"
                       onClick={() => handleNudge(line, 0.2)}
-                      style={nudgeBtnStyle}
+                      className={NUDGE_BTN_CLS}
                       title="Later by 0.2s"
                     >
                       +0.2s
@@ -433,14 +373,10 @@ export const LyricsSyncModal: React.FC<LyricsSyncModalProps> = ({
                       type="button"
                       onClick={() => handleClearLine(line)}
                       title="Clear timestamp"
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#f87171',
-                        padding: '3px 4px',
-                        display: 'inline-flex',
-                        opacity: isStamped ? 1 : 0.3
-                      }}
+                      className={cn(
+                        'inline-flex border-0 bg-transparent px-1 py-[3px] text-red-400',
+                        isStamped ? 'opacity-100' : 'opacity-30'
+                      )}
                     >
                       <X size={13} />
                     </button>
@@ -452,24 +388,15 @@ export const LyricsSyncModal: React.FC<LyricsSyncModalProps> = ({
         </div>
 
         {/* Stamp Action Row */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={handleUndo}
             disabled={history.length === 0}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '10px 14px',
-              borderRadius: '10px',
-              border: '1px solid var(--border-subtle)',
-              background: 'var(--bg-panel-elevated)',
-              color: 'var(--text-primary)',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              opacity: history.length === 0 ? 0.45 : 1
-            }}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-[10px] border border-subtle bg-panel-elevated px-3.5 py-2.5 text-[0.82rem] font-semibold text-text-primary transition-colors hover:bg-hover',
+              history.length === 0 ? 'opacity-45' : 'opacity-100'
+            )}
           >
             <RotateCcw size={14} />
             Undo
@@ -478,20 +405,7 @@ export const LyricsSyncModal: React.FC<LyricsSyncModalProps> = ({
             type="button"
             onClick={handleStampCurrent}
             disabled={initialLines.length === 0}
-            style={{
-              flex: 1,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '7px',
-              padding: '10px 16px',
-              borderRadius: '10px',
-              border: 'none',
-              background: '#9333ea',
-              color: '#ffffff',
-              fontSize: '0.86rem',
-              fontWeight: 700
-            }}
+            className="inline-flex flex-1 items-center justify-center gap-[7px] rounded-[10px] border-0 bg-purple-600 px-4 py-2.5 text-[0.86rem] font-bold text-white transition-colors hover:bg-purple-500 disabled:opacity-45"
           >
             <Tag size={14} />
             Stamp Current Line (SPACE)
@@ -499,62 +413,27 @@ export const LyricsSyncModal: React.FC<LyricsSyncModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            paddingTop: '10px',
-            borderTop: '1px solid var(--border-subtle)'
-          }}
-        >
+        <div className="flex items-center justify-between border-t border-subtle pt-2.5">
           <button
             type="button"
             onClick={handleClearAll}
-            style={{
-              padding: '7px 12px',
-              borderRadius: '8px',
-              border: '1px solid var(--border-subtle)',
-              background: 'var(--bg-panel-elevated)',
-              color: 'var(--text-secondary)',
-              fontSize: '0.78rem',
-              fontWeight: 600
-            }}
+            className="rounded-lg border border-subtle bg-panel-elevated px-3 py-[7px] text-[0.78rem] font-semibold text-text-secondary transition-colors hover:bg-hover"
           >
             Clear Timestamps
           </button>
 
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onClose}
-              style={{
-                padding: '7px 12px',
-                borderRadius: '8px',
-                border: '1px solid transparent',
-                background: 'transparent',
-                color: 'var(--text-secondary)',
-                fontSize: '0.8rem',
-                fontWeight: 600
-              }}
+              className="rounded-lg border border-transparent bg-transparent px-3 py-[7px] text-[0.8rem] font-semibold text-text-secondary transition-colors hover:text-text-primary"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleApply}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '8px 14px',
-                borderRadius: '8px',
-                border: 'none',
-                background: '#059669',
-                color: '#ffffff',
-                fontSize: '0.8rem',
-                fontWeight: 700
-              }}
+              className="inline-flex items-center gap-[5px] rounded-lg border-0 bg-emerald-600 px-3.5 py-2 text-[0.8rem] font-bold text-white transition-colors hover:bg-emerald-500"
             >
               <Check size={14} />
               Apply to Lyrics
@@ -566,31 +445,11 @@ export const LyricsSyncModal: React.FC<LyricsSyncModalProps> = ({
   );
 };
 
-const transportChipStyle: React.CSSProperties = {
-  padding: '5px 10px',
-  borderRadius: '7px',
-  border: '1px solid var(--border-subtle)',
-  background: 'var(--bg-panel-elevated)',
-  color: 'var(--text-primary)',
-  fontSize: '0.76rem',
-  fontWeight: 600
-};
+const TRANSPORT_CHIP_CLS =
+  'rounded-[7px] border border-subtle bg-panel-elevated px-2.5 py-[5px] text-[0.76rem] font-semibold text-text-primary transition-colors hover:bg-hover disabled:opacity-45';
 
-const nudgeBtnStyle: React.CSSProperties = {
-  padding: '3px 6px',
-  borderRadius: '5px',
-  border: '1px solid var(--border-subtle)',
-  background: 'var(--bg-app)',
-  color: 'var(--text-secondary)',
-  fontSize: '0.7rem',
-  fontWeight: 600
-};
+const NUDGE_BTN_CLS =
+  'rounded-[5px] border border-subtle bg-app px-1.5 py-[3px] text-[0.7rem] font-semibold text-text-secondary transition-colors hover:bg-hover';
 
-const kbdStyle: React.CSSProperties = {
-  padding: '1px 5px',
-  borderRadius: '4px',
-  border: '1px solid var(--border-subtle)',
-  background: 'var(--bg-panel-elevated)',
-  fontSize: '0.68rem',
-  fontWeight: 700
-};
+const KBD_CLS =
+  'rounded border border-subtle bg-panel-elevated px-[5px] py-px text-[0.68rem] font-bold';

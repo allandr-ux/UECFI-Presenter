@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { cn } from '../utils/cn';
 import {
   ArrowDown,
   ArrowUp,
@@ -2381,21 +2382,12 @@ export const OperatorConsole: React.FC = () => {
   };
 
   const renderAudioVolumeControl = () => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+    <div className="flex items-center gap-2">
       <button
         type="button"
         onClick={() => updateAudioVolume(audioVolume <= 0.01 ? 1 : 0)}
         title={audioVolume <= 0.01 ? 'Unmute live audio' : 'Mute live audio'}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'transparent',
-          border: 'none',
-          padding: 0,
-          color: 'var(--text-secondary)',
-          cursor: 'pointer'
-        }}
+        className="inline-flex cursor-pointer items-center justify-center border-0 bg-transparent p-0 text-text-secondary hover:text-text-primary"
       >
         {audioVolume <= 0.01 ? <VolumeX size={14} /> : <Volume2 size={14} />}
       </button>
@@ -2407,17 +2399,9 @@ export const OperatorConsole: React.FC = () => {
         value={audioVolume}
         aria-label="Live audio volume"
         onChange={(e) => updateAudioVolume(Number(e.target.value))}
-        style={{ flex: 1 }}
+        className="flex-1"
       />
-      <span
-        style={{
-          fontSize: '0.72rem',
-          color: 'var(--text-muted)',
-          fontVariantNumeric: 'tabular-nums',
-          minWidth: '34px',
-          textAlign: 'right'
-        }}
-      >
+      <span className="min-w-[34px] text-right text-[0.72rem] tabular-nums text-text-muted">
         {Math.round(audioVolume * 100)}%
       </span>
     </div>
@@ -2644,28 +2628,24 @@ export const OperatorConsole: React.FC = () => {
     swatches: string[],
     onChange: (color: string) => void
   ) => (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-      <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-[0.74rem] font-semibold text-text-secondary">
         {label}
       </span>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+      <div className="flex items-center gap-[5px]">
         {swatches.map((swatch) => (
           <button
             key={swatch}
             type="button"
             onClick={() => onChange(swatch)}
             title={swatch}
-            style={{
-              width: '16px',
-              height: '16px',
-              borderRadius: '999px',
-              background: swatch,
-              border:
-                (value || defaultColor).toLowerCase() === swatch
-                  ? '2px solid var(--accent)'
-                  : '1px solid rgba(255,255,255,0.28)',
-              padding: 0
-            }}
+            className={cn(
+              'h-4 w-4 rounded-full p-0',
+              (value || defaultColor).toLowerCase() === swatch
+                ? 'border-2 border-accent'
+                : 'border border-white/28'
+            )}
+            style={{ background: swatch }}
           />
         ))}
         <input
@@ -2673,15 +2653,7 @@ export const OperatorConsole: React.FC = () => {
           aria-label={label}
           value={value || defaultColor}
           onChange={(e) => onChange(e.target.value)}
-          style={{
-            width: '24px',
-            height: '20px',
-            padding: 0,
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '4px',
-            background: 'transparent',
-            cursor: 'pointer'
-          }}
+          className="h-5 w-6 cursor-pointer rounded border border-subtle bg-transparent p-0"
         />
       </div>
     </div>
@@ -3207,7 +3179,7 @@ export const OperatorConsole: React.FC = () => {
   };
 
   return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg-app)' }}>
+    <div className="flex h-full w-full flex-col bg-app">
       {/* Persistent live timed-lyrics audio player; stays mounted while browsing other items */}
       {liveTimedAudioItem?.audioUrl && (
         <audio
@@ -3242,50 +3214,27 @@ export const OperatorConsole: React.FC = () => {
       )}
 
       {/* Top Bar */}
-      <header
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '10px 16px',
-          background: 'var(--bg-panel)',
-          borderBottom: '1px solid var(--border-subtle)',
-          gap: '12px',
-          flexWrap: 'wrap'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-subtle bg-panel px-4 py-2.5">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <img
               src={uecfiLogoTiny}
               alt=""
               width={24}
               height={24}
-              style={{
-                width: '24px',
-                height: '24px',
-                borderRadius: '6px',
-                objectFit: 'contain',
-                flexShrink: 0
-              }}
+              className="h-6 w-6 shrink-0 rounded-md object-contain"
             />
-            <strong style={{ fontSize: '1rem', letterSpacing: '0.02em' }}>{t.appName}</strong>
+            <strong className="text-base tracking-[0.02em]">{t.appName}</strong>
           </div>
           <button
             type="button"
             onClick={handleToggleMainScreen}
             title={mainScreenOpen ? t.screens.closeMainScreen : t.screens.openMainScreen}
             aria-label={mainScreenOpen ? t.screens.closeMainScreen : t.screens.openMainScreen}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '7px 10px',
-              borderRadius: '8px',
-              border: 'none',
-              background: mainScreenOpen ? '#dc2626' : '#2563eb',
-              color: '#ffffff'
-            }}
+            className={cn(
+              'inline-flex items-center justify-center rounded-lg border-0 px-2.5 py-[7px] text-white transition-colors',
+              mainScreenOpen ? 'bg-red-600 hover:bg-red-500' : 'bg-blue-600 hover:bg-blue-500'
+            )}
           >
             {mainScreenOpen ? <Square size={15} fill="currentColor" /> : <Cast size={16} />}
           </button>
@@ -3293,11 +3242,11 @@ export const OperatorConsole: React.FC = () => {
             type="button"
             onClick={handlePrevious}
             disabled={!liveItem || activeBlockIndex <= 0}
-            style={{
-              ...toolbarBtnStyle(false),
-              padding: '7px 9px',
-              opacity: !liveItem || activeBlockIndex <= 0 ? 0.45 : 1
-            }}
+            className={cn(
+              toolbarBtnCls(false),
+              'px-[9px] py-[7px]',
+              (!liveItem || activeBlockIndex <= 0) && 'opacity-45'
+            )}
             title={t.controls.previous}
             aria-label={t.controls.previous}
           >
@@ -3307,23 +3256,23 @@ export const OperatorConsole: React.FC = () => {
             type="button"
             onClick={handleNext}
             disabled={!liveItem || activeBlockIndex + 1 >= liveItem.blocks.length}
-            style={{
-              ...toolbarBtnStyle(false),
-              padding: '7px 9px',
-              opacity: !liveItem || activeBlockIndex + 1 >= liveItem.blocks.length ? 0.45 : 1
-            }}
+            className={cn(
+              toolbarBtnCls(false),
+              'px-[9px] py-[7px]',
+              (!liveItem || activeBlockIndex + 1 >= liveItem.blocks.length) && 'opacity-45'
+            )}
             title={t.controls.next}
             aria-label={t.controls.next}
           >
             <ChevronRight size={16} />
           </button>
 
-          <div style={{ width: '1px', height: '22px', background: 'var(--border-subtle)', margin: '0 2px' }} />
+          <div className="mx-0.5 h-[22px] w-px bg-subtle" />
 
           <button
             type="button"
             onClick={() => toggleOverride('clearText')}
-            style={toolbarBtnStyle(override === 'clearText', '#f59e0b')}
+            className={toolbarBtnCls(override === 'clearText', 'amber')}
           >
             <Eraser size={14} />
             {t.controls.clearText}
@@ -3331,58 +3280,41 @@ export const OperatorConsole: React.FC = () => {
           <button
             type="button"
             onClick={() => toggleOverride('blackout')}
-            style={toolbarBtnStyle(override === 'blackout', '#ef4444')}
+            className={toolbarBtnCls(override === 'blackout', 'red')}
           >
             <MonitorOff size={14} />
             {t.controls.blackout}
           </button>
           <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'stretch',
-              borderRadius: '8px',
-              overflow: 'hidden',
-              border: `1px solid ${override === 'showLogo' ? '#3b82f6' : 'var(--border-subtle)'}`,
-              background: override === 'showLogo' ? 'rgba(59, 130, 246, 0.16)' : 'var(--bg-panel-elevated)'
-            }}
+            className={cn(
+              'inline-flex items-stretch overflow-hidden rounded-lg border',
+              override === 'showLogo'
+                ? 'border-blue-500 bg-blue-500/16'
+                : 'border-subtle bg-panel-elevated'
+            )}
           >
             <button
               type="button"
               onClick={() => toggleOverride('showLogo')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '7px 11px',
-                border: 'none',
-                background: 'transparent',
-                color: override === 'showLogo' ? '#93c5fd' : 'var(--text-primary)',
-                fontSize: '0.82rem',
-                fontWeight: 600
-              }}
+              className={cn(
+                'inline-flex items-center gap-1.5 border-0 bg-transparent px-[11px] py-[7px] text-[0.82rem] font-semibold transition-colors hover:bg-hover/60',
+                override === 'showLogo' ? 'text-blue-300' : 'text-text-primary'
+              )}
             >
               <Church size={14} />
               Logo
             </button>
             <div
-              style={{
-                width: '1px',
-                background: override === 'showLogo' ? 'rgba(59, 130, 246, 0.45)' : 'var(--border-subtle)'
-              }}
+              className={cn(
+                'w-px',
+                override === 'showLogo' ? 'bg-blue-500/45' : 'bg-subtle'
+              )}
             />
             <button
               type="button"
               onClick={() => setLogoBuilderOpen(true)}
               title="Customize Logo Slide"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '7px 9px',
-                border: 'none',
-                background: 'transparent',
-                color: 'var(--text-secondary)'
-              }}
+              className="inline-flex items-center justify-center border-0 bg-transparent px-[9px] py-[7px] text-text-secondary transition-colors hover:bg-hover/60 hover:text-text-primary"
             >
               <Pencil size={13} />
             </button>
@@ -3390,7 +3322,7 @@ export const OperatorConsole: React.FC = () => {
         </div>
 
         {/* Right Toolbar Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => {
@@ -3399,20 +3331,12 @@ export const OperatorConsole: React.FC = () => {
             }}
             title="Settings (Displays, Local Remote, Online Relay)"
             aria-label="Settings"
-            style={toolbarBtnStyle(false)}
+            className={toolbarBtnCls(false)}
           >
             <Settings size={15} />
             <span>Settings</span>
             {remoteInfo && remoteInfo.connectedClients > 0 && (
-              <span
-                style={{
-                  background: '#1d4ed8',
-                  color: '#fff',
-                  borderRadius: '999px',
-                  padding: '1px 6px',
-                  fontSize: '0.7rem'
-                }}
-              >
+              <span className="rounded-full bg-blue-700 px-1.5 py-px text-[0.7rem] text-white">
                 {remoteInfo.connectedClients}
               </span>
             )}
@@ -3422,18 +3346,10 @@ export const OperatorConsole: React.FC = () => {
             type="button"
             onClick={handleToggleOverflowScreen}
             title="Open/Close HDMI Overflow Room Screen"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '7px 12px',
-              borderRadius: '8px',
-              border: '1px solid var(--border-subtle)',
-              background: overflowScreenOpen ? '#059669' : 'var(--bg-panel-elevated)',
-              color: '#ffffff',
-              fontWeight: 700,
-              fontSize: '0.8rem'
-            }}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-lg border border-subtle px-3 py-[7px] text-[0.8rem] font-bold text-white transition-colors',
+              overflowScreenOpen ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-panel-elevated hover:bg-hover'
+            )}
           >
             <Monitor size={14} />
             {overflowScreenOpen ? 'Close Overflow' : 'Overflow'}
@@ -3444,17 +3360,7 @@ export const OperatorConsole: React.FC = () => {
       {remoteInfo?.serverError && (
         <div
           role="alert"
-          style={{
-            padding: '6px 16px',
-            background: 'rgba(220, 38, 38, 0.16)',
-            borderBottom: '1px solid rgba(239, 68, 68, 0.4)',
-            color: '#fca5a5',
-            fontSize: '0.8rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '12px'
-          }}
+          className="flex items-center justify-between gap-3 border-b border-red-500/40 bg-red-600/16 px-4 py-1.5 text-[0.8rem] text-red-300"
         >
           <span>
             LAN Remote Server failed to start ({remoteInfo.serverError}). Local presentation and media still work, but phones/tablets cannot connect.
@@ -3464,21 +3370,17 @@ export const OperatorConsole: React.FC = () => {
 
       {/* Main 3-Column Presenter Workspace with Resizable Dividers */}
       <div
+        className="grid min-h-0 flex-1 overflow-hidden bg-app"
         style={{
-          flex: 1,
-          minHeight: 0,
-          overflow: 'hidden',
-          display: 'grid',
-          gridTemplateColumns: `${leftWidth}px 5px 1fr 5px ${rightWidth}px`,
-          background: 'var(--bg-app)'
+          gridTemplateColumns: `${leftWidth}px 5px 1fr 5px ${rightWidth}px`
         }}
       >
         {/* Left Column: Program + Library */}
-        <aside style={{ display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0, overflow: 'hidden', background: 'var(--bg-panel)' }}>
+        <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-panel">
           {/* Program Section */}
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-            <div style={panelHeaderStyle}>
-              <div ref={playlistMenuRef} style={{ position: 'relative', minWidth: 0, flex: 1 }}>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className={PANEL_HEADER_CLS}>
+              <div ref={playlistMenuRef} className="relative min-w-0 flex-1">
                 <button
                   type="button"
                   onClick={() => {
@@ -3486,89 +3388,37 @@ export const OperatorConsole: React.FC = () => {
                     setRenamingPlaylistId(null);
                   }}
                   title="Switch or manage program playlists"
-                  style={{
-                    maxWidth: '100%',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    background: 'transparent',
-                    border: '1px solid transparent',
-                    borderRadius: '6px',
-                    padding: '2px 4px',
-                    marginLeft: '-4px',
-                    color: 'var(--text-primary)',
-                    fontSize: 'inherit',
-                    fontWeight: 'inherit',
-                    letterSpacing: 'inherit',
-                    textTransform: 'inherit',
-                    textAlign: 'left',
-                    minWidth: 0
-                  }}
+                  className="-ml-1 inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-md border border-transparent bg-transparent px-1 py-0.5 text-left text-inherit font-inherit tracking-inherit uppercase text-text-primary transition-colors hover:bg-hover/60"
                 >
-                  <ListMusic size={13} style={{ flexShrink: 0, color: '#93c5fd' }} />
-                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <ListMusic size={13} className="shrink-0 text-blue-300" />
+                  <span className="truncate">
                     {program.name}
                   </span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', flexShrink: 0 }}>
+                  <span className="shrink-0 text-[0.75rem] text-text-muted">
                     ({program.items.length})
                   </span>
-                  <ChevronDown size={13} style={{ flexShrink: 0, color: 'var(--text-muted)' }} />
+                  <ChevronDown size={13} className="shrink-0 text-text-muted" />
                 </button>
 
                 {playlistMenuOpen && (
-                  <div
-                    style={{
-                      ...popupMenuStyle,
-                      left: 0,
-                      right: 'auto',
-                      width: '270px',
-                      maxWidth: 'calc(100vw - 32px)',
-                      padding: '8px',
-                      gap: '6px',
-                      textTransform: 'none',
-                      letterSpacing: 'normal'
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                        color: 'var(--text-muted)',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.06em',
-                        padding: '2px 4px'
-                      }}
-                    >
+                  <div className={cn(POPUP_MENU_CLS, 'right-auto left-0 w-[270px] max-w-[calc(100vw-32px)] gap-1.5 p-2 normal-case tracking-normal')}>
+                    <div className="px-1 py-0.5 text-[0.7rem] font-bold uppercase tracking-[0.06em] text-text-muted">
                       {t.workspace.program} Playlists ({programs.length})
                     </div>
 
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '3px',
-                        maxHeight: '220px',
-                        overflowY: 'auto'
-                      }}
-                    >
+                    <div className="flex max-h-[220px] flex-col gap-[3px] overflow-y-auto">
                       {programs.map((p) => {
                         const isActive = p.id === programRef.id;
                         const isRenaming = renamingPlaylistId === p.id;
                         return (
                           <div
                             key={p.id}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              padding: '4px 6px',
-                              borderRadius: '7px',
-                              border: '1px solid',
-                              borderColor: isActive ? 'var(--accent)' : 'transparent',
-                              background: isActive
-                                ? 'rgba(59,130,246,0.16)'
-                                : 'var(--bg-app)'
-                            }}
+                            className={cn(
+                              'flex items-center gap-1 rounded-[7px] border px-1.5 py-1',
+                              isActive
+                                ? 'border-accent bg-blue-500/16'
+                                : 'border-transparent bg-app'
+                            )}
                           >
                             {isRenaming ? (
                               <form
@@ -3576,28 +3426,19 @@ export const OperatorConsole: React.FC = () => {
                                   e.preventDefault();
                                   handleRenamePlaylist(p.id);
                                 }}
-                                style={{ display: 'flex', flex: 1, gap: '4px', minWidth: 0 }}
+                                className="flex min-w-0 flex-1 gap-1"
                               >
                                 <input
                                   type="text"
                                   value={renamePlaylistValue}
                                   onChange={(e) => setRenamePlaylistValue(e.target.value)}
                                   autoFocus
-                                  style={{
-                                    flex: 1,
-                                    minWidth: 0,
-                                    padding: '3px 6px',
-                                    borderRadius: '5px',
-                                    border: '1px solid var(--accent)',
-                                    background: 'var(--bg-panel)',
-                                    color: 'var(--text-primary)',
-                                    fontSize: '0.76rem'
-                                  }}
+                                  className="min-w-0 flex-1 rounded-[5px] border border-accent bg-panel px-1.5 py-[3px] text-[0.76rem] text-text-primary focus:outline-none"
                                 />
                                 <button
                                   type="submit"
                                   title="Save name"
-                                  style={miniIconBtnStyle(false)}
+                                  className={miniIconBtnCls(false)}
                                 >
                                   <Check size={12} />
                                 </button>
@@ -3607,32 +3448,17 @@ export const OperatorConsole: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => handleSelectPlaylist(p.id)}
-                                  style={{
-                                    flex: 1,
-                                    minWidth: 0,
-                                    textAlign: 'left',
-                                    background: 'transparent',
-                                    border: 'none',
-                                    padding: '2px 4px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    gap: '6px'
-                                  }}
+                                  className="flex min-w-0 flex-1 items-center justify-between gap-1.5 border-0 bg-transparent px-1 py-0.5 text-left"
                                 >
                                   <span
-                                    style={{
-                                      fontSize: '0.78rem',
-                                      fontWeight: isActive ? 700 : 500,
-                                      color: isActive ? '#93c5fd' : 'var(--text-primary)',
-                                      whiteSpace: 'nowrap',
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis'
-                                    }}
+                                    className={cn(
+                                      'truncate text-[0.78rem]',
+                                      isActive ? 'font-bold text-blue-300' : 'font-medium text-text-primary'
+                                    )}
                                   >
                                     {p.name}
                                   </span>
-                                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', flexShrink: 0 }}>
+                                  <span className="shrink-0 text-[0.7rem] text-text-muted">
                                     {p.entries.length}
                                   </span>
                                 </button>
@@ -3643,7 +3469,7 @@ export const OperatorConsole: React.FC = () => {
                                     setRenamePlaylistValue(p.name);
                                   }}
                                   title="Rename playlist"
-                                  style={miniIconBtnStyle(false)}
+                                  className={miniIconBtnCls(false)}
                                 >
                                   <Edit3 size={11} />
                                 </button>
@@ -3651,7 +3477,7 @@ export const OperatorConsole: React.FC = () => {
                                   type="button"
                                   onClick={() => handleDuplicatePlaylist(p)}
                                   title="Duplicate playlist"
-                                  style={miniIconBtnStyle(false)}
+                                  className={miniIconBtnCls(false)}
                                 >
                                   <Copy size={11} />
                                 </button>
@@ -3660,7 +3486,7 @@ export const OperatorConsole: React.FC = () => {
                                     type="button"
                                     onClick={() => handleDeletePlaylist(p.id)}
                                     title="Delete playlist"
-                                    style={miniIconBtnStyle(true)}
+                                    className={miniIconBtnCls(true)}
                                   >
                                     <Trash2 size={11} />
                                   </button>
@@ -3674,45 +3500,22 @@ export const OperatorConsole: React.FC = () => {
 
                     <form
                       onSubmit={handleCreatePlaylist}
-                      style={{
-                        display: 'flex',
-                        gap: '4px',
-                        paddingTop: '6px',
-                        borderTop: '1px solid var(--border-subtle)'
-                      }}
+                      className="flex gap-1 border-t border-subtle pt-1.5"
                     >
                       <input
                         type="text"
                         value={newPlaylistName}
                         onChange={(e) => setNewPlaylistName(e.target.value)}
                         placeholder="New playlist name..."
-                        style={{
-                          flex: 1,
-                          minWidth: 0,
-                          padding: '5px 8px',
-                          borderRadius: '6px',
-                          border: '1px solid var(--border-subtle)',
-                          background: 'var(--bg-app)',
-                          color: 'var(--text-primary)',
-                          fontSize: '0.76rem'
-                        }}
+                        className="min-w-0 flex-1 rounded-md border border-subtle bg-app px-2 py-[5px] text-[0.76rem] text-text-primary focus:border-accent focus:outline-none"
                       />
                       <button
                         type="submit"
                         disabled={!newPlaylistName.trim()}
-                        style={{
-                          padding: '5px 9px',
-                          borderRadius: '6px',
-                          border: '1px solid var(--accent)',
-                          background: 'rgba(59,130,246,0.18)',
-                          color: '#93c5fd',
-                          fontSize: '0.74rem',
-                          fontWeight: 700,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '3px',
-                          opacity: newPlaylistName.trim() ? 1 : 0.5
-                        }}
+                        className={cn(
+                          'inline-flex items-center gap-[3px] rounded-md border border-accent bg-blue-500/18 px-[9px] py-[5px] text-[0.74rem] font-bold text-blue-300 transition-colors hover:bg-blue-500/28',
+                          !newPlaylistName.trim() && 'opacity-50'
+                        )}
                       >
                         <Plus size={12} /> New
                       </button>
@@ -3720,36 +3523,25 @@ export const OperatorConsole: React.FC = () => {
                   </div>
                 )}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                <div ref={programAddMenuRef} style={{ position: 'relative' }}>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <div ref={programAddMenuRef} className="relative">
                   <button
                     type="button"
                     onClick={() => setProgramAddMenuOpen((prev) => !prev)}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: '4px 9px',
-                      borderRadius: '5px',
-                      border: 'none',
-                      background: '#2563eb',
-                      color: '#ffffff',
-                      fontSize: '0.72rem',
-                      fontWeight: 600
-                    }}
+                    className="inline-flex items-center gap-1 rounded-[5px] border-0 bg-blue-600 px-[9px] py-1 text-[0.72rem] font-semibold text-white transition-colors hover:bg-blue-500"
                   >
                     <Plus size={12} /> Add
                   </button>
 
                   {programAddMenuOpen && (
-                    <div style={popupMenuStyle}>
+                    <div className={POPUP_MENU_CLS}>
                       <button
                         type="button"
                         onClick={() => {
                           setProgramAddMenuOpen(false);
                           handleOpenNewEditor('slide');
                         }}
-                        style={menuItemBtnStyle}
+                        className={MENU_ITEM_BTN_CLS}
                       >
                         <Presentation size={13} />
                         <span>{t.editor.newSlide}</span>
@@ -3763,7 +3555,7 @@ export const OperatorConsole: React.FC = () => {
                           setProgramPickerMode('library');
                           setProgramPickerOpen(true);
                         }}
-                        style={menuItemBtnStyle}
+                        className={MENU_ITEM_BTN_CLS}
                       >
                         <Music size={13} />
                         <span>From {t.workspace.library}</span>
@@ -3776,7 +3568,7 @@ export const OperatorConsole: React.FC = () => {
                           setProgramPickerMode('bible');
                           setProgramPickerOpen(true);
                         }}
-                        style={menuItemBtnStyle}
+                        className={MENU_ITEM_BTN_CLS}
                       >
                         <BookOpen size={13} />
                         <span>{t.contentTypes.verse}</span>
@@ -3785,45 +3577,38 @@ export const OperatorConsole: React.FC = () => {
                   )}
                 </div>
 
-                <div ref={programIoMenuRef} style={{ position: 'relative' }}>
+                <div ref={programIoMenuRef} className="relative">
                   <input
                     ref={programImportInputRef}
                     type="file"
                     accept=".json,application/json"
                     onChange={handleImportProgramPlaylist}
-                    style={{ display: 'none' }}
+                    className="hidden"
                   />
                   <button
                     type="button"
                     onClick={() => setProgramIoMenuOpen((prev) => !prev)}
                     aria-label="Export, import, or clear program"
                     title="Export / Import / Clear Program"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '4px 5px',
-                      borderRadius: '6px',
-                      border: '1px solid',
-                      borderColor: programIoMenuOpen ? 'var(--accent)' : 'var(--border-subtle)',
-                      background: programIoMenuOpen
-                        ? 'rgba(59,130,246,0.16)'
-                        : 'var(--bg-panel-elevated)',
-                      color: programIoMenuOpen ? '#93c5fd' : 'var(--text-secondary)'
-                    }}
+                    className={cn(
+                      'inline-flex items-center justify-center rounded-md border px-[5px] py-1 transition-colors',
+                      programIoMenuOpen
+                        ? 'border-accent bg-blue-500/16 text-blue-300'
+                        : 'border-subtle bg-panel-elevated text-text-secondary hover:bg-hover'
+                    )}
                   >
                     <MoreVertical size={13} />
                   </button>
 
                   {programIoMenuOpen && (
-                    <div style={{ ...popupMenuStyle, minWidth: '180px' }}>
+                    <div className={cn(POPUP_MENU_CLS, 'min-w-[180px]')}>
                       <button
                         type="button"
                         onClick={() => {
                           setProgramIoMenuOpen(false);
                           programImportInputRef.current?.click();
                         }}
-                        style={menuItemBtnStyle}
+                        className={MENU_ITEM_BTN_CLS}
                       >
                         <Upload size={13} />
                         <span>Import {t.workspace.program}</span>
@@ -3831,12 +3616,12 @@ export const OperatorConsole: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleExportProgramPlaylist}
-                        style={menuItemBtnStyle}
+                        className={MENU_ITEM_BTN_CLS}
                       >
                         <Download size={13} />
                         <span>Export {t.workspace.program}</span>
                       </button>
-                      <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '2px 0' }} />
+                      <div className="my-0.5 h-px bg-subtle" />
                       <button
                         type="button"
                         disabled={program.items.length === 0}
@@ -3848,11 +3633,11 @@ export const OperatorConsole: React.FC = () => {
                             target: 'program-clear'
                           });
                         }}
-                        style={{
-                          ...menuItemBtnStyle,
-                          color: '#fca5a5',
-                          opacity: program.items.length === 0 ? 0.45 : 1
-                        }}
+                        className={cn(
+                          MENU_ITEM_BTN_CLS,
+                          'text-red-300',
+                          program.items.length === 0 && 'opacity-45'
+                        )}
                       >
                         <Trash2 size={13} />
                         <span>Clear All Items</span>
@@ -3865,37 +3650,24 @@ export const OperatorConsole: React.FC = () => {
 
             {programIoNotice && (
               <div
-                style={{
-                  padding: '5px 10px',
-                  fontSize: '0.73rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '6px',
-                  borderBottom: '1px solid var(--border-subtle)',
-                  background: programIoNotice.ok
-                    ? 'rgba(16, 185, 129, 0.12)'
-                    : 'rgba(239, 68, 68, 0.12)',
-                  color: programIoNotice.ok ? '#6ee7b7' : '#fca5a5'
-                }}
+                className={cn(
+                  'flex items-center justify-between gap-1.5 border-b border-subtle px-2.5 py-[5px] text-[0.73rem]',
+                  programIoNotice.ok
+                    ? 'bg-emerald-500/12 text-emerald-300'
+                    : 'bg-red-500/12 text-red-300'
+                )}
               >
                 <span>{programIoNotice.text}</span>
                 <button
                   type="button"
                   onClick={() => setProgramIoNotice(null)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'inherit',
-                    fontSize: '0.72rem',
-                    padding: '0 4px'
-                  }}
+                  className="border-0 bg-transparent px-1 py-0 text-[0.72rem] text-inherit"
                 >
                   Dismiss
                 </button>
               </div>
             )}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div className="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
               {program.items.map((item, idx) => {
                 const isSelected = !browsingAdHocItem && item.id === browsingItemId;
                 const isDragOver =
@@ -3928,34 +3700,19 @@ export const OperatorConsole: React.FC = () => {
                       setDraggedProgramIdx(null);
                       setDragOverProgramIdx(null);
                     }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: '4px',
-                      borderRadius: '8px',
-                      border: '1px solid',
-                      borderColor: isDragOver
-                        ? '#38bdf8'
+                    className={cn(
+                      'flex items-center gap-1 rounded-lg border p-1 transition-colors',
+                      isDragOver
+                        ? 'border-sky-400 bg-sky-400/12'
                         : isSelected
-                          ? 'var(--accent)'
-                          : 'transparent',
-                      background: isDragOver
-                        ? 'rgba(56,189,248,0.12)'
-                        : isSelected
-                          ? 'rgba(59,130,246,0.16)'
-                          : 'transparent',
-                      opacity: draggedProgramIdx === idx ? 0.5 : 1
-                    }}
+                          ? 'border-accent bg-blue-500/16'
+                          : 'border-transparent bg-transparent hover:bg-hover/40',
+                      draggedProgramIdx === idx && 'opacity-50'
+                    )}
                   >
                     <span
                       title="Drag to reorder"
-                      style={{
-                        color: 'var(--text-muted)',
-                        display: 'inline-flex',
-                        paddingLeft: '2px',
-                        cursor: 'grab'
-                      }}
+                      className="inline-flex cursor-grab pl-0.5 text-text-muted"
                     >
                       <GripVertical size={13} />
                     </span>
@@ -3964,34 +3721,16 @@ export const OperatorConsole: React.FC = () => {
                       onClick={() => handleSelectProgramItem(item)}
                       onDoubleClick={() => handlePresentProgramItem(item)}
                       title="Click to preview · Double-click to present"
-                      style={{
-                        flex: 1,
-                        minWidth: 0,
-                        textAlign: 'left',
-                        padding: '6px 8px',
-                        border: 'none',
-                        background: 'transparent',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px'
-                      }}
+                      className="flex min-w-0 flex-1 items-center gap-2.5 border-0 bg-transparent px-2 py-1.5 text-left"
                     >
-                      <span style={{ color: isSelected ? '#60a5fa' : 'var(--text-secondary)' }}>
+                      <span className={isSelected ? 'text-blue-400' : 'text-text-secondary'}>
                         {getTypeIcon(item.type)}
                       </span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontSize: '0.84rem',
-                            fontWeight: 600,
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
-                          }}
-                        >
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[0.84rem] font-semibold">
                           {item.title}
                         </div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        <div className="text-[0.7rem] text-text-muted">
                           {t.contentTypes[item.type]}
                           {item.type === 'song' && item.lyricsMode
                             ? ` • ${item.lyricsMode === 'timed' ? t.lyricsModes.timedMode : t.lyricsModes.slideMode}`
@@ -4000,13 +3739,13 @@ export const OperatorConsole: React.FC = () => {
                       </div>
                     </button>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                    <div className="flex items-center gap-0.5">
                       <button
                         type="button"
                         onClick={() => handleMoveProgramItem(idx, -1)}
                         disabled={idx === 0}
                         title="Move Up"
-                        style={miniIconBtnStyle(idx === 0)}
+                        className={miniIconBtnCls(idx === 0)}
                       >
                         <ArrowUp size={12} />
                       </button>
@@ -4015,7 +3754,7 @@ export const OperatorConsole: React.FC = () => {
                         onClick={() => handleMoveProgramItem(idx, 1)}
                         disabled={idx === program.items.length - 1}
                         title="Move Down"
-                        style={miniIconBtnStyle(idx === program.items.length - 1)}
+                        className={miniIconBtnCls(idx === program.items.length - 1)}
                       >
                         <ArrowDown size={12} />
                       </button>
@@ -4023,7 +3762,7 @@ export const OperatorConsole: React.FC = () => {
                         type="button"
                         onClick={() => handleOpenEditEditor(item)}
                         title={t.editor.edit}
-                        style={miniIconBtnStyle(false)}
+                        className={miniIconBtnCls(false)}
                       >
                         <Edit3 size={12} />
                       </button>
@@ -4033,7 +3772,7 @@ export const OperatorConsole: React.FC = () => {
                           setConfirmDeleteItem({ id: item.id, title: item.title, target: 'program' })
                         }
                         title={t.editor.delete}
-                        style={miniIconBtnStyle(false)}
+                        className={miniIconBtnCls(false)}
                       >
                         <Trash2 size={12} />
                       </button>
@@ -4048,60 +3787,43 @@ export const OperatorConsole: React.FC = () => {
           <div
             onPointerDown={startLeftVerticalResize}
             title="Drag to resize"
-            style={{
-              height: '5px',
-              background: 'var(--border-subtle)',
-              cursor: 'row-resize',
-              flexShrink: 0
-            }}
+            className="h-[5px] shrink-0 cursor-row-resize bg-subtle"
           />
 
           {/* Library / Verses Section */}
           <div
-            style={{
-              height: `${leftBottomPct}%`,
-              minHeight: '180px',
-              display: 'flex',
-              flexDirection: 'column'
-            }}
+            className="flex min-h-[180px] flex-col"
+            style={{ height: `${leftBottomPct}%` }}
           >
-            <div style={{ ...panelHeaderStyle, gap: '6px', padding: '6px 8px' }}>
+            <div className={cn(PANEL_HEADER_CLS, 'gap-1.5 px-2 py-1.5')}>
               <button
                 type="button"
                 onClick={() => setLibraryTab('verses')}
-                style={{
-                  flex: 1,
-                  padding: '5px 8px',
-                  borderRadius: '6px',
-                  border: '1px solid',
-                  borderColor: libraryTab === 'verses' ? 'var(--accent)' : 'transparent',
-                  background: libraryTab === 'verses' ? 'rgba(59,130,246,0.16)' : 'transparent',
-                  fontSize: '0.78rem',
-                  fontWeight: 700
-                }}
+                className={cn(
+                  'flex-1 rounded-md border px-2 py-[5px] text-[0.78rem] font-bold transition-colors',
+                  libraryTab === 'verses'
+                    ? 'border-accent bg-blue-500/16'
+                    : 'border-transparent bg-transparent hover:bg-hover/50'
+                )}
               >
                 {t.workspace.bible}
               </button>
               <button
                 type="button"
                 onClick={() => setLibraryTab('library')}
-                style={{
-                  flex: 1,
-                  padding: '5px 8px',
-                  borderRadius: '6px',
-                  border: '1px solid',
-                  borderColor: libraryTab === 'library' ? 'var(--accent)' : 'transparent',
-                  background: libraryTab === 'library' ? 'rgba(59,130,246,0.16)' : 'transparent',
-                  fontSize: '0.78rem',
-                  fontWeight: 700
-                }}
+                className={cn(
+                  'flex-1 rounded-md border px-2 py-[5px] text-[0.78rem] font-bold transition-colors',
+                  libraryTab === 'library'
+                    ? 'border-accent bg-blue-500/16'
+                    : 'border-transparent bg-transparent hover:bg-hover/50'
+                )}
               >
                 {t.workspace.library}
               </button>
             </div>
 
             {libraryTab === 'verses' ? (
-              <div style={{ flex: 1, minHeight: 0 }}>
+              <div className="min-h-0 flex-1">
                 <BibleLibraryPanel
                   onProjectVerseItem={handleProjectVerseItem}
                   onSelectVerseChapter={handleSelectVerseChapter}
@@ -4117,17 +3839,8 @@ export const OperatorConsole: React.FC = () => {
                 />
               </div>
             ) : (
-              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                <div
-                  style={{
-                    padding: '6px 8px',
-                    display: 'flex',
-                    gap: '4px',
-                    borderBottom: '1px solid var(--border-subtle)',
-                    alignItems: 'center',
-                    position: 'relative'
-                  }}
-                >
+              <div className="flex min-h-0 flex-1 flex-col">
+                <div className="relative flex items-center gap-1 border-b border-subtle px-2 py-1.5">
                   {(
                     [
                       { id: 'song', label: t.contentTypes.song },
@@ -4140,38 +3853,32 @@ export const OperatorConsole: React.FC = () => {
                         key={f.id}
                         type="button"
                         onClick={() => setLibraryFilter((prev) => (prev === f.id ? 'all' : f.id))}
-                        style={{
-                          ...createBtnStyle,
-                          borderColor: active ? 'var(--live-green)' : 'var(--border-subtle)',
-                          background: active ? 'rgba(34, 197, 94, 0.2)' : 'var(--bg-panel-elevated)',
-                          color: active ? '#86efac' : 'var(--text-primary)'
-                        }}
+                        className={cn(
+                          CREATE_BTN_CLS,
+                          active
+                            ? 'border-live-green bg-green-500/20 text-green-300'
+                            : 'border-subtle bg-panel-elevated text-text-primary hover:bg-hover'
+                        )}
                       >
                         {f.label}
                       </button>
                     );
                   })}
 
-                  <div ref={addMenuRef} style={{ position: 'relative' }}>
+                  <div ref={addMenuRef} className="relative">
                     <button
                       type="button"
                       onClick={() => setAddMenuOpen((prev) => !prev)}
-                      style={{
-                        ...createBtnStyle,
-                        flex: 'none',
-                        padding: '5px 10px',
-                        borderRadius: '5px',
-                        border: 'none',
-                        background: '#2563eb',
-                        color: '#ffffff',
-                        fontWeight: 600
-                      }}
+                      className={cn(
+                        CREATE_BTN_CLS,
+                        'flex-none rounded-[5px] border-0 bg-blue-600 px-2.5 py-[5px] font-semibold text-white hover:bg-blue-500'
+                      )}
                     >
                       <Plus size={12} /> Add
                     </button>
 
                     {addMenuOpen && (
-                      <div style={popupMenuStyle}>
+                      <div className={POPUP_MENU_CLS}>
                         {(
                           [
                             { type: 'song', label: t.editor.newSong },
@@ -4185,7 +3892,7 @@ export const OperatorConsole: React.FC = () => {
                               setAddMenuOpen(false);
                               handleOpenNewEditor(opt.type);
                             }}
-                            style={menuItemBtnStyle}
+                            className={MENU_ITEM_BTN_CLS}
                           >
                             {getTypeIcon(opt.type)}
                             <span>{opt.label}</span>
@@ -4195,51 +3902,48 @@ export const OperatorConsole: React.FC = () => {
                     )}
                   </div>
 
-                  <div ref={libraryIoMenuRef} style={{ position: 'relative' }}>
+                  <div ref={libraryIoMenuRef} className="relative">
                     <input
                       ref={libraryImportInputRef}
                       type="file"
                       accept=".json,application/json"
                       onChange={handleImportLibraryFile}
-                      style={{ display: 'none' }}
+                      className="hidden"
                     />
                     <button
                       type="button"
                       onClick={() => setLibraryIoMenuOpen((prev) => !prev)}
                       aria-label="Export or import songs and docs"
                       title="Export / Import Songs & Docs"
-                      style={{
-                        ...createBtnStyle,
-                        flex: 'none',
-                        padding: '5px 6px',
-                        borderColor: libraryIoMenuOpen ? 'var(--accent)' : 'var(--border-subtle)',
-                        background: libraryIoMenuOpen
-                          ? 'rgba(59,130,246,0.16)'
-                          : 'var(--bg-panel-elevated)',
-                        color: libraryIoMenuOpen ? '#93c5fd' : 'var(--text-secondary)'
-                      }}
+                      className={cn(
+                        CREATE_BTN_CLS,
+                        'flex-none px-1.5 py-[5px]',
+                        libraryIoMenuOpen
+                          ? 'border-accent bg-blue-500/16 text-blue-300'
+                          : 'border-subtle bg-panel-elevated text-text-secondary hover:bg-hover'
+                      )}
                     >
                       <MoreVertical size={13} />
                     </button>
 
                     {libraryIoMenuOpen && (
-                      <div style={{ ...popupMenuStyle, minWidth: '185px' }}>
+                      <div className={cn(POPUP_MENU_CLS, 'min-w-[185px]')}>
                         <button
                           type="button"
                           onClick={() => {
                             setLibraryIoMenuOpen(false);
                             libraryImportInputRef.current?.click();
                           }}
-                          style={menuItemBtnStyle}
+                          className={MENU_ITEM_BTN_CLS}
                         >
                           <Upload size={13} />
                           <span>Import {t.contentTypes.song} / {t.contentTypes.programItem}</span>
                         </button>
-                        <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '2px 0' }} />
+                        <div className="my-0.5 h-px bg-subtle" />
                         <button
                           type="button"
                           onClick={() => handleExportLibrary('all')}
-                          style={menuItemBtnStyle}
+                          className={MENU_ITEM_BTN_CLS}
                         >
                           <Download size={13} />
                           <span>Export All ({t.contentTypes.song} &amp; {t.contentTypes.programItem})</span>
@@ -4247,7 +3951,7 @@ export const OperatorConsole: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleExportLibrary('song')}
-                          style={menuItemBtnStyle}
+                          className={MENU_ITEM_BTN_CLS}
                         >
                           <Music size={13} />
                           <span>Export {t.contentTypes.song}</span>
@@ -4255,12 +3959,12 @@ export const OperatorConsole: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleExportLibrary('programItem')}
-                          style={menuItemBtnStyle}
+                          className={MENU_ITEM_BTN_CLS}
                         >
                           <FileText size={13} />
                           <span>Export {t.contentTypes.programItem}</span>
                         </button>
-                        <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '2px 0' }} />
+                        <div className="my-0.5 h-px bg-subtle" />
                         <button
                           type="button"
                           onClick={() => {
@@ -4271,7 +3975,7 @@ export const OperatorConsole: React.FC = () => {
                               target: 'library-bulk'
                             });
                           }}
-                          style={{ ...menuItemBtnStyle, color: '#fca5a5' }}
+                          className={cn(MENU_ITEM_BTN_CLS, 'text-red-300')}
                         >
                           <Trash2 size={13} />
                           <span>Delete All {t.contentTypes.song}</span>
@@ -4286,7 +3990,7 @@ export const OperatorConsole: React.FC = () => {
                               target: 'library-bulk'
                             });
                           }}
-                          style={{ ...menuItemBtnStyle, color: '#fca5a5' }}
+                          className={cn(MENU_ITEM_BTN_CLS, 'text-red-300')}
                         >
                           <Trash2 size={13} />
                           <span>Delete All {t.contentTypes.programItem}</span>
@@ -4301,7 +4005,7 @@ export const OperatorConsole: React.FC = () => {
                               target: 'library-bulk'
                             });
                           }}
-                          style={{ ...menuItemBtnStyle, color: '#fca5a5' }}
+                          className={cn(MENU_ITEM_BTN_CLS, 'text-red-300')}
                         >
                           <Trash2 size={13} />
                           <span>Delete All ({t.contentTypes.song} &amp; {t.contentTypes.programItem})</span>
@@ -4313,38 +4017,25 @@ export const OperatorConsole: React.FC = () => {
 
                 {libraryIoNotice && (
                   <div
-                    style={{
-                      padding: '5px 10px',
-                      fontSize: '0.73rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '6px',
-                      borderBottom: '1px solid var(--border-subtle)',
-                      background: libraryIoNotice.ok
-                        ? 'rgba(16, 185, 129, 0.12)'
-                        : 'rgba(239, 68, 68, 0.12)',
-                      color: libraryIoNotice.ok ? '#6ee7b7' : '#fca5a5'
-                    }}
+                    className={cn(
+                      'flex items-center justify-between gap-1.5 border-b border-subtle px-2.5 py-[5px] text-[0.73rem]',
+                      libraryIoNotice.ok
+                        ? 'bg-emerald-500/12 text-emerald-300'
+                        : 'bg-red-500/12 text-red-300'
+                    )}
                   >
                     <span>{libraryIoNotice.text}</span>
                     <button
                       type="button"
                       onClick={() => setLibraryIoNotice(null)}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'inherit',
-                        fontSize: '0.72rem',
-                        padding: '0 4px'
-                      }}
+                      className="border-0 bg-transparent px-1 py-0 text-[0.72rem] text-inherit"
                     >
                       Dismiss
                     </button>
                   </div>
                 )}
 
-                <div style={{ flex: 1, overflowY: 'auto', padding: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div className="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
                   {library
                     .filter((item) => libraryFilter === 'all' || item.type === libraryFilter)
                     .sort((a, b) =>
@@ -4358,62 +4049,42 @@ export const OperatorConsole: React.FC = () => {
                       return (
                         <div
                           key={item.id}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '5px 7px',
-                            borderRadius: '8px',
-                            border: '1px solid',
-                            borderColor: isBrowsing ? 'var(--accent)' : 'transparent',
-                            background: isBrowsing
-                              ? 'rgba(59,130,246,0.16)'
-                              : 'var(--bg-panel-elevated)',
-                            gap: '6px'
-                          }}
+                          className={cn(
+                            'flex items-center justify-between gap-1.5 rounded-lg border px-[7px] py-[5px] transition-colors',
+                            isBrowsing
+                              ? 'border-accent bg-blue-500/16'
+                              : 'border-transparent bg-panel-elevated hover:bg-hover/60'
+                          )}
                         >
                           <button
                             type="button"
                             onClick={() => handleSelectLibraryItem(item)}
                             title={`Open in ${t.workspace.contentGrid}`}
-                            style={{
-                              flex: 1,
-                              minWidth: 0,
-                              textAlign: 'left',
-                              background: 'transparent',
-                              border: 'none',
-                              padding: '3px 4px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '8px'
-                            }}
+                            className="flex min-w-0 flex-1 items-center gap-2 border-0 bg-transparent px-1 py-[3px] text-left"
                           >
                             <span
-                              style={{
-                                color: isBrowsing ? '#60a5fa' : 'var(--text-secondary)',
-                                display: 'inline-flex'
-                              }}
+                              className={cn(
+                                'inline-flex',
+                                isBrowsing ? 'text-blue-400' : 'text-text-secondary'
+                              )}
                             >
                               {getTypeIcon(item.type)}
                             </span>
                             <span
-                              style={{
-                                fontSize: '0.8rem',
-                                fontWeight: isBrowsing ? 700 : 500,
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis'
-                              }}
+                              className={cn(
+                                'truncate text-[0.8rem]',
+                                isBrowsing ? 'font-bold' : 'font-medium'
+                              )}
                             >
                               {item.title}
                             </span>
                           </button>
-                          <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                          <div className="flex shrink-0 gap-1">
                             <button
                               type="button"
                               onClick={() => handleOpenEditEditor(item)}
                               title={t.editor.edit}
-                              style={miniIconBtnStyle(false)}
+                              className={miniIconBtnCls(false)}
                             >
                               <Edit3 size={12} />
                             </button>
@@ -4421,7 +4092,7 @@ export const OperatorConsole: React.FC = () => {
                               type="button"
                               onClick={() => handleAddFromLibrary(item)}
                               title={`Add to ${t.workspace.program}`}
-                              style={miniIconBtnStyle(false)}
+                              className={miniIconBtnCls(false)}
                             >
                               <Plus size={13} />
                             </button>
@@ -4431,7 +4102,7 @@ export const OperatorConsole: React.FC = () => {
                                 setConfirmDeleteItem({ id: item.id, title: item.title, target: 'library' })
                               }
                               title={t.editor.delete}
-                              style={miniIconBtnStyle(false)}
+                              className={miniIconBtnCls(false)}
                             >
                               <Trash2 size={12} />
                             </button>
@@ -4449,18 +4120,16 @@ export const OperatorConsole: React.FC = () => {
         <div
           onPointerDown={(e) => startColumnResize('left', e)}
           title="Drag to resize"
-          style={colDividerStyle}
+          className={COL_DIVIDER_CLS}
         />
 
         {/* Center Column: Content Grid or Smart Bible Search */}
-        <main style={{ display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0, overflow: 'hidden', background: 'var(--bg-app)' }}>
+        <main className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-app">
           <div
-            style={{
-              display: centerMode === 'search' ? 'flex' : 'none',
-              flexDirection: 'column',
-              flex: 1,
-              minHeight: 0
-            }}
+            className={cn(
+              'min-h-0 flex-1 flex-col',
+              centerMode === 'search' ? 'flex' : 'hidden'
+            )}
           >
             <BibleSearchPanel
               isOpen={centerMode === 'search'}
@@ -4474,47 +4143,28 @@ export const OperatorConsole: React.FC = () => {
             />
           </div>
           <div
-            style={{
-              display: centerMode === 'grid' ? 'flex' : 'none',
-              flexDirection: 'column',
-              flex: 1,
-              minHeight: 0,
-              minWidth: 0
-            }}
+            className={cn(
+              'min-h-0 min-w-0 flex-1 flex-col',
+              centerMode === 'grid' ? 'flex' : 'hidden'
+            )}
           >
-              <div style={{ ...panelHeaderStyle, gap: '8px' }}>
-                <span
-                  style={{
-                    minWidth: 0,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}
-                >
+              <div className={cn(PANEL_HEADER_CLS, 'gap-2')}>
+                <span className="min-w-0 truncate">
                   {t.workspace.contentGrid} {selectedItem ? `— ${selectedItem.title}` : ''}
                 </span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', flexShrink: 0 }}>
+                <span className="shrink-0 text-[0.75rem] text-text-muted">
                   Click any card to project ({t.workspace.directToLive})
                 </span>
               </div>
 
               <div
                 ref={contentGridRef}
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  overflowY: 'auto',
-                  overflowX: 'hidden',
-                  padding: '16px',
-                  display: selectedItem?.type === 'verse' ? 'flex' : 'grid',
-                  flexDirection: selectedItem?.type === 'verse' ? 'column' : undefined,
-                  gridTemplateColumns:
-                    selectedItem?.type === 'verse'
-                      ? undefined
-                      : 'repeat(auto-fill, minmax(min(200px, 100%), 1fr))',
-                  gap: selectedItem?.type === 'verse' ? '8px' : '12px',
-                  alignContent: 'start'
-                }}
+                className={cn(
+                  'min-w-0 flex-1 content-start overflow-x-hidden overflow-y-auto p-4',
+                  selectedItem?.type === 'verse'
+                    ? 'flex flex-col gap-2'
+                    : 'grid grid-cols-[repeat(auto-fill,minmax(min(200px,100%),1fr))] gap-3'
+                )}
               >
                 {selectedItem?.blocks.map((block, index) => {
               const isLive =
@@ -4538,18 +4188,10 @@ export const OperatorConsole: React.FC = () => {
                   <React.Fragment key={block.id}>
                     {showGroupHeader && (
                       <div
-                        style={{
-                          padding: '7px 12px',
-                          marginTop: index === 0 ? 0 : '10px',
-                          borderRadius: '8px',
-                          background: 'var(--bg-panel-elevated)',
-                          border: '1px solid var(--border-subtle)',
-                          borderLeft: '4px solid var(--accent)',
-                          fontSize: '0.78rem',
-                          fontWeight: 700,
-                          color: '#93c5fd',
-                          letterSpacing: '0.03em'
-                        }}
+                        className={cn(
+                          'rounded-lg border border-subtle border-l-4 border-l-accent bg-panel-elevated px-3 py-[7px] text-[0.78rem] font-bold tracking-[0.03em] text-blue-300',
+                          index === 0 ? 'mt-0' : 'mt-2.5'
+                        )}
                       >
                         {currentGroup}
                       </div>
@@ -4559,77 +4201,46 @@ export const OperatorConsole: React.FC = () => {
                       data-live-block={isLive ? 'true' : undefined}
                       data-highlighted-block={isPreviewHighlighted ? 'true' : undefined}
                       onClick={() => handleSelectBlock(index)}
-                      style={{
-                        textAlign: 'left',
-                        borderRadius: '10px',
-                        border: '2px solid',
-                        borderColor: isLive
-                          ? 'var(--live-red)'
+                      className={cn(
+                        'flex items-start gap-3.5 rounded-[10px] border-2 px-3.5 py-3 text-left transition-colors',
+                        isLive
+                          ? 'border-live-red bg-panel shadow-[0_0_0_2px_rgba(239,68,68,0.25)]'
                           : isPreviewHighlighted
-                            ? 'var(--accent)'
-                            : 'var(--border-subtle)',
-                        background: isPreviewHighlighted
-                          ? 'rgba(59, 130, 246, 0.12)'
-                          : 'var(--bg-panel)',
-                        padding: '12px 14px',
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '14px',
-                        boxShadow: isLive
-                          ? '0 0 0 2px rgba(239,68,68,0.25)'
-                          : isPreviewHighlighted
-                            ? '0 0 0 2px rgba(59,130,246,0.22)'
-                            : 'none'
-                      }}
+                            ? 'border-accent bg-blue-500/12 shadow-[0_0_0_2px_rgba(59,130,246,0.22)]'
+                            : 'border-subtle bg-panel hover:border-subtle/80 hover:bg-hover/40'
+                      )}
                     >
                       <span
-                        style={{
-                          width: '26px',
-                          height: '26px',
-                          borderRadius: '999px',
-                          background: isLive
-                            ? 'var(--live-red)'
+                        className={cn(
+                          'mt-px inline-flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full text-[0.75rem] font-bold',
+                          isLive
+                            ? 'bg-live-red text-white'
                             : isPreviewHighlighted
-                              ? 'var(--accent)'
-                              : 'var(--bg-panel-elevated)',
-                          color: isLive || isPreviewHighlighted ? '#fff' : 'var(--text-secondary)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          flexShrink: 0,
-                          marginTop: '1px'
-                        }}
+                              ? 'bg-accent text-white'
+                              : 'bg-panel-elevated text-text-secondary'
+                        )}
                       >
                         {verseBadge}
                       </span>
 
                       <div
-                        style={{
-                          flex: 1,
-                          minWidth: 0,
-                          display: 'grid',
-                          gridTemplateColumns: hasSecondary ? '1fr 1fr' : '1fr',
-                          gap: '16px',
-                          alignItems: 'start',
-                          fontSize: '0.84rem',
-                          lineHeight: 1.45
-                        }}
+                        className={cn(
+                          'grid min-w-0 flex-1 items-start gap-4 text-[0.84rem] leading-[1.45]',
+                          hasSecondary ? 'grid-cols-2' : 'grid-cols-1'
+                        )}
                       >
                         <div
-                          style={{
-                            color: 'var(--text-primary)',
-                            paddingRight: hasSecondary ? '14px' : 0,
-                            borderRight: hasSecondary ? '1px solid var(--border-subtle)' : 'none'
-                          }}
+                          className={cn(
+                            'text-text-primary',
+                            hasSecondary && 'border-r border-subtle pr-3.5'
+                          )}
                         >
                           {block.lines.map((line, i) => (
                             <div key={i}>{line}</div>
                           ))}
                         </div>
                         {hasSecondary && (
-                          <div style={{ color: '#86efac' }}>
+                          <div className="text-green-300">
                             {block.secondaryLines?.map((line, i) => (
                               <div key={i}>{line}</div>
                             ))}
@@ -4647,49 +4258,24 @@ export const OperatorConsole: React.FC = () => {
                   type="button"
                   data-live-block={isLive ? 'true' : undefined}
                   onClick={() => handleSelectBlock(index)}
-                  style={{
-                    textAlign: 'left',
-                    borderRadius: '10px',
-                    border: '2px solid',
-                    borderColor: isLive ? 'var(--live-red)' : 'var(--border-subtle)',
-                    background: 'var(--bg-panel)',
-                    padding: '12px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px',
-                    minWidth: 0,
-                    width: '100%',
-                    boxShadow: isLive ? '0 0 0 2px rgba(239,68,68,0.25)' : 'none'
-                  }}
+                  className={cn(
+                    'flex w-full min-w-0 flex-col gap-2 rounded-[10px] border-2 bg-panel p-3 text-left transition-colors',
+                    isLive
+                      ? 'border-live-red shadow-[0_0_0_2px_rgba(239,68,68,0.25)]'
+                      : 'border-subtle hover:bg-hover/40'
+                  )}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px', minWidth: 0, width: '100%' }}>
+                  <div className="flex w-full min-w-0 items-center justify-between gap-1.5">
                     <span
-                      style={{
-                        fontSize: '0.72rem',
-                        fontWeight: 700,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.06em',
-                        color: isLive ? '#f87171' : '#60a5fa',
-                        minWidth: 0,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}
+                      className={cn(
+                        'min-w-0 truncate text-[0.72rem] font-bold uppercase tracking-[0.06em]',
+                        isLive ? 'text-red-400' : 'text-blue-400'
+                      )}
                     >
                       {block.label || `Slide ${index + 1}`}
                     </span>
                     {isLive && (
-                      <span
-                        style={{
-                          fontSize: '0.65rem',
-                          fontWeight: 800,
-                          background: 'var(--live-red)',
-                          color: '#fff',
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          flexShrink: 0
-                        }}
-                      >
+                      <span className="shrink-0 rounded bg-live-red px-1.5 py-0.5 text-[0.65rem] font-extrabold text-white">
                         {t.controls.live}
                       </span>
                     )}
@@ -4697,13 +4283,8 @@ export const OperatorConsole: React.FC = () => {
 
                   {block.canvasElements && block.canvasElements.length > 0 ? (
                     <div
-                      style={{
-                        width: '100%',
-                        aspectRatio: mainScreenAspectRatio,
-                        borderRadius: '6px',
-                        overflow: 'hidden',
-                        border: '1px solid var(--border-subtle)'
-                      }}
+                      className="w-full overflow-hidden rounded-md border border-subtle"
+                      style={{ aspectRatio: mainScreenAspectRatio }}
                     >
                       <CanvasSlideStage
                         elements={block.canvasElements}
@@ -4715,14 +4296,8 @@ export const OperatorConsole: React.FC = () => {
                     </div>
                   ) : (
                     <div
-                      style={{
-                        width: '100%',
-                        aspectRatio: mainScreenAspectRatio,
-                        borderRadius: '6px',
-                        overflow: 'hidden',
-                        border: '1px solid var(--border-subtle)',
-                        position: 'relative'
-                      }}
+                      className="relative w-full overflow-hidden rounded-md border border-subtle"
+                      style={{ aspectRatio: mainScreenAspectRatio }}
                     >
                       <ScaledMainScreenPreview
                         liveState={{
@@ -4744,21 +4319,7 @@ export const OperatorConsole: React.FC = () => {
                       {selectedItem.type === 'song' &&
                         selectedItem.lyricsMode === 'timed' &&
                         block.startTimeSec !== undefined && (
-                          <span
-                            style={{
-                              position: 'absolute',
-                              top: '5px',
-                              right: '6px',
-                              padding: '2px 6px',
-                              borderRadius: '5px',
-                              background: 'rgba(15, 23, 42, 0.85)',
-                              border: '1px solid rgba(96, 165, 250, 0.45)',
-                              color: '#93c5fd',
-                              fontSize: '0.68rem',
-                              fontWeight: 700,
-                              fontVariantNumeric: 'tabular-nums'
-                            }}
-                          >
+                          <span className="absolute top-[5px] right-1.5 rounded-[5px] border border-blue-400/45 bg-slate-900/85 px-1.5 py-0.5 text-[0.68rem] font-bold tabular-nums text-blue-300">
                             {formatTimestamp(block.startTimeSec)}
                           </span>
                         )}
@@ -4966,50 +4527,36 @@ export const OperatorConsole: React.FC = () => {
         <div
           onPointerDown={(e) => startColumnResize('right', e)}
           title="Drag to resize"
-          style={colDividerStyle}
+          className={COL_DIVIDER_CLS}
         />
 
         {/* Right Column: Live Monitor + Quick Settings */}
-        <aside
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            minHeight: 0,
-            overflow: 'hidden',
-            background: 'var(--bg-panel)'
-          }}
-        >
-          <div style={{ ...panelHeaderStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+        <aside className="flex min-h-0 flex-col overflow-hidden bg-panel">
+          <div className={cn(PANEL_HEADER_CLS, 'gap-2')}>
+            <div className="inline-flex items-center gap-2">
               <Radio size={14} color="#ef4444" />
-              <div style={{ display: 'inline-flex', background: 'var(--bg-app)', borderRadius: '7px', padding: '2px', border: '1px solid var(--border-subtle)' }}>
+              <div className="inline-flex rounded-[7px] border border-subtle bg-app p-0.5">
                 <button
                   type="button"
                   onClick={() => setLiveMonitorTarget('main')}
-                  style={{
-                    padding: '3px 8px',
-                    borderRadius: '5px',
-                    border: 'none',
-                    fontSize: '0.72rem',
-                    fontWeight: 600,
-                    background: liveMonitorTarget === 'main' ? '#2563eb' : 'transparent',
-                    color: liveMonitorTarget === 'main' ? '#fff' : 'var(--text-secondary)'
-                  }}
+                  className={cn(
+                    'rounded-[5px] border-0 px-2 py-[3px] text-[0.72rem] font-semibold transition-colors',
+                    liveMonitorTarget === 'main'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-transparent text-text-secondary hover:text-text-primary'
+                  )}
                 >
                   Main
                 </button>
                 <button
                   type="button"
                   onClick={() => setLiveMonitorTarget('overflow')}
-                  style={{
-                    padding: '3px 8px',
-                    borderRadius: '5px',
-                    border: 'none',
-                    fontSize: '0.72rem',
-                    fontWeight: 600,
-                    background: liveMonitorTarget === 'overflow' ? '#059669' : 'transparent',
-                    color: liveMonitorTarget === 'overflow' ? '#fff' : 'var(--text-secondary)'
-                  }}
+                  className={cn(
+                    'rounded-[5px] border-0 px-2 py-[3px] text-[0.72rem] font-semibold transition-colors',
+                    liveMonitorTarget === 'overflow'
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-transparent text-text-secondary hover:text-text-primary'
+                  )}
                 >
                   Overflow
                 </button>
@@ -5056,7 +4603,7 @@ export const OperatorConsole: React.FC = () => {
               };
 
               return (
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <div className="inline-flex items-center gap-1">
                   <button
                     type="button"
                     onClick={() => {
@@ -5076,36 +4623,26 @@ export const OperatorConsole: React.FC = () => {
                         ? 'Layouts linked: Full/Studio controls both Main and Overflow together (click to unlink)'
                         : 'Link Main & Overflow layouts together'
                     }
-                    style={{
-                      padding: '4px 6px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--border-subtle)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: layoutsLinked ? 'rgba(56, 189, 248, 0.2)' : 'transparent',
-                      color: layoutsLinked ? '#7dd3fc' : 'var(--text-muted)'
-                    }}
+                    className={cn(
+                      'inline-flex items-center justify-center rounded-md border border-subtle px-1.5 py-1 transition-colors',
+                      layoutsLinked
+                        ? 'bg-sky-400/20 text-sky-300'
+                        : 'bg-transparent text-text-muted hover:bg-hover'
+                    )}
                   >
                     {layoutsLinked ? <Link2 size={12} /> : <Unlink size={12} />}
                   </button>
-                  <div style={{ display: 'inline-flex', background: 'var(--bg-app)', borderRadius: '7px', padding: '2px', border: '1px solid var(--border-subtle)' }}>
+                  <div className="inline-flex rounded-[7px] border border-subtle bg-app p-0.5">
                     <button
                       type="button"
                       onClick={() => setTargetLayout('full')}
                       title="Full Layout"
-                      style={{
-                        padding: '3px 7px',
-                        borderRadius: '5px',
-                        border: 'none',
-                        fontSize: '0.7rem',
-                        fontWeight: 600,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        background: activeLayout === 'full' ? '#2563eb' : 'transparent',
-                        color: activeLayout === 'full' ? '#fff' : 'var(--text-secondary)'
-                      }}
+                      className={cn(
+                        'inline-flex items-center gap-1 rounded-[5px] border-0 px-[7px] py-[3px] text-[0.7rem] font-semibold transition-colors',
+                        activeLayout === 'full'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-transparent text-text-secondary hover:text-text-primary'
+                      )}
                     >
                       <Maximize2 size={11} /> Full
                     </button>
@@ -5113,18 +4650,12 @@ export const OperatorConsole: React.FC = () => {
                       type="button"
                       onClick={() => setTargetLayout('custom')}
                       title="Studio Layout"
-                      style={{
-                        padding: '3px 7px',
-                        borderRadius: '5px',
-                        border: 'none',
-                        fontSize: '0.7rem',
-                        fontWeight: 600,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        background: activeLayout === 'custom' ? '#2563eb' : 'transparent',
-                        color: activeLayout === 'custom' ? '#fff' : 'var(--text-secondary)'
-                      }}
+                      className={cn(
+                        'inline-flex items-center gap-1 rounded-[5px] border-0 px-[7px] py-[3px] text-[0.7rem] font-semibold transition-colors',
+                        activeLayout === 'custom'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-transparent text-text-secondary hover:text-text-primary'
+                      )}
                     >
                       <LayoutTemplate size={11} /> Studio
                     </button>
@@ -5134,16 +4665,10 @@ export const OperatorConsole: React.FC = () => {
             })()}
           </div>
 
-          <div style={{ padding: '12px', flexShrink: 0 }}>
+          <div className="shrink-0 p-3">
             <div
-              style={{
-                width: '100%',
-                aspectRatio: mainScreenAspectRatio,
-                borderRadius: '10px',
-                overflow: 'hidden',
-                border: '1px solid var(--border-subtle)',
-                background: '#000'
-              }}
+              className="w-full overflow-hidden rounded-[10px] border border-subtle bg-black"
+              style={{ aspectRatio: mainScreenAspectRatio }}
             >
               <ScaledMainScreenPreview
                 liveState={(() => {
@@ -5165,38 +4690,19 @@ export const OperatorConsole: React.FC = () => {
           </div>
 
           {/* Quick Settings */}
-          <div
-            style={{
-              flex: 1,
-              minHeight: 0,
-              overflow: 'hidden',
-              borderTop: '1px solid var(--border-subtle)',
-              display: 'flex',
-              flexDirection: 'column'
-            }}
-          >
-            <div style={panelHeaderStyle}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-subtle">
+            <div className={PANEL_HEADER_CLS}>
+              <span className="inline-flex items-center gap-1.5">
                 <Sliders size={14} />
                 {t.workspace.inspector}
               </span>
             </div>
 
-            <div
-              style={{
-                flex: 1,
-                minHeight: 0,
-                overflowY: 'auto',
-                padding: '14px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '14px'
-              }}
-            >
+            <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto p-3.5">
               {selectedItem?.type === 'verse' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex justify-between text-[0.78rem] font-semibold text-text-secondary">
                       <span>Max Font Size</span>
                       <span>{selectedItem.verseMaxFontSize ?? 72}px</span>
                     </div>
@@ -5207,16 +4713,16 @@ export const OperatorConsole: React.FC = () => {
                       step={2}
                       value={selectedItem.verseMaxFontSize ?? 72}
                       onChange={(e) => handleSetVerseMaxFontSize(Number(e.target.value))}
-                      style={{ width: '100%' }}
+                      className="w-full"
                     />
                   </div>
 
                   {selectedItem.blocks.some((b) => b.secondaryLines && b.secondaryLines.length > 0) && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    <div className="flex flex-col gap-2">
+                      <div className="text-[0.78rem] font-semibold text-text-secondary">
                         {t.bible.verseLayout}
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                      <div className="grid grid-cols-3 gap-1.5">
                         {(
                           [
                             { id: 'primary', label: t.bible.primary },
@@ -5228,21 +4734,12 @@ export const OperatorConsole: React.FC = () => {
                             key={opt.id}
                             type="button"
                             onClick={() => handleSetBibleLayout(opt.id)}
-                            style={{
-                              padding: '7px 6px',
-                              borderRadius: '8px',
-                              border: '1px solid',
-                              borderColor:
-                                (selectedItem.bibleLayout ?? 'stacked') === opt.id
-                                  ? 'var(--accent)'
-                                  : 'var(--border-subtle)',
-                              background:
-                                (selectedItem.bibleLayout ?? 'stacked') === opt.id
-                                  ? 'rgba(59,130,246,0.16)'
-                                  : 'var(--bg-panel-elevated)',
-                              fontSize: '0.74rem',
-                              fontWeight: 600
-                            }}
+                            className={cn(
+                              'rounded-lg border px-1.5 py-[7px] text-[0.74rem] font-semibold transition-colors',
+                              (selectedItem.bibleLayout ?? 'stacked') === opt.id
+                                ? 'border-accent bg-blue-500/16'
+                                : 'border-subtle bg-panel-elevated hover:bg-hover'
+                            )}
                           >
                             {opt.label}
                           </button>
@@ -5261,19 +4758,9 @@ export const OperatorConsole: React.FC = () => {
 
                     if (isStackedLayout) {
                       return (
-                        <div
-                          style={{
-                            padding: '10px',
-                            borderRadius: '10px',
-                            background: 'var(--bg-panel-elevated)',
-                            border: '1px solid var(--border-subtle)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '8px'
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                        <div className="flex flex-col gap-2 rounded-[10px] border border-subtle bg-panel-elevated p-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[0.75rem] font-bold text-text-secondary">
                               Stacked Bible Colors
                             </span>
                             {(selectedItem.verseStackedPrimaryTextColor ||
@@ -5290,14 +4777,7 @@ export const OperatorConsole: React.FC = () => {
                                     verseStackedSecondaryRefColor: undefined
                                   })
                                 }
-                                style={{
-                                  fontSize: '0.68rem',
-                                  fontWeight: 600,
-                                  color: 'var(--text-muted)',
-                                  background: 'transparent',
-                                  border: 'none',
-                                  padding: 0
-                                }}
+                                className="border-0 bg-transparent p-0 text-[0.68rem] font-semibold text-text-muted hover:text-text-primary"
                               >
                                 Reset
                               </button>
@@ -5336,19 +4816,9 @@ export const OperatorConsole: React.FC = () => {
                     }
 
                     return (
-                      <div
-                        style={{
-                          padding: '10px',
-                          borderRadius: '10px',
-                          background: 'var(--bg-panel-elevated)',
-                          border: '1px solid var(--border-subtle)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '8px'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                      <div className="flex flex-col gap-2 rounded-[10px] border border-subtle bg-panel-elevated p-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[0.75rem] font-bold text-text-secondary">
                             Single Bible Colors
                           </span>
                           {(selectedItem.verseTextColor || selectedItem.verseRefColor) && (
@@ -5360,14 +4830,7 @@ export const OperatorConsole: React.FC = () => {
                                   verseRefColor: undefined
                                 })
                               }
-                              style={{
-                                fontSize: '0.68rem',
-                                fontWeight: 600,
-                                color: 'var(--text-muted)',
-                                background: 'transparent',
-                                border: 'none',
-                                padding: 0
-                              }}
+                              className="border-0 bg-transparent p-0 text-[0.68rem] font-semibold text-text-muted hover:text-text-primary"
                             >
                               Reset
                             </button>
@@ -5416,19 +4879,9 @@ export const OperatorConsole: React.FC = () => {
                       );
 
                     return (
-                      <div
-                        style={{
-                          padding: '10px',
-                          borderRadius: '10px',
-                          background: 'var(--bg-panel-elevated)',
-                          border: '1px solid var(--border-subtle)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '8px'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                      <div className="flex flex-col gap-2 rounded-[10px] border border-subtle bg-panel-elevated p-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[0.75rem] font-bold text-text-secondary">
                             {isStackedLayout ? 'Stacked Background' : 'Single Background'}
                           </span>
                           <input
@@ -5436,15 +4889,7 @@ export const OperatorConsole: React.FC = () => {
                             aria-label="Solid verse background color"
                             value={activeBg?.startsWith('#') ? activeBg : '#0f172a'}
                             onChange={(e) => updateBg(e.target.value)}
-                            style={{
-                              width: '24px',
-                              height: '20px',
-                              padding: 0,
-                              border: '1px solid var(--border-subtle)',
-                              borderRadius: '4px',
-                              background: 'transparent',
-                              cursor: 'pointer'
-                            }}
+                            className="h-5 w-6 cursor-pointer rounded border border-subtle bg-transparent p-0"
                           />
                         </div>
                         <BackgroundImagePicker
@@ -5452,7 +4897,7 @@ export const OperatorConsole: React.FC = () => {
                           onSelect={updateBg}
                           compact
                         />
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <div className="flex flex-wrap items-center gap-1.5">
                           {[
                             { name: 'Deep Navy', value: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)' },
                             { name: 'Royal Indigo', value: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)' },
@@ -5465,22 +4910,18 @@ export const OperatorConsole: React.FC = () => {
                               type="button"
                               onClick={() => updateBg(preset.value)}
                               title={preset.name}
-                              style={{
-                                width: '22px',
-                                height: '22px',
-                                borderRadius: '6px',
-                                background: preset.value,
-                                border:
-                                  activeBg === preset.value
-                                    ? '2px solid var(--accent)'
-                                    : '1px solid rgba(255,255,255,0.22)',
-                                padding: 0
-                              }}
+                              className={cn(
+                                'h-[22px] w-[22px] rounded-md p-0',
+                                activeBg === preset.value
+                                  ? 'border-2 border-accent'
+                                  : 'border border-white/22'
+                              )}
+                              style={{ background: preset.value }}
                             />
                           ))}
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingTop: '2px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                        <div className="flex flex-col gap-1 pt-0.5">
+                          <div className="flex justify-between text-[0.74rem] font-semibold text-text-secondary">
                             <span>Dim Overlay</span>
                             <span>{activeDim}%</span>
                           </div>
@@ -5492,7 +4933,7 @@ export const OperatorConsole: React.FC = () => {
                             aria-label="Verse background dim overlay"
                             value={activeDim}
                             onChange={(e) => updateDim(Number(e.target.value))}
-                            style={{ width: '100%' }}
+                            className="w-full"
                           />
                         </div>
                       </div>
@@ -5502,59 +4943,23 @@ export const OperatorConsole: React.FC = () => {
               )}
 
               {liveTimedAudioItem && selectedItem?.id !== liveTimedAudioItem.id && (
-                <div
-                  style={{
-                    padding: '10px',
-                    borderRadius: '10px',
-                    background: 'var(--bg-panel-elevated)',
-                    border: '1px solid rgba(59,130,246,0.4)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-                    <span
-                      style={{
-                        fontSize: '0.72rem',
-                        fontWeight: 700,
-                        color: '#93c5fd',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.04em'
-                      }}
-                    >
+                <div className="flex flex-col gap-2 rounded-[10px] border border-blue-500/40 bg-panel-elevated p-2.5">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span className="text-[0.72rem] font-bold uppercase tracking-[0.04em] text-blue-300">
                       Live Audio
                     </span>
                     <span
-                      style={{
-                        fontSize: '0.74rem',
-                        fontWeight: 600,
-                        color: 'var(--text-primary)',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                      }}
+                      className="truncate text-[0.74rem] font-semibold text-text-primary"
                       title={liveTimedAudioItem.title}
                     >
                       {liveTimedAudioItem.title}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={handleToggleLiveAudio}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        padding: '5px 10px',
-                        borderRadius: '7px',
-                        border: '1px solid var(--accent)',
-                        background: 'rgba(59,130,246,0.18)',
-                        color: '#93c5fd',
-                        fontSize: '0.75rem',
-                        fontWeight: 700
-                      }}
+                      className="inline-flex items-center gap-1 rounded-[7px] border border-accent bg-blue-500/18 px-2.5 py-[5px] text-[0.75rem] font-bold text-blue-300 transition-colors hover:bg-blue-500/28"
                     >
                       {audioPlaying ? <Pause size={12} /> : <Play size={12} />}
                       {audioPlaying ? 'Pause' : 'Play'}
@@ -5563,11 +4968,11 @@ export const OperatorConsole: React.FC = () => {
                       type="button"
                       onClick={handleRestartTimedAudio}
                       title="Restart live audio"
-                      style={miniIconBtnStyle(false)}
+                      className={miniIconBtnCls(false)}
                     >
                       <RotateCcw size={12} />
                     </button>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', marginLeft: 'auto' }}>
+                    <span className="ml-auto text-[0.72rem] tabular-nums text-text-muted">
                       {formatTimestamp(audioTime) || '0:00'} / {formatTimestamp(audioDuration) || '0:00'}
                     </span>
                   </div>
@@ -5597,96 +5002,66 @@ export const OperatorConsole: React.FC = () => {
                         setActiveBlockIndex(idx);
                       }
                     }}
-                    style={{ width: '100%' }}
+                    className="w-full"
                   />
                   {renderAudioVolumeControl()}
                 </div>
               )}
 
               {selectedItem?.type === 'song' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                <div className="flex flex-col gap-2">
+                  <div className="text-[0.78rem] font-semibold text-text-secondary">
                     Lyrics Display
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => handleSetLyricsMode('slide')}
-                      style={{
-                        padding: '8px 10px',
-                        borderRadius: '8px',
-                        border: '1px solid',
-                        borderColor: selectedItem.lyricsMode !== 'timed' ? 'var(--accent)' : 'var(--border-subtle)',
-                        background: selectedItem.lyricsMode !== 'timed' ? 'rgba(59,130,246,0.16)' : 'var(--bg-panel-elevated)',
-                        fontSize: '0.8rem',
-                        fontWeight: 600
-                      }}
+                      className={cn(
+                        'rounded-lg border px-2.5 py-2 text-[0.8rem] font-semibold transition-colors',
+                        selectedItem.lyricsMode !== 'timed'
+                          ? 'border-accent bg-blue-500/16'
+                          : 'border-subtle bg-panel-elevated hover:bg-hover'
+                      )}
                     >
                       {t.lyricsModes.slideMode}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleSetLyricsMode('timed')}
-                      style={{
-                        padding: '8px 10px',
-                        borderRadius: '8px',
-                        border: '1px solid',
-                        borderColor: selectedItem.lyricsMode === 'timed' ? 'var(--accent)' : 'var(--border-subtle)',
-                        background: selectedItem.lyricsMode === 'timed' ? 'rgba(59,130,246,0.16)' : 'var(--bg-panel-elevated)',
-                        fontSize: '0.8rem',
-                        fontWeight: 600
-                      }}
+                      className={cn(
+                        'rounded-lg border px-2.5 py-2 text-[0.8rem] font-semibold transition-colors',
+                        selectedItem.lyricsMode === 'timed'
+                          ? 'border-accent bg-blue-500/16'
+                          : 'border-subtle bg-panel-elevated hover:bg-hover'
+                      )}
                     >
                       {t.lyricsModes.timedMode}
                     </button>
                   </div>
 
                   {selectedItem.lyricsMode === 'timed' && (
-                    <div
-                      style={{
-                        marginTop: '4px',
-                        padding: '10px',
-                        borderRadius: '10px',
-                        background: 'var(--bg-panel-elevated)',
-                        border: '1px solid var(--border-subtle)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '8px'
-                      }}
-                    >
+                    <div className="mt-1 flex flex-col gap-2 rounded-[10px] border border-subtle bg-panel-elevated p-2.5">
                       <input
                         ref={inspectorAudioUploadRef}
                         type="file"
                         accept="audio/*,.mp3,.wav,.m4a,.ogg,.aac"
                         onChange={handleInspectorAudioUpload}
-                        style={{ display: 'none' }}
+                        className="hidden"
                       />
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                      <div className="flex items-center justify-between gap-1.5">
                         <span
-                          style={{
-                            fontSize: '0.74rem',
-                            fontWeight: 600,
-                            color: selectedItem.audioUrl ? '#93c5fd' : 'var(--text-muted)',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
-                          }}
+                          className={cn(
+                            'truncate text-[0.74rem] font-semibold',
+                            selectedItem.audioUrl ? 'text-blue-300' : 'text-text-muted'
+                          )}
                         >
                           {selectedItem.audioFileName ?? 'No audio track attached'}
                         </span>
                         <button
                           type="button"
                           onClick={() => inspectorAudioUploadRef.current?.click()}
-                          style={{
-                            padding: '4px 8px',
-                            borderRadius: '6px',
-                            border: '1px solid var(--border-subtle)',
-                            background: 'var(--bg-app)',
-                            color: 'var(--text-primary)',
-                            fontSize: '0.72rem',
-                            fontWeight: 600,
-                            flexShrink: 0
-                          }}
+                          className="shrink-0 rounded-md border border-subtle bg-app px-2 py-1 text-[0.72rem] font-semibold text-text-primary transition-colors hover:bg-hover"
                         >
                           {selectedItem.audioUrl ? 'Change' : 'Upload Audio'}
                         </button>
@@ -5701,22 +5076,11 @@ export const OperatorConsole: React.FC = () => {
                             const displayedPlaying = isLiveSelected && audioPlaying;
                             return (
                               <>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <div className="flex items-center gap-1.5">
                                   <button
                                     type="button"
                                     onClick={handleToggleTimedAudio}
-                                    style={{
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '4px',
-                                      padding: '5px 10px',
-                                      borderRadius: '7px',
-                                      border: '1px solid var(--accent)',
-                                      background: 'rgba(59,130,246,0.18)',
-                                      color: '#93c5fd',
-                                      fontSize: '0.75rem',
-                                      fontWeight: 700
-                                    }}
+                                    className="inline-flex items-center gap-1 rounded-[7px] border border-accent bg-blue-500/18 px-2.5 py-[5px] text-[0.75rem] font-bold text-blue-300 transition-colors hover:bg-blue-500/28"
                                   >
                                     {displayedPlaying ? <Pause size={12} /> : <Play size={12} />}
                                     {displayedPlaying ? 'Pause' : isLiveSelected ? 'Play' : 'Play Live'}
@@ -5726,14 +5090,11 @@ export const OperatorConsole: React.FC = () => {
                                     onClick={handleRestartTimedAudio}
                                     disabled={!isLiveSelected}
                                     title="Restart audio"
-                                    style={{
-                                      ...miniIconBtnStyle(false),
-                                      opacity: isLiveSelected ? 1 : 0.45
-                                    }}
+                                    className={cn(miniIconBtnCls(false), !isLiveSelected && 'opacity-45')}
                                   >
                                     <RotateCcw size={12} />
                                   </button>
-                                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums', marginLeft: 'auto' }}>
+                                  <span className="ml-auto text-[0.72rem] tabular-nums text-text-muted">
                                     {formatTimestamp(displayedTime) || '0:00'} / {formatTimestamp(displayedDuration) || '0:00'}
                                   </span>
                                 </div>
@@ -5765,7 +5126,7 @@ export const OperatorConsole: React.FC = () => {
                                       setActiveBlockIndex(idx);
                                     }
                                   }}
-                                  style={{ width: '100%' }}
+                                  className="w-full"
                                 />
                                 {renderAudioVolumeControl()}
                                 <button
@@ -5773,20 +5134,10 @@ export const OperatorConsole: React.FC = () => {
                                   onClick={handleStampNextBlockTime}
                                   disabled={!isLiveSelected}
                                   title="Stamp current audio time onto the next line and advance"
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '5px',
-                                    padding: '5px 8px',
-                                    borderRadius: '7px',
-                                    border: '1px solid var(--border-subtle)',
-                                    background: 'var(--bg-app)',
-                                    color: 'var(--text-primary)',
-                                    fontSize: '0.74rem',
-                                    fontWeight: 600,
-                                    opacity: isLiveSelected ? 1 : 0.5
-                                  }}
+                                  className={cn(
+                                    'inline-flex items-center justify-center gap-[5px] rounded-[7px] border border-subtle bg-app px-2 py-[5px] text-[0.74rem] font-semibold text-text-primary transition-colors hover:bg-hover',
+                                    !isLiveSelected && 'opacity-50'
+                                  )}
                                 >
                                   <Clock size={12} />
                                   Stamp Next Line ({formatTimestamp(displayedTime) || '0:00'})
@@ -5799,19 +5150,7 @@ export const OperatorConsole: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setSyncModalOpen(true)}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '5px',
-                          padding: '6px 10px',
-                          borderRadius: '7px',
-                          border: '1px solid rgba(168, 85, 247, 0.55)',
-                          background: 'rgba(147, 51, 234, 0.16)',
-                          color: '#d8b4fe',
-                          fontSize: '0.75rem',
-                          fontWeight: 700
-                        }}
+                        className="inline-flex items-center justify-center gap-[5px] rounded-[7px] border border-purple-500/55 bg-purple-600/16 px-2.5 py-1.5 text-[0.75rem] font-bold text-purple-300 transition-colors hover:bg-purple-600/24"
                       >
                         <Clock size={12} />
                         Open Sync Studio
@@ -5820,20 +5159,9 @@ export const OperatorConsole: React.FC = () => {
                   )}
 
                   {/* Song Text, Highlight & Dots, and Text Outline Customization */}
-                  <div
-                    style={{
-                      marginTop: '4px',
-                      padding: '10px',
-                      borderRadius: '10px',
-                      background: 'var(--bg-panel-elevated)',
-                      border: '1px solid var(--border-subtle)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '10px'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  <div className="mt-1 flex flex-col gap-2.5 rounded-[10px] border border-subtle bg-panel-elevated p-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[0.75rem] font-bold text-text-secondary">
                         Song Appearance
                       </span>
                       {(selectedItem.songTextColor ||
@@ -5856,14 +5184,7 @@ export const OperatorConsole: React.FC = () => {
                               songHighlightOutlineColor: undefined
                             })
                           }
-                          style={{
-                            fontSize: '0.68rem',
-                            fontWeight: 600,
-                            color: 'var(--text-muted)',
-                            background: 'transparent',
-                            border: 'none',
-                            padding: 0
-                          }}
+                          className="border-0 bg-transparent p-0 text-[0.68rem] font-semibold text-text-muted hover:text-text-primary"
                         >
                           Reset
                         </button>
@@ -5871,28 +5192,24 @@ export const OperatorConsole: React.FC = () => {
                     </div>
 
                     {/* Text Color */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                      <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[0.74rem] font-semibold text-text-secondary">
                         Text Color
                       </span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <div className="flex items-center gap-[5px]">
                         {['#ffffff', '#fde047', '#93c5fd', '#e2e8f0'].map((swatch) => (
                           <button
                             key={swatch}
                             type="button"
                             onClick={() => handleUpdateSongStyle({ songTextColor: swatch })}
                             title={swatch}
-                            style={{
-                              width: '16px',
-                              height: '16px',
-                              borderRadius: '999px',
-                              background: swatch,
-                              border:
-                                (selectedItem.songTextColor || '#ffffff').toLowerCase() === swatch
-                                  ? '2px solid var(--accent)'
-                                  : '1px solid rgba(255,255,255,0.28)',
-                              padding: 0
-                            }}
+                            className={cn(
+                              'h-4 w-4 rounded-full p-0',
+                              (selectedItem.songTextColor || '#ffffff').toLowerCase() === swatch
+                                ? 'border-2 border-accent'
+                                : 'border border-white/28'
+                            )}
+                            style={{ background: swatch }}
                           />
                         ))}
                         <input
@@ -5900,15 +5217,7 @@ export const OperatorConsole: React.FC = () => {
                           aria-label="Song text color"
                           value={selectedItem.songTextColor || '#ffffff'}
                           onChange={(e) => handleUpdateSongStyle({ songTextColor: e.target.value })}
-                          style={{
-                            width: '24px',
-                            height: '20px',
-                            padding: 0,
-                            border: '1px solid var(--border-subtle)',
-                            borderRadius: '4px',
-                            background: 'transparent',
-                            cursor: 'pointer'
-                          }}
+                          className="h-5 w-6 cursor-pointer rounded border border-subtle bg-transparent p-0"
                         />
                       </div>
                     </div>
@@ -5923,28 +5232,24 @@ export const OperatorConsole: React.FC = () => {
                     )}
 
                     {/* Highlight & Count-in Dots Color */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                      <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[0.74rem] font-semibold text-text-secondary">
                         Highlight &amp; Dots
                       </span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <div className="flex items-center gap-[5px]">
                         {['#93c5fd', '#fde047', '#86efac', '#f9a8d4'].map((swatch) => (
                           <button
                             key={swatch}
                             type="button"
                             onClick={() => handleUpdateSongStyle({ songHighlightColor: swatch })}
                             title={swatch}
-                            style={{
-                              width: '16px',
-                              height: '16px',
-                              borderRadius: '999px',
-                              background: swatch,
-                              border:
-                                (selectedItem.songHighlightColor || '#93c5fd').toLowerCase() === swatch
-                                  ? '2px solid var(--accent)'
-                                  : '1px solid rgba(255,255,255,0.28)',
-                              padding: 0
-                            }}
+                            className={cn(
+                              'h-4 w-4 rounded-full p-0',
+                              (selectedItem.songHighlightColor || '#93c5fd').toLowerCase() === swatch
+                                ? 'border-2 border-accent'
+                                : 'border border-white/28'
+                            )}
+                            style={{ background: swatch }}
                           />
                         ))}
                         <input
@@ -5952,23 +5257,15 @@ export const OperatorConsole: React.FC = () => {
                           aria-label="Highlight and dots color"
                           value={selectedItem.songHighlightColor || '#93c5fd'}
                           onChange={(e) => handleUpdateSongStyle({ songHighlightColor: e.target.value })}
-                          style={{
-                            width: '24px',
-                            height: '20px',
-                            padding: 0,
-                            border: '1px solid var(--border-subtle)',
-                            borderRadius: '4px',
-                            background: 'transparent',
-                            cursor: 'pointer'
-                          }}
+                          className="h-5 w-6 cursor-pointer rounded border border-subtle bg-transparent p-0"
                         />
                       </div>
                     </div>
 
                     {/* Text Outline */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                        <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[0.74rem] font-semibold text-text-secondary">
                           Text Outline ({selectedItem.songOutlineWidth ?? 0}px)
                         </span>
                         <input
@@ -5976,15 +5273,7 @@ export const OperatorConsole: React.FC = () => {
                           aria-label="Text outline color"
                           value={selectedItem.songOutlineColor || '#000000'}
                           onChange={(e) => handleUpdateSongStyle({ songOutlineColor: e.target.value })}
-                          style={{
-                            width: '24px',
-                            height: '20px',
-                            padding: 0,
-                            border: '1px solid var(--border-subtle)',
-                            borderRadius: '4px',
-                            background: 'transparent',
-                            cursor: 'pointer'
-                          }}
+                          className="h-5 w-6 cursor-pointer rounded border border-subtle bg-transparent p-0"
                         />
                       </div>
                       <input
@@ -5997,14 +5286,14 @@ export const OperatorConsole: React.FC = () => {
                         onChange={(e) =>
                           handleUpdateSongStyle({ songOutlineWidth: Number(e.target.value) })
                         }
-                        style={{ width: '100%' }}
+                        className="w-full"
                       />
                     </div>
 
                     {/* Highlighted Text Outline */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                        <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[0.74rem] font-semibold text-text-secondary">
                           Highlight Outline ({selectedItem.songHighlightOutlineWidth ?? 0}px)
                         </span>
                         <input
@@ -6014,15 +5303,7 @@ export const OperatorConsole: React.FC = () => {
                           onChange={(e) =>
                             handleUpdateSongStyle({ songHighlightOutlineColor: e.target.value })
                           }
-                          style={{
-                            width: '24px',
-                            height: '20px',
-                            padding: 0,
-                            border: '1px solid var(--border-subtle)',
-                            borderRadius: '4px',
-                            background: 'transparent',
-                            cursor: 'pointer'
-                          }}
+                          className="h-5 w-6 cursor-pointer rounded border border-subtle bg-transparent p-0"
                         />
                       </div>
                       <input
@@ -6035,22 +5316,14 @@ export const OperatorConsole: React.FC = () => {
                         onChange={(e) =>
                           handleUpdateSongStyle({ songHighlightOutlineWidth: Number(e.target.value) })
                         }
-                        style={{ width: '100%' }}
+                        className="w-full"
                       />
                     </div>
 
                     {/* Background */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '6px',
-                        paddingTop: '4px',
-                        borderTop: '1px solid var(--border-subtle)'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                        <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    <div className="flex flex-col gap-1.5 border-t border-subtle pt-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[0.74rem] font-semibold text-text-secondary">
                           Background
                         </span>
                         <input
@@ -6064,15 +5337,7 @@ export const OperatorConsole: React.FC = () => {
                           onChange={(e) =>
                             handleUpdateSongStyle({ themeBackground: e.target.value })
                           }
-                          style={{
-                            width: '24px',
-                            height: '20px',
-                            padding: 0,
-                            border: '1px solid var(--border-subtle)',
-                            borderRadius: '4px',
-                            background: 'transparent',
-                            cursor: 'pointer'
-                          }}
+                          className="h-5 w-6 cursor-pointer rounded border border-subtle bg-transparent p-0"
                         />
                       </div>
                       <BackgroundImagePicker
@@ -6080,7 +5345,7 @@ export const OperatorConsole: React.FC = () => {
                         onSelect={(bg) => handleUpdateSongStyle({ themeBackground: bg })}
                         compact
                       />
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      <div className="flex flex-wrap items-center gap-1.5">
                         {[
                           { name: 'Deep Navy', value: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)' },
                           { name: 'Royal Indigo', value: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)' },
@@ -6093,22 +5358,18 @@ export const OperatorConsole: React.FC = () => {
                             type="button"
                             onClick={() => handleUpdateSongStyle({ themeBackground: preset.value })}
                             title={preset.name}
-                            style={{
-                              width: '22px',
-                              height: '22px',
-                              borderRadius: '6px',
-                              background: preset.value,
-                              border:
-                                selectedItem.themeBackground === preset.value
-                                  ? '2px solid var(--accent)'
-                                  : '1px solid rgba(255,255,255,0.22)',
-                              padding: 0
-                            }}
+                            className={cn(
+                              'h-[22px] w-[22px] rounded-md p-0',
+                              selectedItem.themeBackground === preset.value
+                                ? 'border-2 border-accent'
+                                : 'border border-white/22'
+                            )}
+                            style={{ background: preset.value }}
                           />
                         ))}
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingTop: '2px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                      <div className="flex flex-col gap-1 pt-0.5">
+                        <div className="flex justify-between text-[0.74rem] font-semibold text-text-secondary">
                           <span>Dim Overlay</span>
                           <span>{selectedItem.songBgDim ?? 0}%</span>
                         </div>
@@ -6120,7 +5381,7 @@ export const OperatorConsole: React.FC = () => {
                           aria-label="Song background dim overlay"
                           value={selectedItem.songBgDim ?? 0}
                           onChange={(e) => handleUpdateSongStyle({ songBgDim: Number(e.target.value) })}
-                          style={{ width: '100%' }}
+                          className="w-full"
                         />
                       </div>
                     </div>
@@ -6129,9 +5390,9 @@ export const OperatorConsole: React.FC = () => {
               )}
 
               {selectedItem?.type === 'programItem' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex justify-between text-[0.78rem] font-semibold text-text-secondary">
                       <span>Max Font Size</span>
                       <span>{selectedItem.docMaxFontSize ?? 72}px</span>
                     </div>
@@ -6142,24 +5403,14 @@ export const OperatorConsole: React.FC = () => {
                       step={2}
                       value={selectedItem.docMaxFontSize ?? 72}
                       onChange={(e) => handleUpdateDocStyle({ docMaxFontSize: Number(e.target.value) })}
-                      style={{ width: '100%' }}
+                      className="w-full"
                     />
                   </div>
 
                   {/* Doc Text & Outline */}
-                  <div
-                    style={{
-                      padding: '10px',
-                      borderRadius: '10px',
-                      background: 'var(--bg-panel-elevated)',
-                      border: '1px solid var(--border-subtle)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '10px'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  <div className="flex flex-col gap-2.5 rounded-[10px] border border-subtle bg-panel-elevated p-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[0.75rem] font-bold text-text-secondary">
                         Doc Appearance
                       </span>
                       {(selectedItem.docTextColor ||
@@ -6180,14 +5431,7 @@ export const OperatorConsole: React.FC = () => {
                               docBulletColor: undefined
                             })
                           }
-                          style={{
-                            fontSize: '0.68rem',
-                            fontWeight: 600,
-                            color: 'var(--text-muted)',
-                            background: 'transparent',
-                            border: 'none',
-                            padding: 0
-                          }}
+                          className="border-0 bg-transparent p-0 text-[0.68rem] font-semibold text-text-muted hover:text-text-primary"
                         >
                           Reset
                         </button>
@@ -6207,9 +5451,9 @@ export const OperatorConsole: React.FC = () => {
                       ['#cbd5e1', '#ffffff', '#fde047', '#93c5fd'],
                       (c) => handleUpdateDocStyle({ docTitleColor: c })
                     )}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                        <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[0.74rem] font-semibold text-text-secondary">
                           Text Outline ({selectedItem.docOutlineWidth ?? 0}px)
                         </span>
                         <input
@@ -6217,15 +5461,7 @@ export const OperatorConsole: React.FC = () => {
                           aria-label="Doc text outline color"
                           value={selectedItem.docOutlineColor || '#000000'}
                           onChange={(e) => handleUpdateDocStyle({ docOutlineColor: e.target.value })}
-                          style={{
-                            width: '24px',
-                            height: '20px',
-                            padding: 0,
-                            border: '1px solid var(--border-subtle)',
-                            borderRadius: '4px',
-                            background: 'transparent',
-                            cursor: 'pointer'
-                          }}
+                          className="h-5 w-6 cursor-pointer rounded border border-subtle bg-transparent p-0"
                         />
                       </div>
                       <input
@@ -6236,14 +5472,14 @@ export const OperatorConsole: React.FC = () => {
                         aria-label="Doc text outline width"
                         value={selectedItem.docOutlineWidth ?? 0}
                         onChange={(e) => handleUpdateDocStyle({ docOutlineWidth: Number(e.target.value) })}
-                        style={{ width: '100%' }}
+                        className="w-full"
                       />
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingTop: '2px', borderTop: '1px solid var(--border-subtle)' }}>
-                      <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    <div className="flex flex-col gap-1.5 border-t border-subtle pt-0.5">
+                      <span className="text-[0.74rem] font-semibold text-text-secondary">
                         Bullet Style
                       </span>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
+                      <div className="grid grid-cols-2 gap-1.5">
                         {(
                           [
                             { id: 'accent', label: 'Accent' },
@@ -6256,21 +5492,12 @@ export const OperatorConsole: React.FC = () => {
                             key={opt.id}
                             type="button"
                             onClick={() => handleUpdateDocStyle({ docBulletStyle: opt.id })}
-                            style={{
-                              padding: '5px 6px',
-                              borderRadius: '7px',
-                              border: '1px solid',
-                              borderColor:
-                                (selectedItem.docBulletStyle ?? 'accent') === opt.id
-                                  ? 'var(--accent)'
-                                  : 'var(--border-subtle)',
-                              background:
-                                (selectedItem.docBulletStyle ?? 'accent') === opt.id
-                                  ? 'rgba(59,130,246,0.16)'
-                                  : 'var(--bg-app)',
-                              fontSize: '0.72rem',
-                              fontWeight: 600
-                            }}
+                            className={cn(
+                              'rounded-[7px] border px-1.5 py-[5px] text-[0.72rem] font-semibold transition-colors',
+                              (selectedItem.docBulletStyle ?? 'accent') === opt.id
+                                ? 'border-accent bg-blue-500/16'
+                                : 'border-subtle bg-app hover:bg-hover'
+                            )}
                           >
                             {opt.label}
                           </button>
@@ -6288,19 +5515,9 @@ export const OperatorConsole: React.FC = () => {
                   </div>
 
                   {/* Doc Background + Dimming Overlay */}
-                  <div
-                    style={{
-                      padding: '10px',
-                      borderRadius: '10px',
-                      background: 'var(--bg-panel-elevated)',
-                      border: '1px solid var(--border-subtle)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '8px'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  <div className="flex flex-col gap-2 rounded-[10px] border border-subtle bg-panel-elevated p-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[0.75rem] font-bold text-text-secondary">
                         Background
                       </span>
                       <input
@@ -6312,15 +5529,7 @@ export const OperatorConsole: React.FC = () => {
                             : '#0f172a'
                         }
                         onChange={(e) => handleUpdateDocStyle({ themeBackground: e.target.value })}
-                        style={{
-                          width: '24px',
-                          height: '20px',
-                          padding: 0,
-                          border: '1px solid var(--border-subtle)',
-                          borderRadius: '4px',
-                          background: 'transparent',
-                          cursor: 'pointer'
-                        }}
+                        className="h-5 w-6 cursor-pointer rounded border border-subtle bg-transparent p-0"
                       />
                     </div>
                     <BackgroundImagePicker
@@ -6328,7 +5537,7 @@ export const OperatorConsole: React.FC = () => {
                       onSelect={(bg) => handleUpdateDocStyle({ themeBackground: bg })}
                       compact
                     />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    <div className="flex flex-wrap items-center gap-1.5">
                       {[
                         { name: 'Deep Navy', value: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)' },
                         { name: 'Royal Indigo', value: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)' },
@@ -6341,22 +5550,18 @@ export const OperatorConsole: React.FC = () => {
                           type="button"
                           onClick={() => handleUpdateDocStyle({ themeBackground: preset.value })}
                           title={preset.name}
-                          style={{
-                            width: '22px',
-                            height: '22px',
-                            borderRadius: '6px',
-                            background: preset.value,
-                            border:
-                              selectedItem.themeBackground === preset.value
-                                ? '2px solid var(--accent)'
-                                : '1px solid rgba(255,255,255,0.22)',
-                            padding: 0
-                          }}
+                          className={cn(
+                            'h-[22px] w-[22px] rounded-md p-0',
+                            selectedItem.themeBackground === preset.value
+                              ? 'border-2 border-accent'
+                              : 'border border-white/22'
+                          )}
+                          style={{ background: preset.value }}
                         />
                       ))}
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingTop: '2px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    <div className="flex flex-col gap-1 pt-0.5">
+                      <div className="flex justify-between text-[0.74rem] font-semibold text-text-secondary">
                         <span>Dim Overlay</span>
                         <span>{selectedItem.docBgDim ?? 0}%</span>
                       </div>
@@ -6368,7 +5573,7 @@ export const OperatorConsole: React.FC = () => {
                         aria-label="Doc background dim overlay"
                         value={selectedItem.docBgDim ?? 0}
                         onChange={(e) => handleUpdateDocStyle({ docBgDim: Number(e.target.value) })}
-                        style={{ width: '100%' }}
+                        className="w-full"
                       />
                     </div>
                   </div>
@@ -6444,37 +5649,13 @@ export const OperatorConsole: React.FC = () => {
       {cameraError && (
         <div
           role="alert"
-          style={{
-            position: 'fixed',
-            bottom: '18px',
-            right: '18px',
-            zIndex: 9998,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            maxWidth: '420px',
-            padding: '10px 14px',
-            borderRadius: '10px',
-            border: '1px solid rgba(248, 113, 113, 0.55)',
-            background: 'rgba(127, 29, 29, 0.95)',
-            color: '#fee2e2',
-            fontSize: '0.82rem',
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.45)'
-          }}
+          className="fixed right-[18px] bottom-[18px] z-[9998] flex max-w-[420px] items-center gap-3 rounded-[10px] border border-red-400/55 bg-red-900/95 px-3.5 py-2.5 text-[0.82rem] text-red-100 shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
         >
-          <span style={{ flex: 1 }}>{cameraError}</span>
+          <span className="flex-1">{cameraError}</span>
           <button
             type="button"
             onClick={() => setCameraError(null)}
-            style={{
-              background: 'transparent',
-              border: '1px solid rgba(254, 226, 226, 0.35)',
-              color: '#fee2e2',
-              borderRadius: '6px',
-              padding: '3px 8px',
-              fontSize: '0.75rem',
-              cursor: 'pointer'
-            }}
+            className="cursor-pointer rounded-md border border-red-100/35 bg-transparent px-2 py-[3px] text-[0.75rem] text-red-100 hover:bg-red-800/60"
           >
             Dismiss
           </button>
@@ -6486,18 +5667,7 @@ export const OperatorConsole: React.FC = () => {
         <div
           role="alert"
           aria-live="assertive"
-          style={{
-            position: 'fixed',
-            top: '18px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 9999,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-            width: 'min(92vw, 560px)',
-            pointerEvents: 'none'
-          }}
+          className="pointer-events-none fixed top-[18px] left-1/2 z-[9999] flex w-[min(92vw,560px)] -translate-x-1/2 flex-col gap-2.5"
         >
           {operatorAlerts.map((alert) => {
             const isWhispering = monitoredParticipantIds.includes(alert.guestId);
@@ -6509,84 +5679,31 @@ export const OperatorConsole: React.FC = () => {
             return (
               <div
                 key={alert.id}
-                className="operator-alert-toast"
-                style={{
-                  pointerEvents: 'auto',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '14px',
-                  padding: '14px 16px',
-                  borderRadius: '14px',
-                  border: '2px solid rgba(251, 191, 36, 0.95)',
-                  background:
-                    'linear-gradient(135deg, rgba(120, 53, 15, 0.97) 0%, rgba(127, 29, 29, 0.97) 100%)',
-                  color: '#fff',
-                  backdropFilter: 'blur(8px)'
-                }}
+                className="operator-alert-toast pointer-events-auto flex items-center justify-between gap-3.5 rounded-[14px] border-2 border-amber-400/95 bg-[linear-gradient(135deg,rgba(120,53,15,0.97)_0%,rgba(127,29,29,0.97)_100%)] px-4 py-3.5 text-white backdrop-blur-sm"
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-                  <div
-                    style={{
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '10px',
-                      background: 'rgba(251, 191, 36, 0.22)',
-                      border: '1px solid rgba(251, 191, 36, 0.6)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#fde68a',
-                      flexShrink: 0
-                    }}
-                  >
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-amber-400/60 bg-amber-400/22 text-amber-200">
                     <Bell size={20} />
                   </div>
-                  <div style={{ minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: '0.7rem',
-                        fontWeight: 800,
-                        letterSpacing: '0.08em',
-                        textTransform: 'uppercase',
-                        color: '#fde68a'
-                      }}
-                    >
+                  <div className="min-w-0">
+                    <div className="text-[0.7rem] font-extrabold uppercase tracking-[0.08em] text-amber-200">
                       Speaker Wants to Talk • {timeLabel}
                     </div>
-                    <div
-                      style={{
-                        fontSize: '1.02rem',
-                        fontWeight: 800,
-                        color: '#ffffff',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                      }}
-                    >
+                    <div className="truncate text-[1.02rem] font-extrabold text-white">
                       {alert.guestName}
                       {alert.centroOrPosition ? ` — ${alert.centroOrPosition}` : ''}
                     </div>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                <div className="flex shrink-0 items-center gap-2">
                   <button
                     type="button"
                     onClick={() => handleToggleMonitorParticipant(alert.guestId)}
-                    style={{
-                      padding: '7px 12px',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(125, 211, 252, 0.7)',
-                      background: isWhispering ? '#0284c7' : 'rgba(14, 165, 233, 0.25)',
-                      color: '#fff',
-                      fontSize: '0.78rem',
-                      fontWeight: 700,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      cursor: 'pointer'
-                    }}
+                    className={cn(
+                      'inline-flex cursor-pointer items-center gap-[5px] rounded-lg border border-sky-300/70 px-3 py-[7px] text-[0.78rem] font-bold text-white transition-colors',
+                      isWhispering ? 'bg-sky-600' : 'bg-sky-500/25 hover:bg-sky-500/40'
+                    )}
                   >
                     {isWhispering ? <Volume2 size={14} /> : <VolumeX size={14} />}
                     {isWhispering ? 'Whispering' : 'Whisper'}
@@ -6597,19 +5714,7 @@ export const OperatorConsole: React.FC = () => {
                       setOperatorAlerts((prev) => prev.filter((a) => a.id !== alert.id))
                     }
                     title="Dismiss alert"
-                    style={{
-                      padding: '7px 10px',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(255, 255, 255, 0.35)',
-                      background: 'rgba(0, 0, 0, 0.35)',
-                      color: '#fff',
-                      fontSize: '0.78rem',
-                      fontWeight: 700,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      cursor: 'pointer'
-                    }}
+                    className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-white/35 bg-black/35 px-2.5 py-[7px] text-[0.78rem] font-bold text-white transition-colors hover:bg-black/55"
                   >
                     <X size={14} />
                     Dismiss
@@ -6726,36 +5831,36 @@ export const OperatorConsole: React.FC = () => {
       <dialog
         ref={programPickerRef}
         aria-label={`Add to ${t.workspace.program}`}
-        style={{
-          maxWidth: programPickerMode === 'bible' ? '720px' : '520px',
-          width: programPickerMode === 'bible' ? 'min(94vw, 720px)' : 'min(92vw, 520px)'
-        }}
+        className={
+          programPickerMode === 'bible'
+            ? 'w-[min(94vw,720px)] max-w-[720px]'
+            : 'w-[min(92vw,520px)] max-w-[520px]'
+        }
         onClose={() => {
           if (programPickerRef.current) programPickerRef.current.returnValue = '';
           setProgramPickerOpen(false);
           setEditingItem(null);
         }}
       >
-        <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '12px', height: programPickerMode === 'bible' ? '78vh' : 'auto', maxHeight: '80vh' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-            <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>
+        <div
+          className={cn(
+            'flex max-h-[80vh] flex-col gap-3 px-5 py-[18px]',
+            programPickerMode === 'bible' ? 'h-[78vh]' : 'h-auto'
+          )}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="m-0 text-base font-bold">
               {programPickerMode === 'bible'
                 ? editingItem
                   ? `${t.editor.edit}: ${editingItem.title}`
                   : `Add ${t.contentTypes.verse} to ${t.workspace.program}`
                 : `Add from ${t.workspace.library} to ${t.workspace.program}`}
             </h2>
-            <form method="dialog" style={{ margin: 0 }}>
+            <form method="dialog" className="m-0">
               <button
                 type="submit"
                 value="close"
-                style={{
-                  background: 'transparent',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '7px',
-                  padding: '5px 10px',
-                  fontSize: '0.78rem'
-                }}
+                className="rounded-[7px] border border-subtle bg-transparent px-2.5 py-[5px] text-[0.78rem] transition-colors hover:bg-hover"
               >
                 Close
               </button>
@@ -6783,18 +5888,10 @@ export const OperatorConsole: React.FC = () => {
                 onChange={(e) => setPickerQuery(e.target.value)}
                 placeholder={`Search ${t.workspace.library}...`}
                 autoFocus
-                style={{
-                  width: '100%',
-                  padding: '7px 10px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border-subtle)',
-                  background: 'var(--bg-app)',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.82rem'
-                }}
+                className="w-full rounded-lg border border-subtle bg-app px-2.5 py-[7px] text-[0.82rem] text-text-primary focus:border-accent focus:outline-none"
               />
 
-              <div style={{ display: 'flex', gap: '6px' }}>
+              <div className="flex gap-1.5">
                 {(
                   [
                     { id: 'all', label: 'All' },
@@ -6806,20 +5903,19 @@ export const OperatorConsole: React.FC = () => {
                     key={f.id}
                     type="button"
                     onClick={() => setPickerFilter(f.id)}
-                    style={{
-                      ...createBtnStyle,
-                      borderColor: pickerFilter === f.id ? 'var(--accent)' : 'var(--border-subtle)',
-                      background:
-                        pickerFilter === f.id ? 'rgba(59,130,246,0.2)' : 'var(--bg-panel-elevated)',
-                      color: pickerFilter === f.id ? '#93c5fd' : 'var(--text-primary)'
-                    }}
+                    className={cn(
+                      CREATE_BTN_CLS,
+                      pickerFilter === f.id
+                        ? 'border-accent bg-blue-500/20 text-blue-300'
+                        : 'border-subtle bg-panel-elevated text-text-primary hover:bg-hover'
+                    )}
                   >
                     {f.label}
                   </button>
                 ))}
               </div>
 
-              <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div className="flex flex-1 flex-col gap-1.5 overflow-y-auto">
                 {library
                   .filter(
                     (item) =>
@@ -6841,23 +5937,13 @@ export const OperatorConsole: React.FC = () => {
                         handleAddFromLibrary(item);
                         setProgramPickerOpen(false);
                       }}
-                      style={{
-                        textAlign: 'left',
-                        padding: '9px 12px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-subtle)',
-                        background: 'var(--bg-panel-elevated)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '10px'
-                      }}
+                      className="flex items-center justify-between gap-2.5 rounded-lg border border-subtle bg-panel-elevated px-3 py-[9px] text-left transition-colors hover:bg-hover"
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                        <span style={{ color: 'var(--text-secondary)' }}>{getTypeIcon(item.type)}</span>
-                        <span style={{ fontSize: '0.84rem', fontWeight: 600 }}>{item.title}</span>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="text-text-secondary">{getTypeIcon(item.type)}</span>
+                        <span className="text-[0.84rem] font-semibold">{item.title}</span>
                       </div>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      <span className="text-[0.72rem] text-text-muted">
                         {t.contentTypes[item.type]}
                       </span>
                     </button>
@@ -6872,7 +5958,7 @@ export const OperatorConsole: React.FC = () => {
       <dialog
         ref={confirmDialogRef}
         aria-labelledby={confirmTitleId}
-        style={{ maxWidth: '400px', width: 'min(90vw, 400px)' }}
+        className="w-[min(90vw,400px)] max-w-[400px]"
         onClose={() => {
           if (confirmDialogRef.current) {
             if (confirmDialogRef.current.returnValue === 'delete' && confirmDeleteItem) {
@@ -6891,45 +5977,30 @@ export const OperatorConsole: React.FC = () => {
           setConfirmDeleteItem(null);
         }}
       >
-        <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <h2 id={confirmTitleId} style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>
+        <div className="flex flex-col gap-3.5 px-[22px] py-5">
+          <h2 id={confirmTitleId} className="m-0 text-base font-bold">
             {confirmDeleteItem?.target === 'program'
               ? `Remove from ${t.workspace.program}?`
               : `Delete from ${t.workspace.library}?`}
           </h2>
-          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+          <p className="m-0 text-[0.85rem] leading-[1.4] text-text-secondary">
             Are you sure you want to {confirmDeleteItem?.target === 'program' ? 'remove' : 'delete'}{' '}
             <strong>{confirmDeleteItem?.title}</strong>?
             {confirmDeleteItem?.target !== 'program' ? ' This cannot be undone.' : ''}
           </p>
-          <form method="dialog" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', margin: 0 }}>
+          <form method="dialog" className="m-0 flex justify-end gap-2">
             <button
               type="submit"
               value="cancel"
               autoFocus
-              style={{
-                padding: '7px 14px',
-                borderRadius: '8px',
-                border: '1px solid var(--border-subtle)',
-                background: 'var(--bg-panel-elevated)',
-                fontSize: '0.82rem',
-                fontWeight: 600
-              }}
+              className="rounded-lg border border-subtle bg-panel-elevated px-3.5 py-[7px] text-[0.82rem] font-semibold transition-colors hover:bg-hover"
             >
               {t.editor.cancel}
             </button>
             <button
               type="submit"
               value="delete"
-              style={{
-                padding: '7px 14px',
-                borderRadius: '8px',
-                border: 'none',
-                background: '#dc2626',
-                color: '#fff',
-                fontSize: '0.82rem',
-                fontWeight: 700
-              }}
+              className="rounded-lg border-0 bg-red-600 px-3.5 py-[7px] text-[0.82rem] font-bold text-white transition-colors hover:bg-red-500"
             >
               {t.editor.delete}
             </button>
@@ -6941,7 +6012,7 @@ export const OperatorConsole: React.FC = () => {
       <dialog
         ref={switchLiveDialogRef}
         aria-labelledby={switchLiveTitleId}
-        style={{ maxWidth: '420px', width: 'min(90vw, 420px)' }}
+        className="w-[min(90vw,420px)] max-w-[420px]"
         onClose={() => {
           if (switchLiveDialogRef.current) {
             if (switchLiveDialogRef.current.returnValue === 'confirm' && pendingLiveSwitch) {
@@ -6952,42 +6023,27 @@ export const OperatorConsole: React.FC = () => {
           setPendingLiveSwitch(null);
         }}
       >
-        <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <h2 id={switchLiveTitleId} style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>
+        <div className="flex flex-col gap-3.5 px-[22px] py-5">
+          <h2 id={switchLiveTitleId} className="m-0 text-base font-bold">
             Switch Live Item?
           </h2>
-          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+          <p className="m-0 text-[0.85rem] leading-[1.45] text-text-secondary">
             <strong>{liveTimedAudioItem?.title ?? 'Current song'}</strong> is currently playing.
             Switching to <strong>{pendingLiveSwitch?.targetTitle}</strong> will stop the current song.
           </p>
-          <form method="dialog" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', margin: 0 }}>
+          <form method="dialog" className="m-0 flex justify-end gap-2">
             <button
               type="submit"
               value="cancel"
               autoFocus
-              style={{
-                padding: '7px 14px',
-                borderRadius: '8px',
-                border: '1px solid var(--border-subtle)',
-                background: 'var(--bg-panel-elevated)',
-                fontSize: '0.82rem',
-                fontWeight: 600
-              }}
+              className="rounded-lg border border-subtle bg-panel-elevated px-3.5 py-[7px] text-[0.82rem] font-semibold transition-colors hover:bg-hover"
             >
               Keep Playing
             </button>
             <button
               type="submit"
               value="confirm"
-              style={{
-                padding: '7px 14px',
-                borderRadius: '8px',
-                border: 'none',
-                background: 'var(--accent)',
-                color: '#fff',
-                fontSize: '0.82rem',
-                fontWeight: 700
-              }}
+              className="rounded-lg border-0 bg-accent px-3.5 py-[7px] text-[0.82rem] font-bold text-white transition-colors hover:bg-accent-hover"
             >
               Switch Item
             </button>
@@ -6999,7 +6055,7 @@ export const OperatorConsole: React.FC = () => {
       <dialog
         ref={bibleImportPromptRef}
         aria-labelledby={bibleImportPromptTitleId}
-        style={{ maxWidth: '450px', width: 'min(92vw, 450px)' }}
+        className="w-[min(92vw,450px)] max-w-[450px]"
         onCancel={(e) => {
           if (bibleImportPromptStep === 'prompt') {
             e.preventDefault();
@@ -7014,65 +6070,34 @@ export const OperatorConsole: React.FC = () => {
           setBibleImportPromptStep('closed');
         }}
       >
-        <div style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div className="flex flex-col gap-3.5 px-6 py-[22px]">
           <input
             ref={bibleStartupFileInputRef}
             type="file"
             accept=".xml,text/xml,application/xml"
             multiple
             onChange={handleStartupBibleFileChange}
-            style={{ display: 'none' }}
+            className="hidden"
           />
           {bibleImportPromptStep === 'prompt' ? (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '10px',
-                    background: 'rgba(59, 130, 246, 0.16)',
-                    border: '1px solid rgba(59, 130, 246, 0.35)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#60a5fa',
-                    flexShrink: 0
-                  }}
-                >
+              <div className="flex items-center gap-2.5">
+                <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-blue-500/35 bg-blue-500/16 text-blue-400">
                   <BookOpen size={18} />
                 </div>
-                <h2 id={bibleImportPromptTitleId} style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>
+                <h2 id={bibleImportPromptTitleId} className="m-0 text-[1.05rem] font-bold">
                   No Bibles Imported Yet
                 </h2>
               </div>
-              <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              <p className="m-0 text-[0.86rem] leading-normal text-text-secondary">
                 You don&apos;t have any Bible XML files imported yet. Would you like to start importing a Bible now?
               </p>
               {bibleStartupImportError && (
-                <div
-                  style={{
-                    padding: '8px 10px',
-                    borderRadius: '8px',
-                    background: 'rgba(220, 38, 38, 0.14)',
-                    border: '1px solid rgba(239, 68, 68, 0.35)',
-                    color: '#fca5a5',
-                    fontSize: '0.78rem'
-                  }}
-                >
+                <div className="rounded-lg border border-red-500/35 bg-red-600/14 px-2.5 py-2 text-[0.78rem] text-red-300">
                   {bibleStartupImportError}
                 </div>
               )}
-              <label
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  fontSize: '0.82rem',
-                  color: 'var(--text-secondary)',
-                  userSelect: 'none'
-                }}
-              >
+              <label className="inline-flex select-none items-center gap-2 text-[0.82rem] text-text-secondary">
                 <input
                   type="checkbox"
                   checked={dontShowBiblePromptAgain}
@@ -7080,19 +6105,12 @@ export const OperatorConsole: React.FC = () => {
                 />
                 <span>Don&apos;t show this again</span>
               </label>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
+              <div className="mt-1 flex justify-end gap-2">
                 <button
                   type="button"
                   disabled={bibleStartupImporting}
                   onClick={handleDeferBibleImport}
-                  style={{
-                    padding: '8px 14px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'var(--bg-panel-elevated)',
-                    fontSize: '0.82rem',
-                    fontWeight: 600
-                  }}
+                  className="rounded-lg border border-subtle bg-panel-elevated px-3.5 py-2 text-[0.82rem] font-semibold transition-colors hover:bg-hover"
                 >
                   Remind Me Later
                 </button>
@@ -7101,18 +6119,7 @@ export const OperatorConsole: React.FC = () => {
                   autoFocus
                   disabled={bibleStartupImporting}
                   onClick={() => bibleStartupFileInputRef.current?.click()}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '8px 14px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    background: 'var(--accent)',
-                    color: '#fff',
-                    fontSize: '0.82rem',
-                    fontWeight: 700
-                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg border-0 bg-accent px-3.5 py-2 text-[0.82rem] font-bold text-white transition-colors hover:bg-accent-hover"
                 >
                   <Upload size={14} />
                   {bibleStartupImporting ? 'Importing…' : 'Start Importing'}
@@ -7121,47 +6128,24 @@ export const OperatorConsole: React.FC = () => {
             </>
           ) : bibleImportPromptStep === 'success' ? (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '10px',
-                    background: 'rgba(34, 197, 94, 0.14)',
-                    border: '1px solid rgba(34, 197, 94, 0.35)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#4ade80',
-                    flexShrink: 0
-                  }}
-                >
+              <div className="flex items-center gap-2.5">
+                <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-green-500/35 bg-green-500/14 text-green-400">
                   <Check size={18} />
                 </div>
-                <h2 id={bibleImportPromptTitleId} style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>
+                <h2 id={bibleImportPromptTitleId} className="m-0 text-[1.05rem] font-bold">
                   Bible Imported Successfully
                 </h2>
               </div>
-              <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+              <p className="m-0 text-[0.86rem] leading-[1.55] text-text-secondary">
                 Imported{' '}
                 <strong>{bibleStartupImportedTitles.join(', ')}</strong>. You can start browsing verses right away or import another Bible XML.
               </p>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
+              <div className="mt-1 flex justify-end gap-2">
                 <button
                   type="button"
                   disabled={bibleStartupImporting}
                   onClick={() => bibleStartupFileInputRef.current?.click()}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '8px 14px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-subtle)',
-                    background: 'var(--bg-panel-elevated)',
-                    fontSize: '0.82rem',
-                    fontWeight: 600
-                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-subtle bg-panel-elevated px-3.5 py-2 text-[0.82rem] font-semibold transition-colors hover:bg-hover"
                 >
                   <Upload size={14} />
                   Import Another
@@ -7170,15 +6154,7 @@ export const OperatorConsole: React.FC = () => {
                   type="button"
                   autoFocus
                   onClick={() => setBibleImportPromptStep('closed')}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    background: 'var(--accent)',
-                    color: '#fff',
-                    fontSize: '0.82rem',
-                    fontWeight: 700
-                  }}
+                  className="rounded-lg border-0 bg-accent px-4 py-2 text-[0.82rem] font-bold text-white transition-colors hover:bg-accent-hover"
                 >
                   Done
                 </button>
@@ -7186,50 +6162,29 @@ export const OperatorConsole: React.FC = () => {
             </>
           ) : (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '10px',
-                    background: 'rgba(34, 197, 94, 0.14)',
-                    border: '1px solid rgba(34, 197, 94, 0.35)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#4ade80',
-                    flexShrink: 0
-                  }}
-                >
+              <div className="flex items-center gap-2.5">
+                <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-green-500/35 bg-green-500/14 text-green-400">
                   <Settings2 size={18} />
                 </div>
-                <h2 id={bibleImportPromptTitleId} style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>
+                <h2 id={bibleImportPromptTitleId} className="m-0 text-[1.05rem] font-bold">
                   Import Anytime Later
                 </h2>
               </div>
-              <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+              <p className="m-0 text-[0.86rem] leading-[1.55] text-text-secondary">
                 No problem! Whenever you&apos;re ready, open the <strong>{t.workspace.bible}</strong> tab in the left panel, click the{' '}
                 <strong>Settings</strong> (gear) button, and choose <strong>{t.bible.importXml}</strong>.
               </p>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+              <p className="m-0 text-[0.8rem] leading-[1.45] text-text-muted">
                 {dontShowBiblePromptAgain
                   ? "We won't show this reminder again on startup."
                   : "We'll remind you again next time you launch the app."}
               </p>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+              <div className="mt-1 flex justify-end">
                 <button
                   type="button"
                   autoFocus
                   onClick={() => setBibleImportPromptStep('closed')}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    background: 'var(--accent)',
-                    color: '#fff',
-                    fontSize: '0.82rem',
-                    fontWeight: 700
-                  }}
+                  className="rounded-lg border-0 bg-accent px-4 py-2 text-[0.82rem] font-bold text-white transition-colors hover:bg-accent-hover"
                 >
                   Got It
                 </button>
@@ -7254,91 +6209,33 @@ export const OperatorConsole: React.FC = () => {
   );
 };
 
-const popupMenuStyle: React.CSSProperties = {
-  position: 'absolute',
-  right: 0,
-  top: 'calc(100% + 4px)',
-  zIndex: 40,
-  minWidth: '150px',
-  background: 'var(--bg-panel)',
-  border: '1px solid var(--border-subtle)',
-  borderRadius: '8px',
-  padding: '4px',
-  boxShadow: '0 10px 28px rgba(0, 0, 0, 0.55)',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '2px'
-};
+const POPUP_MENU_CLS =
+  'absolute top-[calc(100%+4px)] right-0 z-40 flex min-w-[150px] flex-col gap-0.5 rounded-lg border border-subtle bg-panel p-1 shadow-[0_10px_28px_rgba(0,0,0,0.55)]';
 
-const menuItemBtnStyle: React.CSSProperties = {
-  textAlign: 'left',
-  padding: '6px 9px',
-  borderRadius: '6px',
-  border: 'none',
-  background: 'transparent',
-  color: 'var(--text-primary)',
-  fontSize: '0.76rem',
-  fontWeight: 600,
-  display: 'flex',
-  alignItems: 'center',
-  gap: '7px',
-  whiteSpace: 'nowrap'
-};
+const MENU_ITEM_BTN_CLS =
+  'flex items-center gap-[7px] whitespace-nowrap rounded-md border-0 bg-transparent px-[9px] py-1.5 text-left text-[0.76rem] font-semibold text-text-primary transition-colors hover:bg-hover';
 
-const createBtnStyle: React.CSSProperties = {
-  flex: 1,
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: '4px',
-  padding: '5px 6px',
-  borderRadius: '6px',
-  border: '1px solid var(--border-subtle)',
-  background: 'var(--bg-panel-elevated)',
-  fontSize: '0.73rem',
-  fontWeight: 600
-};
+const CREATE_BTN_CLS =
+  'inline-flex flex-1 items-center justify-center gap-1 rounded-md border border-subtle bg-panel-elevated px-1.5 py-[5px] text-[0.73rem] font-semibold transition-colors';
 
-function miniIconBtnStyle(disabled: boolean): React.CSSProperties {
-  return {
-    background: 'transparent',
-    border: '1px solid var(--border-subtle)',
-    borderRadius: '5px',
-    padding: '4px',
-    display: 'inline-flex',
-    opacity: disabled ? 0.35 : 1
-  };
+function miniIconBtnCls(disabled: boolean): string {
+  return cn(
+    'inline-flex rounded-[5px] border border-subtle bg-transparent p-1 transition-colors hover:bg-hover',
+    disabled && 'opacity-35'
+  );
 }
 
-const colDividerStyle: React.CSSProperties = {
-  width: '5px',
-  background: 'var(--border-subtle)',
-  cursor: 'col-resize'
-};
+const COL_DIVIDER_CLS = 'w-[5px] cursor-col-resize bg-subtle';
 
-const panelHeaderStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: '10px 12px',
-  fontSize: '0.8rem',
-  fontWeight: 700,
-  color: 'var(--text-secondary)',
-  borderBottom: '1px solid var(--border-subtle)',
-  background: 'var(--bg-panel)'
-};
+const PANEL_HEADER_CLS =
+  'flex items-center justify-between border-b border-subtle bg-panel px-3 py-2.5 text-[0.8rem] font-bold text-text-secondary';
 
-function toolbarBtnStyle(active: boolean, activeColor = '#3b82f6'): React.CSSProperties {
-  return {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '6px 11px',
-    borderRadius: '8px',
-    border: '1px solid',
-    borderColor: active ? activeColor : 'var(--border-subtle)',
-    background: active ? `${activeColor}26` : 'var(--bg-panel-elevated)',
-    fontSize: '0.8rem',
-    fontWeight: 600
-  };
+function toolbarBtnCls(active: boolean, tone: 'blue' | 'amber' | 'red' = 'blue'): string {
+  return cn(
+    'inline-flex items-center gap-1.5 rounded-lg border px-[11px] py-1.5 text-[0.8rem] font-semibold transition-colors',
+    !active && 'border-subtle bg-panel-elevated hover:bg-hover',
+    active && tone === 'blue' && 'border-blue-500 bg-blue-500/15',
+    active && tone === 'amber' && 'border-amber-500 bg-amber-500/15',
+    active && tone === 'red' && 'border-red-500 bg-red-500/15'
+  );
 }

@@ -3,6 +3,7 @@ import { Image as ImageIcon, Plus, Save, Trash2 } from 'lucide-react';
 import type { BibleLayoutMode, BibleVersion, ProgramItem, SlideBlock } from '../../shared/types';
 import { loadImportedBibles } from '../utils/bibleStorage';
 import { saveUserMediaFile } from '../utils/mediaUpload';
+import { cn } from '../utils/cn';
 import { BackgroundImagePicker } from './BackgroundImagePicker';
 
 interface BibleProgramPickerProps {
@@ -245,48 +246,37 @@ export const BibleProgramPicker: React.FC<BibleProgramPickerProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px', flex: 1, minHeight: 0 }}>
+    <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-3.5">
       {/* TITLE */}
-      <label style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-        <span style={sectionLabelStyle}>Title</span>
+      <label className="flex flex-col gap-1.5">
+        <span className={SECTION_LABEL_CLS}>Title</span>
         <input
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="e.g. Pagbasa ng Banal na Kasulatan"
           autoFocus
-          style={{
-            width: '100%',
-            padding: '9px 12px',
-            borderRadius: '8px',
-            border: '1px solid var(--border-subtle)',
-            background: 'var(--bg-app)',
-            color: 'var(--text-primary)',
-            fontSize: '0.86rem'
-          }}
+          className="w-full rounded-lg border border-subtle bg-app px-3 py-[9px] text-[0.86rem] text-text-primary focus:border-accent focus:outline-none"
         />
       </label>
 
       {/* BACKGROUND THEME PICKER */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-        <span style={sectionLabelStyle}>Background Theme</span>
-        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="flex flex-col gap-1.5">
+        <span className={SECTION_LABEL_CLS}>Background Theme</span>
+        <div className="flex flex-wrap items-center gap-1.5">
           {THEME_PRESETS.map((preset) => (
             <button
               key={preset.name}
               type="button"
               title={preset.name}
               onClick={() => setThemeBackground(preset.value)}
-              style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: '6px',
-                background: preset.value,
-                border:
-                  themeBackground === preset.value
-                    ? '2px solid #60a5fa'
-                    : '1px solid var(--border-subtle)'
-              }}
+              className={cn(
+                'h-7 w-7 rounded-md',
+                themeBackground === preset.value
+                  ? 'border-2 border-blue-400'
+                  : 'border border-subtle'
+              )}
+              style={{ background: preset.value }}
             />
           ))}
           <BackgroundImagePicker
@@ -297,23 +287,12 @@ export const BibleProgramPicker: React.FC<BibleProgramPickerProps> = ({
       </div>
 
       {/* SCRIPTURE REFERENCES Header + Add Reference Button */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={sectionLabelStyle}>Scripture References</span>
+      <div className="flex items-center justify-between">
+        <span className={SECTION_LABEL_CLS}>Scripture References</span>
         <button
           type="button"
           onClick={handleAddRow}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-            padding: '5px 10px',
-            borderRadius: '8px',
-            border: '1px solid var(--accent)',
-            background: 'rgba(59,130,246,0.14)',
-            color: '#93c5fd',
-            fontSize: '0.78rem',
-            fontWeight: 700
-          }}
+          className="inline-flex items-center gap-[5px] rounded-lg border border-accent bg-blue-500/14 px-2.5 py-[5px] text-[0.78rem] font-bold text-blue-300 transition-colors hover:bg-blue-500/24"
         >
           <Plus size={13} />
           Add Reference
@@ -321,7 +300,7 @@ export const BibleProgramPicker: React.FC<BibleProgramPickerProps> = ({
       </div>
 
       {/* Reference Rows */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
         {rows.map((row) => {
           const book = books[row.bookIdx] ?? books[0];
           const chapters = book?.chapters ?? [];
@@ -331,16 +310,7 @@ export const BibleProgramPicker: React.FC<BibleProgramPickerProps> = ({
           return (
             <div
               key={row.id}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1.6fr 0.7fr 0.7fr auto 0.7fr auto',
-                gap: '8px',
-                alignItems: 'center',
-                padding: '10px',
-                borderRadius: '10px',
-                border: '1px solid var(--border-subtle)',
-                background: 'var(--bg-panel-elevated)'
-              }}
+              className="grid grid-cols-[1.6fr_0.7fr_0.7fr_auto_0.7fr_auto] items-center gap-2 rounded-[10px] border border-subtle bg-panel-elevated p-2.5"
             >
               {/* Book */}
               <select
@@ -358,7 +328,7 @@ export const BibleProgramPicker: React.FC<BibleProgramPickerProps> = ({
                     endVerse: firstV
                   });
                 }}
-                style={selectStyle}
+                className={SELECT_CLS}
               >
                 {books.map((b, idx) => (
                   <option key={`${b.name}-${idx}`} value={idx}>
@@ -381,7 +351,7 @@ export const BibleProgramPicker: React.FC<BibleProgramPickerProps> = ({
                     endVerse: firstV
                   });
                 }}
-                style={selectStyle}
+                className={SELECT_CLS}
               >
                 {chapters.map((c) => (
                   <option key={c.number} value={c.number}>
@@ -401,7 +371,7 @@ export const BibleProgramPicker: React.FC<BibleProgramPickerProps> = ({
                     endVerse: Math.max(nextStart, row.endVerse)
                   });
                 }}
-                style={selectStyle}
+                className={SELECT_CLS}
               >
                 {verses.map((v) => (
                   <option key={v.number} value={v.number}>
@@ -410,7 +380,7 @@ export const BibleProgramPicker: React.FC<BibleProgramPickerProps> = ({
                 ))}
               </select>
 
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+              <span className="text-[0.8rem] font-semibold text-text-secondary">
                 to
               </span>
 
@@ -424,7 +394,7 @@ export const BibleProgramPicker: React.FC<BibleProgramPickerProps> = ({
                     endVerse: Math.max(row.startVerse, nextEnd)
                   });
                 }}
-                style={selectStyle}
+                className={SELECT_CLS}
               >
                 {verses
                   .filter((v) => v.number >= row.startVerse)
@@ -441,14 +411,10 @@ export const BibleProgramPicker: React.FC<BibleProgramPickerProps> = ({
                 disabled={rows.length <= 1}
                 onClick={() => removeRow(row.id)}
                 title="Remove reference"
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  padding: '5px',
-                  color: 'var(--text-secondary)',
-                  opacity: rows.length <= 1 ? 0.3 : 1,
-                  display: 'inline-flex'
-                }}
+                className={cn(
+                  'inline-flex border-0 bg-transparent p-[5px] text-text-secondary transition-colors hover:text-text-primary',
+                  rows.length <= 1 ? 'opacity-30' : 'opacity-100'
+                )}
               >
                 <Trash2 size={15} />
               </button>
@@ -458,21 +424,10 @@ export const BibleProgramPicker: React.FC<BibleProgramPickerProps> = ({
       </div>
 
       {/* Submit */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-subtle)', paddingTop: '12px' }}>
+      <div className="flex justify-end border-t border-subtle pt-3">
         <button
           type="submit"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '8px 16px',
-            borderRadius: '8px',
-            border: 'none',
-            background: 'var(--accent)',
-            color: '#fff',
-            fontSize: '0.84rem',
-            fontWeight: 700
-          }}
+          className="inline-flex items-center gap-1.5 rounded-lg border-0 bg-accent px-4 py-2 text-[0.84rem] font-bold text-white transition-colors hover:bg-accent-hover"
         >
           {initialItem ? <Save size={15} /> : <Plus size={15} />}
           {initialItem ? 'Save' : 'Add to Program'}
@@ -482,20 +437,8 @@ export const BibleProgramPicker: React.FC<BibleProgramPickerProps> = ({
   );
 };
 
-const sectionLabelStyle: React.CSSProperties = {
-  fontSize: '0.72rem',
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  color: 'var(--text-secondary)'
-};
+const SECTION_LABEL_CLS =
+  'text-[0.72rem] font-bold uppercase tracking-[0.06em] text-text-secondary';
 
-const selectStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '7px 8px',
-  borderRadius: '7px',
-  border: '1px solid var(--border-subtle)',
-  background: 'var(--bg-app)',
-  color: 'var(--text-primary)',
-  fontSize: '0.82rem'
-};
+const SELECT_CLS =
+  'w-full rounded-[7px] border border-subtle bg-app px-2 py-[7px] text-[0.82rem] text-text-primary focus:border-accent focus:outline-none';
