@@ -3,6 +3,7 @@ import type {
   DisplayInfo,
   LiveState,
   ParticipantSignalMessage,
+  ProgramItem,
   RemoteCommandMessage,
   RemoteConnectionInfo,
   WhitelistedDevice
@@ -18,6 +19,12 @@ export interface PresenterAPI {
   closeOverflowScreen: () => Promise<boolean>;
   isOverflowScreenOpen: () => Promise<boolean>;
   updateLiveState: (state: LiveState) => void;
+  updateProgramSyncBundle: (bundle: {
+    programId: string;
+    programName: string;
+    items: ProgramItem[];
+    logoSlide: ProgramItem | null;
+  }) => void;
   updateAudioTime: (payload: { timeSec?: number; activeBlockIndex: number }) => void;
   getInitialLiveState: () => Promise<LiveState | null>;
   onLiveStateUpdate: (callback: (state: LiveState) => void) => () => void;

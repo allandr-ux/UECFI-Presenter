@@ -3,6 +3,7 @@ import type {
   DisplayInfo,
   LiveState,
   ParticipantSignalMessage,
+  ProgramItem,
   RemoteCommandMessage,
   RemoteConnectionInfo,
   WhitelistedDevice
@@ -21,6 +22,14 @@ contextBridge.exposeInMainWorld('presenterAPI', {
   isOverflowScreenOpen: (): Promise<boolean> => ipcRenderer.invoke('overflowScreen:isOpen'),
   updateLiveState: (state: LiveState): void => {
     ipcRenderer.send('liveState:update', state);
+  },
+  updateProgramSyncBundle: (bundle: {
+    programId: string;
+    programName: string;
+    items: ProgramItem[];
+    logoSlide: ProgramItem | null;
+  }): void => {
+    ipcRenderer.send('programSync:update', bundle);
   },
   updateAudioTime: (payload: { timeSec?: number; activeBlockIndex: number }): void => {
     ipcRenderer.send('liveState:audioTime', payload);

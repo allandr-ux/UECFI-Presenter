@@ -1,6 +1,8 @@
 package org.uecfi.presenter.network
 
 import android.os.Build
+import android.webkit.WebResourceResponse
+import java.io.File
 import java.net.URI
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -14,14 +16,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.longOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import org.uecfi.presenter.data.CacheStats
+import org.uecfi.presenter.data.ProgramSyncCache
 import org.uecfi.presenter.model.LiveState
 import org.uecfi.presenter.model.LiveStateEnvelope
 import org.uecfi.presenter.model.RemoteCommandPayload
@@ -47,12 +54,66 @@ data class AudioTimeSync(
  * Manages the LAN WebSocket connection to the desktop UECFI Presenter server,
  * with URL normalization, automatic reconnect, and remote command dispatch.
  */
-class PresenterWsClient {
+class PresenterWsClient(syncCacheDir: File? = null) {
   private val json = Json {
     ignoreUnknownKeys = true
     isLenient = true
     coerceInputValues = true
     encodeDefaults = true
+  }
+
+  private val syncCache: ProgramSyncCache? = syncCacheDir?.let { ProgramSyncCache(it, json) }
+  private val fallbackCacheStats = MutableStateFlow(CacheStats())
+  val cacheStats: StateFlow<CacheStats> = syncCache?.cacheStats ?: fallbackCacheStats.asStateFlow()
+
+  @Volatile
+  private var currentHttpBaseUrl: String? = null
+
+  fun openCachedMedia(requestUrl: String): WebResourceResponse? =
+    syncCache?.openCachedMedia(requestUrl)
+
+  fun clearCache() {
+    val cache = syncCache ?: return
+    scope.launch { cache.clearCache() }
+  }
+
+  fun resyncCache() {
+    val cache = syncCache ?: return
+    val baseUrl = currentHttpBaseUrl ?: return
+    scope.launch {
+      cache.syncFromServer(baseUrl, targetVersion = 0, client = client)
+      refreshActiveItemFromCache()
+    }
+  }
+
+  private fun refreshActiveItemFromCache() {
+    val cache = syncCache ?: return
+    val cur = _liveState.value ?: return
+    val activeId = cur.activeItemId ?: return
+    val cachedModel = cache.resolveCachedItemModel(activeId) ?: return
+    val cachedJson = cache.resolveCachedItemJson(activeId) ?: return
+    val nextState = cur.copy(
+      activeItem = cachedModel,
+      lyricsMode = cachedModel.lyricsMode ?: cur.lyricsMode,
+      bibleLayout = cachedModel.bibleLayout ?: cur.bibleLayout,
+      verseMaxFontSize = cachedModel.verseMaxFontSize ?: cur.verseMaxFontSize,
+    )
+    _liveState.value = nextState
+    val baseObj = lastDesktopPayloadObj
+    if (baseObj != null) {
+      val patched = JsonObject(
+        baseObj.toMutableMap().apply {
+          put("activeItem", cachedJson)
+          put("lyricsMode", JsonPrimitive(nextState.lyricsMode))
+          put("bibleLayout", JsonPrimitive(nextState.bibleLayout))
+          nextState.verseMaxFontSize?.let { put("verseMaxFontSize", JsonPrimitive(it)) }
+        },
+      )
+      lastDesktopPayloadObj = patched
+      _liveStateJson.value = patched.toString()
+    } else {
+      _liveStateJson.value = json.encodeToString(nextState)
+    }
   }
 
   private val client = OkHttpClient.Builder()
@@ -183,7 +244,14 @@ class PresenterWsClient {
     shouldReconnect = true
     activeTargetUrl = normalized
     _resolvedWsUrl.value = normalized
-    _mirrorHttpUrl.value = buildMirrorHttpUrl(normalized)
+    val mirrorUrl = buildMirrorHttpUrl(normalized)
+    _mirrorHttpUrl.value = mirrorUrl
+    currentHttpBaseUrl = mirrorUrl?.let { raw ->
+      runCatching {
+        val u = URI(raw)
+        if (u.port > 0) "${u.scheme}://${u.host}:${u.port}" else "${u.scheme}://${u.host}"
+      }.getOrNull()
+    }
     openSocket(normalized)
   }
 
@@ -250,7 +318,7 @@ class PresenterWsClient {
     volume: Float? = null,
   ): Boolean {
     val socket = webSocket ?: return false
-    applyOptimisticUpdate(action, blockIndex)
+    applyOptimisticUpdate(action, blockIndex, itemId)
     val payload = json.encodeToString(
       RemoteCommandPayload(
         action = action,
@@ -267,7 +335,7 @@ class PresenterWsClient {
    * Updates local LiveState immediately so UI transitions happen in <1ms without waiting for
    * the desktop round-trip, while tagging the current server timestamp to avoid stale flicker.
    */
-  private fun applyOptimisticUpdate(action: String, blockIndex: Int?) {
+  private fun applyOptimisticUpdate(action: String, blockIndex: Int?, itemId: String? = null) {
     val current = _liveState.value ?: return
     val blocksCount = current.activeItem?.blocks?.size ?: 0
     val updated = when (action) {
@@ -285,6 +353,22 @@ class PresenterWsClient {
         current.copy(activeBlockIndex = blockIndex, override = "none")
       } else {
         current
+      }
+      "SELECT_ITEM" -> {
+        val cachedItem = itemId?.let { syncCache?.resolveCachedItemModel(it) }
+        if (cachedItem != null) {
+          current.copy(
+            activeItemId = cachedItem.id,
+            activeItem = cachedItem,
+            activeBlockIndex = 0,
+            override = "none",
+            lyricsMode = cachedItem.lyricsMode ?: "slide",
+            bibleLayout = cachedItem.bibleLayout ?: "stacked",
+            verseMaxFontSize = cachedItem.verseMaxFontSize ?: 72,
+          )
+        } else {
+          current
+        }
       }
       "TOGGLE_BLACKOUT" -> current.copy(
         override = if (current.override == "blackout") "none" else "blackout",
@@ -305,10 +389,22 @@ class PresenterWsClient {
       _liveState.value = updated
       val baseObj = lastDesktopPayloadObj
       if (baseObj != null) {
+        val cachedItemJson = if (action == "SELECT_ITEM" && itemId != null) {
+          syncCache?.resolveCachedItemJson(itemId)
+        } else {
+          null
+        }
         val patched = JsonObject(
           baseObj.toMutableMap().apply {
             put("activeBlockIndex", JsonPrimitive(updated.activeBlockIndex))
             put("override", JsonPrimitive(updated.override))
+            if (cachedItemJson != null && updated.activeItemId != null) {
+              put("activeItemId", JsonPrimitive(updated.activeItemId))
+              put("activeItem", cachedItemJson)
+              put("lyricsMode", JsonPrimitive(updated.lyricsMode))
+              put("bibleLayout", JsonPrimitive(updated.bibleLayout))
+              updated.verseMaxFontSize?.let { put("verseMaxFontSize", JsonPrimitive(it)) }
+            }
           },
         )
         lastDesktopPayloadObj = patched
@@ -352,6 +448,14 @@ class PresenterWsClient {
           reconnectAttempt = 0
           _status.value = ConnectionStatus.Connected
           _statusMessage.value = "Connected to $url"
+          webSocket.send(
+            JsonObject(
+              mapOf(
+                "type" to JsonPrimitive("CLIENT_CAPS"),
+                "supportsShowCue" to JsonPrimitive(true),
+              ),
+            ).toString(),
+          )
           val token = activeDeviceToken
           if (!token.isNullOrBlank()) {
             webSocket.send(
@@ -418,6 +522,83 @@ class PresenterWsClient {
               }
               _authRequired.value = true
               _authError.value = err ?: "Enter presenter PIN to control"
+              return
+            }
+            if (type == "SYNC_BUNDLE_AVAILABLE") {
+              val version = (rootObj["version"] as? JsonPrimitive)?.content?.toIntOrNull() ?: 0
+              val baseUrl = currentHttpBaseUrl
+              val cache = syncCache
+              if (baseUrl != null && cache != null) {
+                scope.launch {
+                  cache.syncFromServer(baseUrl, version, client)
+                  refreshActiveItemFromCache()
+                }
+              }
+              return
+            }
+            if (type == "SHOW_CUE") {
+              val curState = _liveState.value ?: return
+              val updatedAt = (rootObj["updatedAt"] as? JsonPrimitive)?.longOrNull ?: System.currentTimeMillis()
+              val now = System.currentTimeMillis()
+              if (now - lastOptimisticAtMs < 350L && updatedAt <= lastOptimisticServerUpdatedAt) {
+                return
+              }
+              val version = (rootObj["version"] as? JsonPrimitive)?.intOrNull ?: 0
+              val activeItemId = (rootObj["activeItemId"] as? JsonPrimitive)?.content
+              val activeBlockIndex = (rootObj["activeBlockIndex"] as? JsonPrimitive)?.intOrNull ?: 0
+              val overrideMode = (rootObj["override"] as? JsonPrimitive)?.content ?: "none"
+              val lyricsMode = (rootObj["lyricsMode"] as? JsonPrimitive)?.content ?: curState.lyricsMode
+              val bibleLayout = (rootObj["bibleLayout"] as? JsonPrimitive)?.content ?: curState.bibleLayout
+              val verseMaxFontSize = (rootObj["verseMaxFontSize"] as? JsonPrimitive)?.intOrNull ?: curState.verseMaxFontSize
+              val nextItemTitle = (rootObj["nextItemTitle"] as? JsonPrimitive)?.content
+
+              val cachedItem = activeItemId?.let { syncCache?.resolveCachedItemModel(it) }
+              val cachedItemJson = activeItemId?.let { syncCache?.resolveCachedItemJson(it) }
+              if (activeItemId != null && (cachedItem == null || cachedItemJson == null)) {
+                val baseUrl = currentHttpBaseUrl
+                val cache = syncCache
+                if (baseUrl != null && cache != null) {
+                  scope.launch { cache.syncFromServer(baseUrl, version, client) }
+                }
+                return
+              }
+
+              val nextState = curState.copy(
+                activeItemId = activeItemId,
+                activeItem = cachedItem,
+                activeBlockIndex = activeBlockIndex,
+                override = overrideMode,
+                lyricsMode = lyricsMode,
+                bibleLayout = bibleLayout,
+                verseMaxFontSize = verseMaxFontSize,
+                nextItemTitle = nextItemTitle,
+                updatedAt = updatedAt,
+              )
+              _liveState.value = nextState
+              val baseObj = lastDesktopPayloadObj
+              if (baseObj != null) {
+                val patched = JsonObject(
+                  baseObj.toMutableMap().apply {
+                    put("activeItemId", activeItemId?.let { JsonPrimitive(it) } ?: JsonNull)
+                    put("activeItem", cachedItemJson ?: JsonNull)
+                    put("activeBlockIndex", JsonPrimitive(activeBlockIndex))
+                    put("override", JsonPrimitive(overrideMode))
+                    put("lyricsMode", JsonPrimitive(lyricsMode))
+                    put("bibleLayout", JsonPrimitive(bibleLayout))
+                    verseMaxFontSize?.let { put("verseMaxFontSize", JsonPrimitive(it)) }
+                    put("nextItemTitle", nextItemTitle?.let { JsonPrimitive(it) } ?: JsonNull)
+                    put("updatedAt", JsonPrimitive(updatedAt))
+                  },
+                )
+                lastDesktopPayloadObj = patched
+                _liveStateJson.value = patched.toString()
+              } else {
+                _liveStateJson.value = json.encodeToString(nextState)
+              }
+              _audioTimeSync.value = AudioTimeSync(
+                timeSec = nextState.audioCurrentTimeSec,
+                activeBlockIndex = activeBlockIndex,
+              )
               return
             }
             if (type == "TIME_SYNC") {

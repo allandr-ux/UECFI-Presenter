@@ -889,6 +889,17 @@ export const OperatorConsole: React.FC = () => {
 
   const contentGridRef = useRef<HTMLDivElement>(null);
 
+  // Push full program items & logoSlide (visual media only, no studio/audio) to the LAN sync
+  // cache so Android tablets can pre-cache slides and media for instant offline-resilient switching.
+  useEffect(() => {
+    window.presenterAPI?.updateProgramSyncBundle({
+      programId: program.id,
+      programName: program.name,
+      items: program.items,
+      logoSlide
+    });
+  }, [program.id, program.name, program.items, logoSlide]);
+
   // Sync structural liveState to Electron main process (Main Screen + LAN Remote Server)
   // and push live verse/slide text to online remote speakers via uecfi-signaling.
   useEffect(() => {

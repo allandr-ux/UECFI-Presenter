@@ -417,6 +417,21 @@ function registerIpcHandlers() {
   });
 
   ipcMain.on(
+    'programSync:update',
+    (
+      _event,
+      bundle: {
+        programId: string;
+        programName: string;
+        items: import('../shared/types').ProgramItem[];
+        logoSlide: import('../shared/types').ProgramItem | null;
+      }
+    ) => {
+      remoteServer?.updateProgramSyncBundle(bundle);
+    }
+  );
+
+  ipcMain.on(
     'liveState:audioTime',
     (_event, payload: { timeSec?: number; activeBlockIndex: number }) => {
       if (currentLiveState) {

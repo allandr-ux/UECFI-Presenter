@@ -4,13 +4,16 @@ import android.app.Application
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
+import android.webkit.WebResourceResponse
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import java.io.File
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.uecfi.presenter.data.CacheStats
 import org.uecfi.presenter.model.LiveState
 import org.uecfi.presenter.network.AudioTimeSync
 import org.uecfi.presenter.network.ConnectionStatus
@@ -20,7 +23,7 @@ import org.uecfi.presenter.network.ServerDiscovery
 
 class MainScreenViewModel(application: Application) : AndroidViewModel(application) {
   private val prefs = application.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-  private val wsClient = PresenterWsClient()
+  private val wsClient = PresenterWsClient(File(application.filesDir, "sync_cache"))
 
   private val _serverInput = MutableStateFlow(prefs.getString(KEY_SERVER_URL, "") ?: "")
   val serverInput: StateFlow<String> = _serverInput.asStateFlow()
@@ -42,6 +45,7 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
   val mirrorHttpUrl: StateFlow<String?> = wsClient.mirrorHttpUrl
   val authRequired: StateFlow<Boolean> = wsClient.authRequired
   val authError: StateFlow<String?> = wsClient.authError
+  val cacheStats: StateFlow<CacheStats> = wsClient.cacheStats
 
   @Volatile
   private var userStopped = false
@@ -202,6 +206,13 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
   fun toggleReturnAudio() {
     wsClient.sendCommand("TOGGLE_RETURN_AUDIO")
   }
+
+  fun openCachedMedia(requestUrl: String): WebResourceResponse? =
+    wsClient.openCachedMedia(requestUrl)
+
+  fun clearCache() = wsClient.clearCache()
+
+  fun resyncCache() = wsClient.resyncCache()
 
   fun toggleAudioPlay() {
     wsClient.sendCommand("AUDIO_TOGGLE_PLAY")

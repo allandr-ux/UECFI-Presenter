@@ -10,7 +10,10 @@ import {
   PROTOCOL_VERSION,
   type LiveState,
   type ParticipantSignalMessage,
+  type ProgramItem,
   type RemoteCommandMessage,
+  type SyncBundleMediaFile,
+  type SyncBundlePayload,
   type WhitelistedDevice
 } from '../shared/types';
 export type { RemoteCommandMessage };
@@ -143,6 +146,12 @@ export class LocalRemoteServer {
   private distDir: string;
   private mediaDir: string;
   private isDev: boolean;
+  private currentSyncBundle: SyncBundlePayload | null = null;
+  private syncBundleVersion = 0;
+  private lastSyncBundleKey = '';
+  private syncBundleItemIds = new Set<string>();
+  private lastNonCueKey = '';
+  private showCueClients = new WeakSet<WebSocket>();
   private onClientCountChange?: (count: number) => void;
   private onRemoteCommand?: (cmd: RemoteCommandMessage) => void;
   private onWhitelistChange?: (devices: WhitelistedDevice[]) => void;
@@ -472,6 +481,14 @@ export class LocalRemoteServer {
       if (this.currentState) {
         ws.send(JSON.stringify({ type: 'LIVE_STATE', payload: this.currentState }));
       }
+      if (this.syncBundleVersion > 0) {
+        ws.send(
+          JSON.stringify({
+            type: 'SYNC_BUNDLE_AVAILABLE',
+            version: this.syncBundleVersion
+          })
+        );
+      }
       ws.send(
         JSON.stringify({
           type: 'AUTH_RESULT',
@@ -501,7 +518,13 @@ export class LocalRemoteServer {
             toId?: string;
             sdp?: unknown;
             candidate?: unknown;
+            supportsShowCue?: boolean;
           };
+
+          if (parsed.type === 'CLIENT_CAPS' && parsed.supportsShowCue) {
+            this.showCueClients.add(ws);
+            return;
+          }
 
           if (parsed.type === 'RTC_SUBSCRIBE' && typeof parsed.viewerId === 'string' && typeof parsed.participantId === 'string') {
             this.viewerSockets.set(parsed.viewerId, ws);
@@ -703,6 +726,22 @@ export class LocalRemoteServer {
       return;
     }
 
+    if (reqUrl.pathname === '/api/sync-bundle') {
+      if (!this.currentSyncBundle) {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
+      const body = JSON.stringify(this.currentSyncBundle);
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        'Access-Control-Allow-Origin': '*'
+      });
+      res.end(body);
+      return;
+    }
+
     if (reqUrl.pathname.startsWith('/media/')) {
       const safeFile = path.basename(reqUrl.pathname.slice('/media/'.length));
       const mediaPath = path.join(this.mediaDir, safeFile);
@@ -847,6 +886,97 @@ export class LocalRemoteServer {
    * Strips desktop-only audio fields and rewrites local media URLs to the LAN IP
    * before broadcasting an item over WebSocket.
    */
+  private collectVisualMediaFiles(items: Array<ProgramItem | null>): SyncBundleMediaFile[] {
+    const seen = new Set<string>();
+    const files: SyncBundleMediaFile[] = [];
+
+    const addUrl = (raw?: string) => {
+      if (!raw) return;
+      const mediaRegex = /\/media\/([^/?#"')]+)/g;
+      let match: RegExpExecArray | null;
+      while ((match = mediaRegex.exec(raw)) !== null) {
+        const fileName = path.basename(decodeURIComponent(match[1]));
+        if (!fileName || seen.has(fileName)) continue;
+        const ext = path.extname(fileName).toLowerCase();
+        if (!IMAGE_MEDIA_EXTENSIONS.has(ext) && !MODEL_MEDIA_EXTENSIONS.has(ext)) continue;
+        const mediaPath = path.join(this.mediaDir, fileName);
+        if (!fs.existsSync(mediaPath)) continue;
+        try {
+          const stat = fs.statSync(mediaPath);
+          if (stat.isDirectory()) continue;
+          seen.add(fileName);
+          files.push({
+            fileName,
+            url: `http://${getLocalIPv4()}:${this.port}/media/${encodeURIComponent(fileName)}`,
+            size: stat.size,
+            mtimeMs: Math.round(stat.mtimeMs)
+          });
+        } catch {
+          // Ignore unreadable file
+        }
+      }
+    };
+
+    for (const item of items) {
+      if (!item) continue;
+      addUrl(item.themeBackground);
+      addUrl(item.verseStackedThemeBackground);
+      for (const block of item.blocks) {
+        addUrl(block.background);
+        for (const el of block.canvasElements ?? []) {
+          addUrl(el.imageSrc);
+          addUrl(el.modelSrc);
+        }
+      }
+    }
+
+    return files;
+  }
+
+  public updateProgramSyncBundle(bundle: {
+    programId: string;
+    programName: string;
+    items: ProgramItem[];
+    logoSlide: ProgramItem | null;
+  }) {
+    const externalizedItems = bundle.items
+      .map((item) => this.externalizeMediaInItem(item))
+      .filter((item): item is ProgramItem => Boolean(item));
+    const externalizedLogo = this.externalizeMediaInItem(bundle.logoSlide ?? null) ?? null;
+    const mediaFiles = this.collectVisualMediaFiles([...externalizedItems, externalizedLogo]);
+
+    const key = JSON.stringify({
+      programId: bundle.programId,
+      programName: bundle.programName,
+      items: externalizedItems,
+      logoSlide: externalizedLogo,
+      mediaFiles: mediaFiles.map((f) => [f.fileName, f.size, f.mtimeMs])
+    });
+    if (key === this.lastSyncBundleKey) return;
+
+    this.lastSyncBundleKey = key;
+    this.syncBundleVersion += 1;
+    this.syncBundleItemIds = new Set(externalizedItems.map((i) => i.id));
+    this.currentSyncBundle = {
+      version: this.syncBundleVersion,
+      programId: bundle.programId,
+      programName: bundle.programName,
+      items: externalizedItems,
+      logoSlide: externalizedLogo,
+      mediaFiles
+    };
+
+    const notice = JSON.stringify({
+      type: 'SYNC_BUNDLE_AVAILABLE',
+      version: this.syncBundleVersion
+    });
+    for (const client of this.getAllWsClients()) {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(notice);
+      }
+    }
+  }
+
   private externalizeMediaInItem(item: LiveState['activeItem']): LiveState['activeItem'] {
     if (!item) return item;
     return {
@@ -959,10 +1089,47 @@ export class LocalRemoteServer {
     this.lastActiveBlockIndex = state.activeBlockIndex;
     this.lastBroadcastAtMs = now;
 
-    const msg = JSON.stringify({ type: 'LIVE_STATE', payload: slimState });
+    const nonCueKey = JSON.stringify({
+      syncBundleVersion: this.syncBundleVersion,
+      programId: slimState.programId,
+      programName: slimState.programName,
+      programItems: slimState.programItems,
+      logoSlide: slimState.logoSlide,
+      participants: slimState.participants,
+      participantList: slimState.participantList,
+      overflow: slimState.overflow,
+      returnAudioActive: slimState.returnAudioActive,
+      returnAudioMuted: slimState.returnAudioMuted
+    });
+    const canUseShowCue =
+      this.syncBundleVersion > 0 &&
+      nonCueKey === this.lastNonCueKey &&
+      (!slimState.activeItem || this.syncBundleItemIds.has(slimState.activeItem.id));
+    this.lastNonCueKey = nonCueKey;
+
+    const fullMsg = JSON.stringify({ type: 'LIVE_STATE', payload: slimState });
+    const showCueMsg = canUseShowCue
+      ? JSON.stringify({
+          type: 'SHOW_CUE',
+          version: this.syncBundleVersion,
+          activeItemId: slimState.activeItemId,
+          activeBlockIndex: slimState.activeBlockIndex,
+          override: slimState.override,
+          lyricsMode: slimState.lyricsMode,
+          bibleLayout: slimState.bibleLayout,
+          verseMaxFontSize: slimState.verseMaxFontSize,
+          nextItemTitle: slimState.nextItemTitle,
+          updatedAt: slimState.updatedAt
+        })
+      : null;
+
     for (const client of this.getAllWsClients()) {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(msg);
+        if (showCueMsg && this.showCueClients.has(client)) {
+          client.send(showCueMsg);
+        } else {
+          client.send(fullMsg);
+        }
       }
     }
   }

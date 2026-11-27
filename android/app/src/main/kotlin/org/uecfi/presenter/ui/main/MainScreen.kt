@@ -8,6 +8,7 @@ import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -122,6 +123,7 @@ import androidx.navigation3.runtime.NavKey
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.uecfi.presenter.R
+import org.uecfi.presenter.data.CacheStats
 import org.uecfi.presenter.model.LiveState
 import org.uecfi.presenter.model.ProgramItemSummary
 import org.uecfi.presenter.model.SlideBlock
@@ -157,6 +159,7 @@ fun MainScreen(
   val isDiscovering by viewModel.isDiscovering.collectAsStateWithLifecycle()
   val authRequired by viewModel.authRequired.collectAsStateWithLifecycle()
   val authError by viewModel.authError.collectAsStateWithLifecycle()
+  val cacheStats by viewModel.cacheStats.collectAsStateWithLifecycle()
 
   val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
   val scope = rememberCoroutineScope()
@@ -220,6 +223,7 @@ fun MainScreen(
             statusMessage = statusMessage,
             serverInput = serverInput,
             isDiscovering = isDiscovering,
+            openCachedMedia = viewModel::openCachedMedia,
             onOpenSettings = { showSettingsModal = true },
           )
 
@@ -435,6 +439,9 @@ fun MainScreen(
       onToggleBlackout = viewModel::toggleBlackout,
       onToggleLogo = viewModel::toggleLogo,
       onClearOverride = viewModel::clearOverride,
+      cacheStats = cacheStats,
+      onResyncCache = viewModel::resyncCache,
+      onClearCache = viewModel::clearCache,
       onDismiss = { showSettingsModal = false },
     )
   }
@@ -699,6 +706,9 @@ private fun SettingsModalDialog(
   onToggleBlackout: () -> Unit,
   onToggleLogo: () -> Unit,
   onClearOverride: () -> Unit,
+  cacheStats: CacheStats,
+  onResyncCache: () -> Unit,
+  onClearCache: () -> Unit,
   onDismiss: () -> Unit,
 ) {
   val keyboardController = LocalSoftwareKeyboardController.current
@@ -955,6 +965,67 @@ private fun SettingsModalDialog(
               Icon(Icons.Rounded.ClearAll, contentDescription = null, modifier = Modifier.size(18.dp))
               Spacer(modifier = Modifier.width(6.dp))
               Text("Restore Live Screen", fontWeight = FontWeight.SemiBold)
+            }
+          }
+        }
+
+        HorizontalDivider(color = BorderSubtle.copy(alpha = 0.6f))
+
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+          ) {
+            Column(modifier = Modifier.weight(1f)) {
+              Text(
+                text = "OFFLINE CACHE",
+                style = MaterialTheme.typography.labelSmall,
+                color = AccentSky,
+                fontWeight = FontWeight.Bold,
+              )
+              val formattedSize = when {
+                cacheStats.totalBytes >= 1024L * 1024L ->
+                  String.format("%.1f MB", cacheStats.totalBytes / (1024.0 * 1024.0))
+                cacheStats.totalBytes >= 1024L ->
+                  String.format("%.0f KB", cacheStats.totalBytes / 1024.0)
+                else -> "${cacheStats.totalBytes} B"
+              }
+              val summaryText = when {
+                cacheStats.isSyncing -> "Syncing program & visual media..."
+                cacheStats.version > 0 -> {
+                  val progLabel = cacheStats.programName.ifBlank { "Program" }
+                  "$progLabel (v${cacheStats.version}) • ${cacheStats.itemCount} items • ${cacheStats.mediaFileCount} media • $formattedSize"
+                }
+                else -> "Not synced yet"
+              }
+              Text(
+                text = summaryText,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (cacheStats.isSyncing) AccentSky else TextMuted,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+              )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+              if (isConnected) {
+                OutlinedButton(
+                  onClick = onResyncCache,
+                  enabled = !cacheStats.isSyncing,
+                  contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                  border = BorderStroke(1.dp, BorderSubtle),
+                ) {
+                  Text("Sync", style = MaterialTheme.typography.labelSmall, color = AccentSky)
+                }
+              }
+              OutlinedButton(
+                onClick = onClearCache,
+                enabled = cacheStats.totalBytes > 0L && !cacheStats.isSyncing,
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                border = BorderStroke(1.dp, BorderSubtle),
+              ) {
+                Text("Clear", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+              }
             }
           }
         }
@@ -1221,6 +1292,7 @@ private fun ExactMainScreenWebView(
   liveStateJsonFlow: StateFlow<String?>,
   audioTimeSyncFlow: StateFlow<AudioTimeSync?>,
   connectionStatus: ConnectionStatus,
+  openCachedMedia: (String) -> WebResourceResponse?,
   modifier: Modifier = Modifier,
 ) {
   // Collecting liveStateJson and audioTimeSync inside ExactMainScreenWebView scopes
@@ -1287,6 +1359,14 @@ private fun ExactMainScreenWebView(
           )
           webChromeClient = WebChromeClient()
           webViewClient = object : WebViewClient() {
+            override fun shouldInterceptRequest(
+              view: WebView?,
+              request: WebResourceRequest?,
+            ): WebResourceResponse? {
+              val reqUrl = request?.url?.toString() ?: return null
+              return openCachedMedia(reqUrl) ?: super.shouldInterceptRequest(view, request)
+            }
+
             override fun shouldOverrideUrlLoading(
               view: WebView?,
               request: WebResourceRequest?,
@@ -1363,6 +1443,7 @@ private fun MainScreenMirrorContent(
   statusMessage: String?,
   serverInput: String,
   isDiscovering: Boolean,
+  openCachedMedia: (String) -> WebResourceResponse?,
   onOpenSettings: () -> Unit,
 ) {
   val isWaitingForPresentation =
@@ -1374,6 +1455,7 @@ private fun MainScreenMirrorContent(
       liveStateJsonFlow = liveStateJsonFlow,
       audioTimeSyncFlow = audioTimeSyncFlow,
       connectionStatus = connectionStatus,
+      openCachedMedia = openCachedMedia,
     )
     return
   }

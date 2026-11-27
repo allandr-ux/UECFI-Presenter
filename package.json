@@ -1,6 +1,6 @@
 {
   "name": "uecfi-presenter",
-  "version": "2.0.0",
+  "version": "2.1.4",
   "author": "UECFI",
   "description": "UECFI Presenter - Cross-platform Church Presenter with Main Screen, Stage View, Slide & Teleprompter Lyrics, Verses, Program Items, and Local/Online Remote Viewer",
   "main": "dist-electron/electron/main.js",

@@ -293,6 +293,22 @@ export interface LiveState {
   updatedAt: number;
 }
 
+export interface SyncBundleMediaFile {
+  fileName: string;
+  url: string;
+  size: number;
+  mtimeMs: number;
+}
+
+export interface SyncBundlePayload {
+  version: number;
+  programId: string;
+  programName: string;
+  items: ProgramItem[];
+  logoSlide: ProgramItem | null;
+  mediaFiles: SyncBundleMediaFile[];
+}
+
 export type ParticipantStatus = 'greenRoom' | 'live';
 
 export type ParticipantLayoutMode = 'full' | 'custom';
