@@ -86,3 +86,36 @@
 .countdown-flash {
   animation: countdown-pop 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
+
+/* Video-Call PiP Swap Mode (Click self-view PiP to swap main stage & self-view) */
+#videoContainer[data-swapped="true"] #selfPipCard {
+  inset: 0 !important;
+  top: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  z-index: 10 !important;
+}
+#videoContainer[data-swapped="true"] #selfPipCard > div:first-child {
+  height: 100% !important;
+  width: 100% !important;
+  aspect-ratio: auto !important;
+}
+#videoContainer[data-swapped="true"] #selfPipCard > div:last-child {
+  display: none !important;
+}
+#videoContainer[data-swapped="true"] #returnVideoWrapper {
+  inset: auto !important;
+  top: 0.75rem !important;
+  right: 0.75rem !important;
+  width: 10.5rem !important;
+  height: auto !important;
+  aspect-ratio: 16 / 9 !important;
+  border-radius: 0.75rem !important;
+  border: 2px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7) !important;
+  z-index: 20 !important;
+  overflow: hidden !important;
+}

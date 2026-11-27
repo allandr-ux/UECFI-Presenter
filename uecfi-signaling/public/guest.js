@@ -104,7 +104,9 @@ const el = {
   returnVideo: document.getElementById('returnVideo'),
   btnToggleReturnAudio: document.getElementById('btnToggleReturnAudio'),
   btnAlertOperator: document.getElementById('btnAlertOperator'),
-  btnAlertOperatorText: document.getElementById('btnAlertOperatorText')
+  btnAlertOperatorText: document.getElementById('btnAlertOperatorText'),
+  selfPipCard: document.getElementById('selfPipCard'),
+  selfPipBadge: document.getElementById('selfPipBadge')
 };
 
 // WebRTC ICE Servers (Public STUN servers, augmented with TURN via /api/ice-config if configured)
@@ -456,6 +458,20 @@ if (el.btnToggleDevices && el.roomDeviceBar) {
   el.btnToggleDevices.addEventListener('click', () => {
     populateDevicePickers();
     el.roomDeviceBar.classList.toggle('hidden');
+  });
+}
+if (el.selfPipCard && el.videoContainer) {
+  el.selfPipCard.addEventListener('click', () => {
+    if (el.videoContainer.getAttribute('data-swapped') !== 'true') {
+      el.videoContainer.setAttribute('data-swapped', 'true');
+    }
+  });
+}
+if (el.returnVideoWrapper && el.videoContainer) {
+  el.returnVideoWrapper.addEventListener('click', () => {
+    if (el.videoContainer.getAttribute('data-swapped') === 'true') {
+      el.videoContainer.setAttribute('data-swapped', 'false');
+    }
   });
 }
 if (el.btnShowIntercomMobile && el.intercomPanel) {
@@ -1114,6 +1130,14 @@ function setStageStatus(onStage, options = {}) {
     el.tallySubtitle.textContent = 'Your video and audio are broadcasting live to the centro!';
     el.tallyBadge.className = 'px-3 py-1 bg-rose-500 text-white font-black rounded-full text-xs uppercase tracking-wider shadow-lg animate-pulse';
     el.tallyBadge.textContent = 'LIVE';
+    if (el.selfPipBadge) {
+      el.selfPipBadge.textContent = 'LIVE';
+      el.selfPipBadge.className = 'text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-rose-600 text-white';
+    }
+    if (el.selfPipCard) {
+      el.selfPipCard.classList.add('border-rose-500');
+      el.selfPipCard.classList.remove('border-white/20');
+    }
     el.videoContainer.classList.add('border-rose-500', 'ring-4', 'ring-rose-500/40');
     el.videoContainer.classList.remove('border-slate-800');
     startLiveTimer();
@@ -1143,6 +1167,14 @@ function setStageStatus(onStage, options = {}) {
     el.tallySubtitle.textContent = 'The operator can see and talk with you. The congregation cannot see or hear you yet.';
     el.tallyBadge.className = 'px-3 py-1 bg-amber-400/20 text-amber-300 font-bold rounded-full text-xs uppercase tracking-wider border border-amber-400/30';
     el.tallyBadge.textContent = 'Standby';
+    if (el.selfPipBadge) {
+      el.selfPipBadge.textContent = 'Standby';
+      el.selfPipBadge.className = 'text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300';
+    }
+    if (el.selfPipCard) {
+      el.selfPipCard.classList.remove('border-rose-500');
+      el.selfPipCard.classList.add('border-white/20');
+    }
     el.videoContainer.classList.remove('border-rose-500', 'ring-4', 'ring-rose-500/40');
     el.videoContainer.classList.add('border-slate-800');
     stopLiveTimer();
