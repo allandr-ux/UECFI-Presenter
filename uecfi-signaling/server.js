@@ -370,15 +370,25 @@ wss.on('connection', (ws, req) => {
 
       case 'return-audio-override': {
         const room = ws.sessionMeta ? rooms.get(ws.sessionMeta.roomId) : null;
-        if (!room || ws.sessionMeta.role !== 'host') return;
-        const forceUnmute = Boolean(msg.forceUnmute);
-        const targets = msg.targetGuestId
-          ? [room.guests.get(msg.targetGuestId)].filter(Boolean)
-          : Array.from(room.guests.values());
-        for (const targetGuest of targets) {
-          safeSend(targetGuest.ws, {
-            type: 'return-audio-override',
-            forceUnmute
+        if (!room) return;
+        if (ws.sessionMeta.role === 'host') {
+          const forceUnmute = Boolean(msg.forceUnmute);
+          const mutedByHost = Boolean(msg.mutedByHost);
+          const targets = msg.targetGuestId
+            ? [room.guests.get(msg.targetGuestId)].filter(Boolean)
+            : Array.from(room.guests.values());
+          for (const targetGuest of targets) {
+            safeSend(targetGuest.ws, {
+              type: 'return-audio-override',
+              forceUnmute,
+              mutedByHost
+            });
+          }
+        } else if (ws.sessionMeta.role === 'guest' && room.host) {
+          safeSend(room.host.ws, {
+            type: 'guest-return-audio',
+            guestId: ws.sessionMeta.guestId,
+            muted: Boolean(msg.muted)
           });
         }
         break;

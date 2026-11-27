@@ -279,13 +279,14 @@ export const OperatorConsole: React.FC = () => {
         return {
           sendVideo: true,
           audioDeviceId: parsed.audioDeviceId || '',
-          autoMuteWhenLive: parsed.autoMuteWhenLive !== false
+          autoMuteWhenLive: parsed.autoMuteWhenLive !== false,
+          echoCancellation: parsed.echoCancellation !== false
         };
       }
     } catch {
       // Ignore malformed saved return feed config
     }
-    return { sendVideo: true, audioDeviceId: '', autoMuteWhenLive: true };
+    return { sendVideo: true, audioDeviceId: '', autoMuteWhenLive: true, echoCancellation: true };
   });
   const [returnAudioManualUnmute, setReturnAudioManualUnmute] = useState(false);
   const [returnAudioTrack, setReturnAudioTrack] = useState<MediaStreamTrack | null>(null);
@@ -1232,21 +1233,37 @@ export const OperatorConsole: React.FC = () => {
     }
   }, [participantStageConfig.liveParticipantIds.length]);
 
-  // When operator enables manual Return Audio unmute (Megaphone), override any
-  // local "Mute Room Audio" setting on connected online guests.
+  // Sync Return Audio mute/unmute state with connected online guests whenever
+  // operator toggles Megaphone, changes audio source, or a guest goes live/standby.
   useEffect(() => {
-    if (!returnAudioManualUnmute) return;
     const relayWs = relaySocketRef.current;
     const roomId = participantSettings.onlineSessionCode.trim().toLowerCase();
     if (!relayWs || relayWs.readyState !== WebSocket.OPEN || !roomId) return;
+    const isLive = participantStageConfig.liveParticipantIds.length > 0;
+    const mutedByHost =
+      !returnFeedConfig.audioDeviceId ||
+      (isLive && returnFeedConfig.autoMuteWhenLive && !returnAudioManualUnmute);
     relayWs.send(
       JSON.stringify({
         type: 'return-audio-override',
         roomId,
-        forceUnmute: true
+        forceUnmute: returnAudioManualUnmute,
+        mutedByHost
       })
     );
-  }, [returnAudioManualUnmute, participantSettings.onlineSessionCode]);
+  }, [
+    returnAudioManualUnmute,
+    returnFeedConfig.audioDeviceId,
+    returnFeedConfig.autoMuteWhenLive,
+    participantStageConfig.liveParticipantIds.length,
+    participants.length,
+    participantSettings.onlineSessionCode
+  ]);
+
+  const isSongActive = audioPlaying || (liveItem?.type === 'song' && override === 'none');
+  const shouldUseEchoCancellation = returnFeedConfig.echoCancellation !== false && !isSongActive;
+  const shouldUseEchoCancellationRef = useRef(shouldUseEchoCancellation);
+  shouldUseEchoCancellationRef.current = shouldUseEchoCancellation;
 
   // Capture configurable Room Return Audio when an audio source is selected and guests are connected
   useEffect(() => {
@@ -1258,10 +1275,10 @@ export const OperatorConsole: React.FC = () => {
     }
 
     let cancelled = false;
-    // Disable AEC/NS/AGC on Return Audio so mixer/soundboard loops pass the app's own song
-    // playback and live music cleanly without Electron's echo canceller stripping them out.
+    // Enable AEC by default to filter out remote speakers' audio, but automatically disable it
+    // while a song is playing/live so music and singing pass through without speech-AEC artifacts.
     const constraints: MediaTrackConstraints = {
-      echoCancellation: false,
+      echoCancellation: shouldUseEchoCancellationRef.current,
       noiseSuppression: false,
       autoGainControl: false,
       ...(returnFeedConfig.audioDeviceId !== 'default'
@@ -1297,6 +1314,51 @@ export const OperatorConsole: React.FC = () => {
       cancelled = true;
     };
   }, [returnFeedConfig.audioDeviceId, participants.length > 0]);
+
+  // Dynamically toggle echoCancellation on the active Return Audio track when a song starts/stops
+  // or the user flips the setting, without dropping the WebRTC track unless fallback is needed.
+  useEffect(() => {
+    if (!returnAudioTrack || !returnFeedConfig.audioDeviceId || participants.length === 0) return;
+    let cancelled = false;
+    const nextConstraints: MediaTrackConstraints = {
+      echoCancellation: shouldUseEchoCancellation,
+      noiseSuppression: false,
+      autoGainControl: false
+    };
+    returnAudioTrack
+      .applyConstraints(nextConstraints)
+      .then(() => {
+        if (cancelled) return;
+        const applied = returnAudioTrack.getSettings?.().echoCancellation;
+        if (typeof applied === 'boolean' && applied !== shouldUseEchoCancellation) {
+          throw new Error('echoCancellation constraint not applied in-place');
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        const recaptureConstraints: MediaTrackConstraints = {
+          ...nextConstraints,
+          ...(returnFeedConfig.audioDeviceId !== 'default'
+            ? { deviceId: { exact: returnFeedConfig.audioDeviceId } }
+            : {})
+        };
+        navigator.mediaDevices
+          ?.getUserMedia({ audio: recaptureConstraints, video: false })
+          .then((stream) => {
+            if (cancelled) {
+              stream.getTracks().forEach((t) => t.stop());
+              return;
+            }
+            returnAudioStreamRef.current?.getTracks().forEach((t) => t.stop());
+            returnAudioStreamRef.current = stream;
+            setReturnAudioTrack(stream.getAudioTracks()[0] ?? null);
+          })
+          .catch(() => {});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [shouldUseEchoCancellation, returnAudioTrack, returnFeedConfig.audioDeviceId, participants.length > 0]);
 
   // Capture Operator Whisper Microphone only while at least one participant has Whisper active
   useEffect(() => {
@@ -1469,6 +1531,7 @@ export const OperatorConsole: React.FC = () => {
               guestName?: string;
               centroOrPosition?: string;
               onStage?: boolean;
+              muted?: boolean;
               guests?: Array<{
                 guestId: string;
                 guestName: string;
@@ -1525,6 +1588,14 @@ export const OperatorConsole: React.FC = () => {
                       }
                     ]
               );
+              return;
+            }
+
+            if (msg.type === 'guest-return-audio') {
+              const cur = returnMediaStateRef.current;
+              if (cur.liveParticipantIds.length > 0 && cur.returnFeedConfig.autoMuteWhenLive) {
+                setReturnAudioManualUnmute(!msg.muted);
+              }
               return;
             }
 

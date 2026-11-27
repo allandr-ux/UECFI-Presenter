@@ -259,6 +259,7 @@ export interface RemoteReturnFeedConfig {
   sendVideo: boolean;
   audioDeviceId: string;
   autoMuteWhenLive: boolean;
+  echoCancellation?: boolean;
 }
 
 export interface OverflowStageConfig {

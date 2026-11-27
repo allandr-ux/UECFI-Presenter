@@ -153,7 +153,7 @@ export const RemoteParticipantsPanel: React.FC<RemoteParticipantsPanelProps> = (
   participantSettings
 }) => {
   const titleId = useId();
-  const [minimized, setMinimized] = useState(false);
+  const [minimized, setMinimized] = useState(true);
   const [editingParticipantId, setEditingParticipantId] = useState<string | null>(null);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteQrDataUrl, setInviteQrDataUrl] = useState('');

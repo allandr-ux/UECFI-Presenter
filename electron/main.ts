@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, powerSaveBlocker, protocol, safeStorage, screen, session, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, powerSaveBlocker, protocol, safeStorage, screen, session, shell, systemPreferences } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
@@ -751,6 +751,19 @@ app.whenReady().then(async () => {
     "base-uri 'self'",
     "frame-ancestors 'none'"
   ].join('; ');
+
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    if (permission === 'media' || permission === 'mediaKeySystem') {
+      callback(true);
+      return;
+    }
+    callback(false);
+  });
+
+  if (process.platform === 'darwin') {
+    systemPreferences.askForMediaAccess('camera').catch(() => {});
+    systemPreferences.askForMediaAccess('microphone').catch(() => {});
+  }
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     const isRendererDoc =

@@ -39,7 +39,8 @@ const state = {
   javascriptNode: null,
   returnVideoTrack: null,
   returnAudioTrack: null,
-  returnAudioMuted: false
+  returnAudioMuted: false,
+  returnAudioMutedByHost: false
 };
 
 // DOM Elements
@@ -511,12 +512,23 @@ if (el.btnAlertOperator) {
 // Local mute/unmute toggle for incoming Main Room / Operator return audio
 if (el.btnToggleReturnAudio) {
   el.btnToggleReturnAudio.addEventListener('click', () => {
-    state.returnAudioMuted = !state.returnAudioMuted;
+    const currentlyMuted = state.returnAudioMuted || state.returnAudioMutedByHost;
+    const nextMuted = !currentlyMuted;
+    state.returnAudioMuted = nextMuted;
+    if (!nextMuted) {
+      state.returnAudioMutedByHost = false;
+    }
     if (el.operatorAudio) {
-      el.operatorAudio.muted = state.returnAudioMuted;
-      if (!state.returnAudioMuted) {
+      el.operatorAudio.muted = nextMuted;
+      if (!nextMuted) {
         el.operatorAudio.play().catch(() => {});
       }
+    }
+    if (state.socket && state.socket.readyState === WebSocket.OPEN) {
+      state.socket.send(JSON.stringify({
+        type: 'return-audio-override',
+        muted: nextMuted
+      }));
     }
     updateReturnFeedUI();
   });
@@ -543,14 +555,15 @@ function updateReturnFeedUI() {
     el.returnVideoWrapper.classList.toggle('hidden', !hasActiveVideo);
   }
   if (el.returnFeedCard) {
-    el.returnFeedCard.classList.toggle('hidden', !hasActiveVideo && !hasActiveAudio);
+    el.returnFeedCard.classList.toggle('hidden', !hasActiveVideo && !hasActiveAudio && !state.returnAudioMutedByHost);
   }
   if (el.btnToggleReturnAudio) {
-    el.btnToggleReturnAudio.classList.toggle('hidden', !hasActiveAudio);
-    el.btnToggleReturnAudio.textContent = state.returnAudioMuted ? 'Room Audio Muted (Unmute)' : 'Mute Room Audio';
-    el.btnToggleReturnAudio.className = state.returnAudioMuted
-      ? 'px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-amber-900/60 hover:bg-amber-800/70 text-amber-200 border border-amber-500/40 transition cursor-pointer shrink-0'
-      : 'px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition cursor-pointer shrink-0';
+    const isMuted = state.returnAudioMuted || state.returnAudioMutedByHost || !hasActiveAudio;
+    el.btnToggleReturnAudio.classList.toggle('hidden', !hasActiveAudio && !hasActiveVideo && !state.returnAudioMutedByHost);
+    el.btnToggleReturnAudio.textContent = isMuted ? 'Room Audio: Muted' : 'Room Audio: ON';
+    el.btnToggleReturnAudio.className = isMuted
+      ? 'px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 transition cursor-pointer shrink-0'
+      : 'px-2 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 transition cursor-pointer shrink-0';
   }
 }
 
@@ -815,14 +828,19 @@ async function handleSignalingMessage(msg) {
       break;
 
     case 'return-audio-override':
+      state.returnAudioMutedByHost = Boolean(msg.mutedByHost);
       if (msg.forceUnmute) {
         state.returnAudioMuted = false;
-        if (el.operatorAudio) {
-          el.operatorAudio.muted = false;
+        state.returnAudioMutedByHost = false;
+      }
+      if (el.operatorAudio) {
+        const shouldMute = state.returnAudioMuted || state.returnAudioMutedByHost;
+        el.operatorAudio.muted = shouldMute;
+        if (!shouldMute) {
           el.operatorAudio.play().catch(() => {});
         }
-        updateReturnFeedUI();
       }
+      updateReturnFeedUI();
       break;
   }
 }

@@ -60,6 +60,12 @@
     "mac": {
       "icon": "build/icon-mac.png",
       "category": "public.app-category.utilities",
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "NSCameraUsageDescription": "UECFI Presenter needs access to your camera for Centro Cam and overflow feeds.",
+        "NSMicrophoneUsageDescription": "UECFI Presenter needs access to your microphone for return audio and backstage whisper."
+      },
       "target": [
         "dmg",
         "zip"

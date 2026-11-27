@@ -1,15 +1,15 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
-import QRCode from 'qrcode';
+import React, { useEffect, useId, useState } from 'react';
 import {
   Camera,
   Check,
   ChevronDown,
+  Copy,
   Globe,
   Headphones,
   HelpCircle,
+  Link,
   Monitor,
   Plus,
-  QrCode,
   Radio,
   RefreshCw,
   Settings,
@@ -62,7 +62,7 @@ interface DisplaySetupModalProps {
   onUpdateOverflowAngles?: (angles: OverflowCameraAngle[]) => void;
 }
 
-type SettingsTab = 'displays' | 'remote' | 'videoFeeds';
+type SettingsTab = 'general' | 'videoFeeds';
 
 export const DisplaySetupModal: React.FC<DisplaySetupModalProps> = ({
   open,
@@ -77,7 +77,12 @@ export const DisplaySetupModal: React.FC<DisplaySetupModalProps> = ({
   onRegenerateRemotePin,
   hasLiveParticipants = false,
   returnAudioDevices = [],
-  returnFeedConfig = { sendVideo: true, audioDeviceId: '', autoMuteWhenLive: true },
+  returnFeedConfig = {
+    sendVideo: true,
+    audioDeviceId: '',
+    autoMuteWhenLive: true,
+    echoCancellation: true
+  },
   returnAudioManualUnmute = false,
   onToggleReturnAudioManualUnmute,
   onUpdateReturnFeedConfig,
@@ -95,9 +100,9 @@ export const DisplaySetupModal: React.FC<DisplaySetupModalProps> = ({
 }) => {
   const t = useTerminology();
   const titleId = useId();
-  const [activeTab, setActiveTab] = useState<SettingsTab>('displays');
+  const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const [activeReturnFeedHelp, setActiveReturnFeedHelp] = useState<string | null>(null);
-  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [obsUrlCopied, setObsUrlCopied] = useState(false);
   const [whitelistedDevices, setWhitelistedDevices] = useState<WhitelistedDevice[]>([]);
   const [assignedOverflowDisplayId, setAssignedOverflowDisplayId] = useState<number | null>(null);
   const [relayDraft, setRelayDraft] = useState<ParticipantNetworkSettings>(() => ({
@@ -128,17 +133,6 @@ export const DisplaySetupModal: React.FC<DisplaySetupModalProps> = ({
     });
     return () => unsub();
   }, [open]);
-
-  useEffect(() => {
-    if (!remoteInfo?.localUrl) return;
-    QRCode.toDataURL(remoteInfo.localUrl, {
-      width: 180,
-      margin: 1,
-      color: { dark: '#0f172a', light: '#f8fafc' }
-    })
-      .then(setQrDataUrl)
-      .catch(() => setQrDataUrl(''));
-  }, [remoteInfo?.localUrl]);
 
   const tabBtnCls = (active: boolean) =>
     cn(
@@ -184,22 +178,12 @@ export const DisplaySetupModal: React.FC<DisplaySetupModalProps> = ({
           <button
             type="button"
             role="tab"
-            aria-selected={activeTab === 'displays'}
-            onClick={() => setActiveTab('displays')}
-            className={tabBtnCls(activeTab === 'displays')}
+            aria-selected={activeTab === 'general'}
+            onClick={() => setActiveTab('general')}
+            className={tabBtnCls(activeTab === 'general')}
           >
             <Monitor size={14} />
-            <span>Displays</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'remote'}
-            onClick={() => setActiveTab('remote')}
-            className={tabBtnCls(activeTab === 'remote')}
-          >
-            <QrCode size={14} />
-            <span>Local Wi-Fi Remote</span>
+            <span>General</span>
             {(remoteInfo?.connectedClients ?? 0) > 0 && (
               <span className="rounded-full bg-blue-700 px-1.5 py-px text-[0.7rem] font-bold text-white">
                 {remoteInfo?.connectedClients}
@@ -220,192 +204,253 @@ export const DisplaySetupModal: React.FC<DisplaySetupModalProps> = ({
 
         {/* Tab Body */}
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-[22px] py-5">
-          {activeTab === 'displays' && (
-            <section className="flex flex-col gap-3.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[0.84rem] text-text-secondary">
-                  Assign physical monitors for your {t.screens.mainScreen} and Overflow Room output.
-                </span>
-                <button
-                  type="button"
-                  onClick={onRefreshDisplays}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-subtle bg-panel-elevated px-2.5 py-[5px] text-[0.78rem] font-semibold transition-colors hover:bg-hover"
-                >
-                  <RefreshCw size={13} />
-                  Refresh
-                </button>
-              </div>
-
-              {displays.length === 0 ? (
-                <div className="rounded-[10px] bg-panel-elevated p-3.5 text-[0.85rem] text-text-secondary">
-                  Running in browser preview mode. Launch the desktop app to assign physical displays.
+          {activeTab === 'general' && (
+            <div className="flex flex-col gap-4">
+              {/* Section 1: Display Output */}
+              <section className="flex flex-col gap-3.5 rounded-xl border border-subtle bg-panel-elevated p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2 border-b border-subtle pb-3">
+                  <div className="flex items-start gap-2.5">
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/15 text-blue-400">
+                      <Monitor size={16} />
+                    </div>
+                    <div>
+                      <h3 className="m-0 text-[0.9rem] font-bold text-text-primary">
+                        Display Output
+                      </h3>
+                      <p className="m-0 mt-0.5 text-[0.76rem] text-text-secondary">
+                        Assign physical monitors for your {t.screens.mainScreen} and Overflow Room output.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onRefreshDisplays}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-subtle bg-app px-2.5 py-1.5 text-[0.76rem] font-semibold transition-colors hover:bg-hover"
+                  >
+                    <RefreshCw size={13} />
+                    Refresh
+                  </button>
                 </div>
-              ) : (
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2.5">
-                  {displays.map((d) => {
-                    const isOverflow = assignedOverflowDisplayId === d.id;
-                    return (
-                      <div
-                        key={d.id}
-                        className={cn(
-                          'flex flex-col gap-2 rounded-[10px] border p-3',
-                          d.isMainScreen
-                            ? 'border-accent bg-blue-500/12'
-                            : isOverflow
-                              ? 'border-violet-500 bg-violet-500/12'
-                              : 'border-subtle bg-panel-elevated'
-                        )}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 text-[0.88rem] font-semibold">
-                            <Monitor size={15} />
-                            <span>{d.label}</span>
-                          </div>
-                          {d.isMainScreen && (
-                            <span className="text-[0.7rem] font-bold text-blue-400">
-                              Main
-                            </span>
+
+                {displays.length === 0 ? (
+                  <div className="rounded-[10px] border border-subtle bg-app/45 p-3.5 text-[0.84rem] text-text-secondary">
+                    Running in browser preview mode. Launch the desktop app to assign physical displays.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2.5">
+                    {displays.map((d) => {
+                      const isOverflow = assignedOverflowDisplayId === d.id;
+                      return (
+                        <div
+                          key={d.id}
+                          className={cn(
+                            'flex flex-col gap-2 rounded-[10px] border p-3',
+                            d.isMainScreen
+                              ? 'border-accent bg-blue-500/12'
+                              : isOverflow
+                                ? 'border-violet-500 bg-violet-500/12'
+                                : 'border-subtle bg-app/45'
                           )}
-                          {!d.isMainScreen && isOverflow && (
-                            <span className="text-[0.7rem] font-bold text-purple-400">
-                              Overflow
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[0.76rem] text-text-secondary">
-                          {d.bounds.width} × {d.bounds.height} {d.isPrimary ? '• Primary' : '• Secondary'}
-                        </div>
-                        <div className="mt-0.5 flex gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => onSelectMainDisplay(d.id)}
-                            className={cn(
-                              'flex-1 rounded-[7px] border px-2 py-[5px] text-[0.74rem] font-semibold transition-colors',
-                              d.isMainScreen
-                                ? 'border-accent bg-accent text-white'
-                                : 'border-subtle bg-app text-text-secondary hover:bg-hover'
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 text-[0.88rem] font-semibold">
+                              <Monitor size={15} />
+                              <span>{d.label}</span>
+                            </div>
+                            {d.isMainScreen && (
+                              <span className="text-[0.7rem] font-bold text-blue-400">
+                                Main
+                              </span>
                             )}
-                          >
-                            Set Main
-                          </button>
-                          {onSelectOverflowDisplay && (
+                            {!d.isMainScreen && isOverflow && (
+                              <span className="text-[0.7rem] font-bold text-purple-400">
+                                Overflow
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[0.76rem] text-text-secondary">
+                            {d.bounds.width} × {d.bounds.height} {d.isPrimary ? '• Primary' : '• Secondary'}
+                          </div>
+                          <div className="mt-0.5 flex gap-1.5">
                             <button
                               type="button"
-                              onClick={() => {
-                                setAssignedOverflowDisplayId(d.id);
-                                onSelectOverflowDisplay(d.id);
-                              }}
+                              onClick={() => onSelectMainDisplay(d.id)}
                               className={cn(
                                 'flex-1 rounded-[7px] border px-2 py-[5px] text-[0.74rem] font-semibold transition-colors',
-                                isOverflow
-                                  ? 'border-violet-500 bg-violet-600 text-white'
+                                d.isMainScreen
+                                  ? 'border-accent bg-accent text-white'
                                   : 'border-subtle bg-app text-text-secondary hover:bg-hover'
                               )}
                             >
-                              Set Overflow
+                              Set Main
                             </button>
-                          )}
+                            {onSelectOverflowDisplay && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAssignedOverflowDisplayId(d.id);
+                                  onSelectOverflowDisplay(d.id);
+                                }}
+                                className={cn(
+                                  'flex-1 rounded-[7px] border px-2 py-[5px] text-[0.74rem] font-semibold transition-colors',
+                                  isOverflow
+                                    ? 'border-violet-500 bg-violet-600 text-white'
+                                    : 'border-subtle bg-app text-text-secondary hover:bg-hover'
+                                )}
+                              >
+                                Set Overflow
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-          )}
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
 
-          {activeTab === 'remote' && (
-            <div className="flex flex-col gap-4">
-              <section className="flex flex-wrap items-center gap-[18px]">
-                {qrDataUrl && (
-                  <div className="inline-flex rounded-[10px] bg-slate-50 p-2">
-                    <img src={qrDataUrl} alt="Local Network Remote Viewer QR Code" width={136} height={136} />
+              {/* Section 2: OBS Setup */}
+              <section className="flex flex-col gap-3 rounded-xl border border-subtle bg-panel-elevated p-4">
+                <div className="flex items-start gap-2.5 border-b border-subtle pb-3">
+                  <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-violet-400">
+                    <Link size={16} />
+                  </div>
+                  <div>
+                    <h3 className="m-0 text-[0.9rem] font-bold text-text-primary">
+                      OBS Setup
+                    </h3>
+                    <p className="m-0 mt-0.5 text-[0.76rem] text-text-secondary">
+                      Add this URL as a Browser Source in OBS Studio for live streaming or recording.
+                    </p>
+                  </div>
+                </div>
+
+                {remoteInfo?.serverError && (
+                  <div className="rounded-lg border border-red-500/40 bg-red-600/16 px-2.5 py-2 text-[0.8rem] text-red-300">
+                    LAN Remote Server error: {remoteInfo.serverError}
                   </div>
                 )}
 
-                <div className="flex min-w-[220px] flex-1 flex-col gap-2">
-                  {remoteInfo?.serverError && (
-                    <div className="rounded-lg border border-red-500/40 bg-red-600/16 px-2.5 py-2 text-[0.8rem] text-red-300">
-                      LAN Remote Server error: {remoteInfo.serverError}
-                    </div>
-                  )}
-                  <div className="text-[0.82rem] text-text-secondary">
-                    Open in any web browser on the same Wi-Fi (view-only Overflow screen):
-                  </div>
-                  <code className="block break-all rounded-lg border border-subtle bg-app px-2.5 py-2 text-[0.8rem] text-blue-300">
-                    {remoteInfo?.localUrl ?? 'http://localhost:4850/'}
-                  </code>
-                  <div className="flex flex-wrap items-center gap-4 text-[0.78rem] text-text-muted">
-                    <span>
-                      {t.remote.connectedDevices}: <strong>{remoteInfo?.connectedClients ?? 0}</strong>
-                    </span>
-                    {remoteInfo?.localPin && (
-                      <span className="inline-flex items-center gap-1.5">
-                        Remote Control PIN:{' '}
-                        <strong className="font-mono text-[0.88rem] tracking-[0.08em] text-amber-400">
-                          {remoteInfo.localPin}
-                        </strong>
-                        {onRegenerateRemotePin && (
-                          <button
-                            type="button"
-                            onClick={onRegenerateRemotePin}
-                            title="Generate a new permanent Remote Control PIN"
-                            className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-subtle bg-app px-[7px] py-[3px] text-[0.72rem] font-semibold text-text-secondary transition-colors hover:bg-hover"
-                          >
-                            <RefreshCw size={11} />
-                            New PIN
-                          </button>
-                        )}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[0.74rem] text-text-muted">
-                    Remotes can&apos;t connect? Make sure both devices are on the same Wi-Fi and UECFI Presenter is allowed through Windows Firewall (Private &amp; Public networks).
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[0.74rem] font-semibold text-text-secondary">
+                    OBS Browser Source URL
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <code className="min-w-0 flex-1 break-all rounded-lg border border-subtle bg-app px-2.5 py-2 text-[0.8rem] text-blue-300">
+                      {remoteInfo?.localUrl ?? 'http://localhost:4850/'}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const url = remoteInfo?.localUrl ?? 'http://localhost:4850/';
+                        navigator.clipboard?.writeText(url).catch(() => {});
+                        setObsUrlCopied(true);
+                        setTimeout(() => setObsUrlCopied(false), 2000);
+                      }}
+                      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-subtle bg-app px-3 py-2 text-[0.76rem] font-semibold text-text-primary transition-colors hover:bg-hover"
+                    >
+                      {obsUrlCopied ? (
+                        <>
+                          <Check size={13} className="text-emerald-400" /> Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={13} /> Copy
+                        </>
+                      )}
+                    </button>
                   </div>
                 </div>
               </section>
 
-              {window.presenterAPI && (
-                <section className="flex flex-col gap-2 border-t border-subtle pt-3.5">
-                  <div className="flex items-center gap-[7px] text-[0.88rem] font-bold">
-                    <ShieldCheck size={15} />
-                    <span>Whitelisted Devices ({whitelistedDevices.length})</span>
+              {/* Section 3: Remote Devices */}
+              <section className="flex flex-col gap-3 rounded-xl border border-subtle bg-panel-elevated p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2 border-b border-subtle pb-3">
+                  <div className="flex items-start gap-2.5">
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400">
+                      <ShieldCheck size={16} />
+                    </div>
+                    <div>
+                      <h3 className="m-0 text-[0.9rem] font-bold text-text-primary">
+                        Remote Devices
+                      </h3>
+                      <p className="m-0 mt-0.5 text-[0.76rem] text-text-secondary">
+                        Manage companion tablets, Remote Control PIN, and paired device access.
+                      </p>
+                    </div>
                   </div>
-                  {whitelistedDevices.length === 0 ? (
-                    <div className="text-[0.78rem] text-text-muted">
-                      No paired devices yet. Devices that unlock with the PIN are remembered automatically until revoked.
+                  <span className="rounded-full bg-app px-2.5 py-0.5 text-[0.72rem] font-semibold text-text-secondary border border-subtle">
+                    {t.remote.connectedDevices}: <strong>{remoteInfo?.connectedClients ?? 0}</strong>
+                  </span>
+                </div>
+
+                {remoteInfo?.localPin && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-subtle bg-app/45 px-3 py-2.5 text-[0.78rem]">
+                    <span className="inline-flex items-center gap-2 text-text-secondary">
+                      Remote Control PIN:
+                      <strong className="font-mono text-[0.92rem] tracking-[0.08em] text-amber-400">
+                        {remoteInfo.localPin}
+                      </strong>
+                    </span>
+                    {onRegenerateRemotePin && (
+                      <button
+                        type="button"
+                        onClick={onRegenerateRemotePin}
+                        title="Generate a new permanent Remote Control PIN"
+                        className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-subtle bg-app px-2.5 py-1 text-[0.74rem] font-semibold text-text-secondary transition-colors hover:bg-hover"
+                      >
+                        <RefreshCw size={12} />
+                        New PIN
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                <div className="text-[0.74rem] text-text-muted">
+                  Remotes can&apos;t connect? Make sure both devices are on the same Wi-Fi and UECFI Presenter is allowed through Windows Firewall (Private &amp; Public networks).
+                </div>
+
+                {window.presenterAPI && (
+                  <div className="flex flex-col gap-2 border-t border-subtle pt-3">
+                    <div className="flex items-center gap-[7px] text-[0.82rem] font-bold text-text-primary">
+                      <span>Whitelisted Devices ({whitelistedDevices.length})</span>
                     </div>
-                  ) : (
-                    <div className="flex flex-col gap-1.5">
-                      {whitelistedDevices.map((device) => (
-                        <div
-                          key={device.id}
-                          className="flex items-center justify-between gap-2.5 rounded-lg border border-subtle bg-panel-elevated px-2.5 py-2"
-                        >
-                          <div className="min-w-0">
-                            <div className="text-[0.82rem] font-semibold text-text-primary">
-                              {device.name}
-                            </div>
-                            <div className="text-[0.72rem] text-text-muted">
-                              Last seen: {new Date(device.lastSeenAt).toLocaleString()}
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              window.presenterAPI?.revokeWhitelistedDevice(device.id).then(setWhitelistedDevices);
-                            }}
-                            className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-red-500/40 bg-red-600/14 px-[9px] py-[5px] text-[0.75rem] font-semibold text-red-300 transition-colors hover:bg-red-600/24"
+                    {whitelistedDevices.length === 0 ? (
+                      <div className="text-[0.78rem] text-text-muted">
+                        No paired devices yet. Devices that unlock with the PIN are remembered automatically until revoked.
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-1.5">
+                        {whitelistedDevices.map((device) => (
+                          <div
+                            key={device.id}
+                            className="flex items-center justify-between gap-2.5 rounded-lg border border-subtle bg-app/45 px-2.5 py-2"
                           >
-                            <Trash2 size={12} />
-                            Revoke
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </section>
-              )}
+                            <div className="min-w-0">
+                              <div className="text-[0.82rem] font-semibold text-text-primary">
+                                {device.name}
+                              </div>
+                              <div className="text-[0.72rem] text-text-muted">
+                                Last seen: {new Date(device.lastSeenAt).toLocaleString()}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                window.presenterAPI?.revokeWhitelistedDevice(device.id).then(setWhitelistedDevices);
+                              }}
+                              className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-red-500/40 bg-red-600/14 px-[9px] py-[5px] text-[0.75rem] font-semibold text-red-300 transition-colors hover:bg-red-600/24"
+                            >
+                              <Trash2 size={12} />
+                              Revoke
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
             </div>
           )}
 
@@ -670,6 +715,45 @@ export const DisplaySetupModal: React.FC<DisplaySetupModalProps> = ({
                             </span>
                             {renderHelpBtn('autoMute')}
                           </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={returnFeedConfig.echoCancellation !== false}
+                            aria-label="Echo Cancellation (auto-off during songs)"
+                            onClick={() =>
+                              onUpdateReturnFeedConfig({
+                                echoCancellation: returnFeedConfig.echoCancellation === false
+                              })
+                            }
+                            className={cn(
+                              'relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-0 p-0.5 transition-colors duration-200',
+                              returnFeedConfig.echoCancellation !== false
+                                ? 'bg-green-600'
+                                : 'bg-slate-500/75'
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                'pointer-events-none inline-block h-4 w-4 rounded-full bg-white transition-transform duration-200',
+                                returnFeedConfig.echoCancellation !== false
+                                  ? 'translate-x-4'
+                                  : 'translate-x-0'
+                              )}
+                            />
+                          </button>
+                          <span
+                            onClick={() =>
+                              onUpdateReturnFeedConfig({
+                                echoCancellation: returnFeedConfig.echoCancellation === false
+                              })
+                            }
+                            className="cursor-pointer text-[0.76rem] text-text-secondary"
+                          >
+                            Echo Cancellation (auto-off during songs)
+                          </span>
                         </div>
 
                         <div className="flex flex-wrap items-end gap-3">
