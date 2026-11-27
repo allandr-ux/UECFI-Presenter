@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type {
   DisplayInfo,
   LiveState,
+  OperatorChatMessage,
   ParticipantSignalMessage,
   ProgramItem,
   RemoteCommandMessage,
@@ -30,6 +31,13 @@ contextBridge.exposeInMainWorld('presenterAPI', {
     logoSlide: ProgramItem | null;
   }): void => {
     ipcRenderer.send('programSync:update', bundle);
+  },
+  updateBibleSyncBundle: (bundle: {
+    primaryBible: import('../shared/types').BibleVersion | null;
+    secondaryBible: import('../shared/types').BibleVersion | null;
+    verseStyle?: Partial<ProgramItem>;
+  }): void => {
+    ipcRenderer.send('bibleSync:update', bundle);
   },
   updateAudioTime: (payload: { timeSec?: number; activeBlockIndex: number }): void => {
     ipcRenderer.send('liveState:audioTime', payload);
@@ -94,5 +102,16 @@ contextBridge.exposeInMainWorld('presenterAPI', {
       callback(msg);
     ipcRenderer.on('participants:signal', handler);
     return () => ipcRenderer.removeListener('participants:signal', handler);
+  },
+  getChatHistory: (): Promise<OperatorChatMessage[]> =>
+    ipcRenderer.invoke('chat:getHistory'),
+  sendChatMessage: (text: string): void => {
+    ipcRenderer.send('chat:send', text);
+  },
+  onChatMessage: (callback: (msg: OperatorChatMessage) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, msg: OperatorChatMessage) =>
+      callback(msg);
+    ipcRenderer.on('remote:chatMessage', handler);
+    return () => ipcRenderer.removeListener('remote:chatMessage', handler);
   }
 });

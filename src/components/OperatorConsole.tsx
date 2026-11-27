@@ -25,6 +25,7 @@ import {
   Link2,
   ListMusic,
   Maximize2,
+  MessageSquare,
   Mic,
   MicOff,
   Monitor,
@@ -39,6 +40,7 @@ import {
   Radio,
   RotateCcw,
   Search,
+  Send,
   Settings,
   Settings2,
   Sliders,
@@ -59,6 +61,7 @@ import type {
   ContentType,
   DisplayInfo,
   LiveState,
+  OperatorChatMessage,
   LyricsDisplayMode,
   OutputOverride,
   OverflowCameraAngle,
@@ -470,6 +473,47 @@ export const OperatorConsole: React.FC = () => {
   const [audioDuration, setAudioDuration] = useState(0);
   const [audioVolume, setAudioVolume] = useState(1);
   const [syncModalOpen, setSyncModalOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMinimized, setChatMinimized] = useState(false);
+  const [chatMessages, setChatMessages] = useState<OperatorChatMessage[]>([]);
+  const [chatDraft, setChatDraft] = useState('');
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const chatVisibleRef = useRef(false);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const isVisible = chatOpen && !chatMinimized;
+    chatVisibleRef.current = isVisible;
+    if (isVisible) {
+      setUnreadChatCount(0);
+      requestAnimationFrame(() => {
+        if (chatScrollRef.current) {
+          chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+        }
+      });
+    }
+  }, [chatOpen, chatMinimized]);
+
+  useEffect(() => {
+    window.presenterAPI?.getChatHistory().then((history) => {
+      if (Array.isArray(history)) setChatMessages(history);
+    });
+    const unsub = window.presenterAPI?.onChatMessage((msg) => {
+      setChatMessages((prev) =>
+        prev.some((m) => m.id === msg.id) ? prev : [...prev.slice(-199), msg]
+      );
+      if (msg.sender === 'android') {
+        setChatOpen(true);
+        setChatMinimized(false);
+      }
+      requestAnimationFrame(() => {
+        if (chatScrollRef.current) {
+          chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+        }
+      });
+    });
+    return () => unsub?.();
+  }, []);
 
   useEffect(() => {
     const dialog = confirmDialogRef.current;
@@ -557,6 +601,9 @@ export const OperatorConsole: React.FC = () => {
       loadImportedBibles()
         .then((stored) => {
           if (cancelled || stored.length === 0) return;
+          biblesRef.current = stored;
+          publishBibleSyncBundle(stored);
+
           setPrograms((prev) => {
             let anyProgramChanged = false;
             const next = prev.map((prog) => {
@@ -887,6 +934,7 @@ export const OperatorConsole: React.FC = () => {
     ]
   );
 
+  const biblesRef = useRef<import('../../shared/types').BibleVersion[]>([]);
   const contentGridRef = useRef<HTMLDivElement>(null);
 
   // Push full program items & logoSlide (visual media only, no studio/audio) to the LAN sync
@@ -2159,6 +2207,97 @@ export const OperatorConsole: React.FC = () => {
       if (audioRef.current) {
         audioRef.current.volume = clamped;
       }
+    } else if (
+      cmd.action === 'PRESENT_VERSE' &&
+      typeof cmd.bookIndex === 'number' &&
+      typeof cmd.chapterNum === 'number' &&
+      typeof cmd.verseNum === 'number'
+    ) {
+      const presentFromBibles = (stored: import('../../shared/types').BibleVersion[]) => {
+        if (stored.length === 0) return;
+        const savedPrimary = localStorage.getItem('uecfi_bible_primary_id') || '';
+        const savedSecondary = localStorage.getItem('uecfi_bible_secondary_id') ?? '';
+        const savedLayout = localStorage.getItem('uecfi_bible_layout');
+        const layout: import('../../shared/types').BibleLayoutMode =
+          savedLayout === 'primary' || savedLayout === 'secondary' || savedLayout === 'stacked'
+            ? savedLayout
+            : 'stacked';
+
+        const primaryBible =
+          (savedPrimary ? stored.find((b) => b.id === savedPrimary) : undefined) ?? stored[0];
+        if (!primaryBible) return;
+
+        const secondaryBible =
+          savedSecondary && savedSecondary !== primaryBible.id
+            ? stored.find((b) => b.id === savedSecondary) ?? null
+            : null;
+
+        const targetBook = primaryBible.books[cmd.bookIndex!] ?? primaryBible.books[0];
+        const targetChapter =
+          targetBook?.chapters.find((c) => c.number === cmd.chapterNum) ??
+          targetBook?.chapters[0];
+        if (!targetBook || !targetChapter) return;
+
+        const secBook = secondaryBible
+          ? secondaryBible.books.find(
+              (b) => b.name.toLowerCase() === targetBook.name.toLowerCase()
+            ) ?? secondaryBible.books[cmd.bookIndex!]
+          : null;
+        const secChapter = secBook?.chapters.find((c) => c.number === targetChapter.number);
+        const effectiveLayout: import('../../shared/types').BibleLayoutMode = secondaryBible
+          ? layout
+          : 'primary';
+
+        const blocks: import('../../shared/types').SlideBlock[] = targetChapter.verses.map((v) => {
+          const secVerse = secChapter?.verses.find((sv) => sv.number === v.number);
+          return {
+            id: `${primaryBible.id}-${targetBook.name}-${targetChapter.number}-${v.number}`,
+            label: `${targetBook.name} ${targetChapter.number}:${v.number} (${primaryBible.title})`,
+            groupHeader: `${targetBook.name} ${targetChapter.number}`,
+            lines: [v.text],
+            secondaryLabel:
+              secVerse && secondaryBible
+                ? `${secBook?.name ?? targetBook.name} ${targetChapter.number}:${v.number} (${secondaryBible.title})`
+                : undefined,
+            secondaryLines: secVerse ? [secVerse.text] : undefined,
+            verseRef: {
+              bookIndex: cmd.bookIndex!,
+              chapterNum: targetChapter.number,
+              verseNum: v.number
+            }
+          };
+        });
+
+        const item: ProgramItem = {
+          id: `verse-${Date.now()}`,
+          title: `${targetBook.name} ${targetChapter.number}`,
+          subtitle: secondaryBible
+            ? `${primaryBible.title} + ${secondaryBible.title}`
+            : primaryBible.title,
+          type: 'verse',
+          bibleLayout: effectiveLayout,
+          followActiveBible: true,
+          themeBackground: 'linear-gradient(135deg, #0f172a 0%, #064e3b 100%)',
+          blocks
+        };
+
+        const styledItem = applySavedVerseStyle(item);
+        const targetIdx = Math.max(
+          0,
+          targetChapter.verses.findIndex((v) => v.number === cmd.verseNum)
+        );
+        setBrowsingAdHocItem(styledItem);
+        setLiveAdHocItem(styledItem);
+        setActiveBlockIndex(targetIdx);
+        setOverride('none');
+        autoSwitchFullToStudio();
+      };
+
+      if (biblesRef.current.length > 0) {
+        presentFromBibles(biblesRef.current);
+      } else {
+        loadImportedBibles().then(presentFromBibles).catch(() => {});
+      }
     }
   };
 
@@ -2556,6 +2695,32 @@ export const OperatorConsole: React.FC = () => {
     return {};
   })());
 
+  const publishBibleSyncBundle = useCallback((stored: import('../../shared/types').BibleVersion[]) => {
+    if (stored.length === 0) return;
+    const savedPrimary = localStorage.getItem('uecfi_bible_primary_id') || '';
+    const savedSecondary = localStorage.getItem('uecfi_bible_secondary_id') ?? '';
+    const savedLayout = localStorage.getItem('uecfi_bible_layout');
+    const fallbackLayout: import('../../shared/types').BibleLayoutMode =
+      savedLayout === 'primary' || savedLayout === 'secondary' || savedLayout === 'stacked'
+        ? savedLayout
+        : 'stacked';
+    const primaryBible =
+      (savedPrimary ? stored.find((b) => b.id === savedPrimary) : undefined) ?? stored[0] ?? null;
+    const secondaryBible =
+      savedSecondary && primaryBible && savedSecondary !== primaryBible.id
+        ? stored.find((b) => b.id === savedSecondary) ?? null
+        : null;
+    const styleWithLayout = {
+      ...defaultVerseStyleRef.current,
+      bibleLayout: defaultVerseStyleRef.current.bibleLayout ?? fallbackLayout
+    };
+    window.presenterAPI?.updateBibleSyncBundle({
+      primaryBible,
+      secondaryBible,
+      verseStyle: styleWithLayout
+    });
+  }, []);
+
   const persistVerseStylePatch = useCallback((patch: SavedVerseStyle) => {
     const next: SavedVerseStyle = { ...defaultVerseStyleRef.current, ...patch };
     // Remove keys explicitly reset to undefined
@@ -2570,7 +2735,8 @@ export const OperatorConsole: React.FC = () => {
     } catch {
       // Ignore storage quota errors
     }
-  }, []);
+    publishBibleSyncBundle(biblesRef.current);
+  }, [publishBibleSyncBundle]);
 
   const applySavedVerseStyle = useCallback((item: ProgramItem): ProgramItem => {
     if (item.type !== 'verse') return item;
@@ -3334,6 +3500,30 @@ export const OperatorConsole: React.FC = () => {
 
         {/* Right Toolbar Controls */}
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (!chatOpen) {
+                setChatOpen(true);
+                setChatMinimized(false);
+              } else if (chatMinimized) {
+                setChatMinimized(false);
+              } else {
+                setChatOpen(false);
+              }
+            }}
+            title="Chat with Android Tablet"
+            aria-label="Chat"
+            className={cn(toolbarBtnCls(chatOpen && !chatMinimized), 'relative')}
+          >
+            <MessageSquare size={15} />
+            <span>Chat</span>
+            {unreadChatCount > 0 && (
+              <span className="ml-0.5 inline-flex min-w-[18px] items-center justify-center rounded-full bg-blue-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
+                {unreadChatCount}
+              </span>
+            )}
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -5621,6 +5811,151 @@ export const OperatorConsole: React.FC = () => {
           await refreshDisplaysAndRemote();
         }}
       />
+
+      {chatOpen && (
+        <div
+          className={cn(
+            'fixed right-4 bottom-0 z-50 flex flex-col overflow-hidden rounded-t-xl border border-b-0 border-subtle bg-panel shadow-2xl transition-all',
+            chatMinimized ? 'w-[280px]' : 'w-[340px]'
+          )}
+        >
+          {/* Facebook-style clickable header: click to minimize/expand */}
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => setChatMinimized((m) => !m)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setChatMinimized((m) => !m);
+              }
+            }}
+            className="flex cursor-pointer items-center justify-between border-b border-subtle bg-panel-elevated px-3.5 py-2.5 select-none hover:bg-hover/50"
+          >
+            <div className="flex items-center gap-2">
+              <span
+                className={cn(
+                  'h-2 w-2 rounded-full',
+                  (remoteInfo?.connectedClients ?? 0) > 0 ? 'bg-emerald-400' : 'bg-slate-500'
+                )}
+              />
+              <MessageSquare size={15} className="text-blue-400" />
+              <span className="text-[0.82rem] font-bold text-text-primary">Tablet Chat</span>
+              {unreadChatCount > 0 && (
+                <span className="inline-flex min-w-[18px] items-center justify-center rounded-full bg-blue-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
+                  {unreadChatCount}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={() => setChatMinimized((m) => !m)}
+                className="rounded-md p-1 text-text-secondary transition-colors hover:bg-hover hover:text-text-primary"
+                title={chatMinimized ? 'Expand chat' : 'Minimize chat'}
+                aria-label={chatMinimized ? 'Expand chat' : 'Minimize chat'}
+              >
+                <ChevronDown
+                  size={15}
+                  className={cn('transition-transform', chatMinimized && 'rotate-180')}
+                />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setChatOpen(false);
+                  setChatMinimized(false);
+                }}
+                className="rounded-md p-1 text-text-secondary transition-colors hover:bg-hover hover:text-text-primary"
+                title="Close chat"
+                aria-label="Close chat"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          </div>
+
+          {!chatMinimized && (
+            <>
+              <div
+                ref={chatScrollRef}
+                className="h-[340px] space-y-2.5 overflow-y-auto p-3.5"
+              >
+                {chatMessages.length === 0 ? (
+                  <div className="flex h-full items-center justify-center text-center text-xs text-text-muted">
+                    No messages yet. Send a message to the Android tablet below.
+                  </div>
+                ) : (
+                  chatMessages.map((msg) => {
+                    const isDesktop = msg.sender === 'desktop';
+                    const timeStr = new Date(msg.timestamp).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    });
+                    return (
+                      <div
+                        key={msg.id}
+                        className={cn(
+                          'flex flex-col',
+                          isDesktop ? 'items-end' : 'items-start'
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            'max-w-[82%] rounded-2xl px-3 py-1.5 text-[0.82rem]',
+                            isDesktop
+                              ? 'bg-blue-600 text-white'
+                              : 'border border-subtle bg-panel-elevated text-text-primary'
+                          )}
+                        >
+                          {!isDesktop && (
+                            <div className="mb-0.5 text-[10px] font-semibold text-blue-400">
+                              {msg.senderName}
+                            </div>
+                          )}
+                          <div className="whitespace-pre-wrap break-words">{msg.text}</div>
+                        </div>
+                        <span className="mt-0.5 px-1 text-[10px] text-text-muted">
+                          {timeStr}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const trimmed = chatDraft.trim();
+                  if (!trimmed) return;
+                  window.presenterAPI?.sendChatMessage(trimmed);
+                  setChatDraft('');
+                }}
+                className="flex items-center gap-2 border-t border-subtle bg-panel-elevated p-2.5"
+              >
+                <input
+                  type="text"
+                  value={chatDraft}
+                  onChange={(e) => setChatDraft(e.target.value)}
+                  placeholder="Aa"
+                  autoFocus
+                  className="flex-1 rounded-full border border-subtle bg-app px-3.5 py-1.5 text-[0.82rem] text-text-primary placeholder:text-text-muted focus:border-blue-500 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={!chatDraft.trim()}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white transition-colors hover:bg-blue-500 disabled:opacity-40"
+                  title="Send"
+                  aria-label="Send"
+                >
+                  <Send size={14} />
+                </button>
+              </form>
+            </>
+          )}
+        </div>
+      )}
 
       <StudioLayoutModal
         open={overflowStudioModalOpen}

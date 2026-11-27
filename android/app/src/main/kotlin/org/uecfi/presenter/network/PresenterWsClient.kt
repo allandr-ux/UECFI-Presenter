@@ -19,7 +19,9 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.floatOrNull
 import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.longOrNull
 import okhttp3.OkHttpClient
@@ -29,7 +31,11 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import org.uecfi.presenter.data.CacheStats
 import org.uecfi.presenter.data.ProgramSyncCache
+import org.uecfi.presenter.model.BibleSyncBundle
 import org.uecfi.presenter.model.LiveState
+import org.uecfi.presenter.model.OperatorChatMessage
+import org.uecfi.presenter.model.ProgramItem
+import org.uecfi.presenter.model.SlideBlock
 import org.uecfi.presenter.model.LiveStateEnvelope
 import org.uecfi.presenter.model.RemoteCommandPayload
 import java.util.concurrent.TimeUnit
@@ -65,6 +71,8 @@ class PresenterWsClient(syncCacheDir: File? = null) {
   private val syncCache: ProgramSyncCache? = syncCacheDir?.let { ProgramSyncCache(it, json) }
   private val fallbackCacheStats = MutableStateFlow(CacheStats())
   val cacheStats: StateFlow<CacheStats> = syncCache?.cacheStats ?: fallbackCacheStats.asStateFlow()
+  private val fallbackBibleBundle = MutableStateFlow<BibleSyncBundle?>(null)
+  val bibleBundle: StateFlow<BibleSyncBundle?> = syncCache?.bibleBundle ?: fallbackBibleBundle.asStateFlow()
 
   @Volatile
   private var currentHttpBaseUrl: String? = null
@@ -82,6 +90,7 @@ class PresenterWsClient(syncCacheDir: File? = null) {
     val baseUrl = currentHttpBaseUrl ?: return
     scope.launch {
       cache.syncFromServer(baseUrl, targetVersion = 0, client = client)
+      cache.syncBiblesFromServer(baseUrl, targetVersion = 0, client = client)
       refreshActiveItemFromCache()
     }
   }
@@ -138,6 +147,9 @@ class PresenterWsClient(syncCacheDir: File? = null) {
 
   private val _audioTimeSync = MutableStateFlow<AudioTimeSync?>(null)
   val audioTimeSync: StateFlow<AudioTimeSync?> = _audioTimeSync.asStateFlow()
+
+  private val _chatMessages = MutableStateFlow<List<OperatorChatMessage>>(emptyList())
+  val chatMessages: StateFlow<List<OperatorChatMessage>> = _chatMessages.asStateFlow()
 
   private val _resolvedWsUrl = MutableStateFlow<String?>(null)
   val resolvedWsUrl: StateFlow<String?> = _resolvedWsUrl.asStateFlow()
@@ -316,18 +328,40 @@ class PresenterWsClient(syncCacheDir: File? = null) {
     blockIndex: Int? = null,
     itemId: String? = null,
     volume: Float? = null,
+    bookIndex: Int? = null,
+    chapterNum: Int? = null,
+    verseNum: Int? = null,
   ): Boolean {
     val socket = webSocket ?: return false
-    applyOptimisticUpdate(action, blockIndex, itemId)
+    applyOptimisticUpdate(action, blockIndex, itemId, bookIndex, chapterNum, verseNum)
     val payload = json.encodeToString(
       RemoteCommandPayload(
         action = action,
         blockIndex = blockIndex,
         itemId = itemId,
         volume = volume,
+        bookIndex = bookIndex,
+        chapterNum = chapterNum,
+        verseNum = verseNum,
         pin = activePin,
       ),
     )
+    return socket.send(payload)
+  }
+
+  fun sendChatMessage(text: String): Boolean {
+    val clean = text.trim()
+    if (clean.isEmpty()) return false
+    val socket = webSocket ?: return false
+    val payload = JsonObject(
+      buildMap {
+        put("type", JsonPrimitive("CHAT_SEND"))
+        put("text", JsonPrimitive(clean))
+        put("deviceName", JsonPrimitive(deviceLabel()))
+        activePin?.let { put("pin", JsonPrimitive(it)) }
+        activeDeviceToken?.let { put("token", JsonPrimitive(it)) }
+      },
+    ).toString()
     return socket.send(payload)
   }
 
@@ -335,9 +369,17 @@ class PresenterWsClient(syncCacheDir: File? = null) {
    * Updates local LiveState immediately so UI transitions happen in <1ms without waiting for
    * the desktop round-trip, while tagging the current server timestamp to avoid stale flicker.
    */
-  private fun applyOptimisticUpdate(action: String, blockIndex: Int?, itemId: String? = null) {
+  private fun applyOptimisticUpdate(
+    action: String,
+    blockIndex: Int?,
+    itemId: String? = null,
+    bookIndex: Int? = null,
+    chapterNum: Int? = null,
+    verseNum: Int? = null,
+  ) {
     val current = _liveState.value ?: return
     val blocksCount = current.activeItem?.blocks?.size ?: 0
+    var optimisticVerseItemJson: JsonObject? = null
     val updated = when (action) {
       "NEXT" -> if (current.activeBlockIndex + 1 < blocksCount) {
         current.copy(activeBlockIndex = current.activeBlockIndex + 1, override = "none")
@@ -363,6 +405,7 @@ class PresenterWsClient(syncCacheDir: File? = null) {
             activeBlockIndex = 0,
             override = "none",
             lyricsMode = cachedItem.lyricsMode ?: "slide",
+            audioPlaying = false,
             bibleLayout = cachedItem.bibleLayout ?: "stacked",
             verseMaxFontSize = cachedItem.verseMaxFontSize ?: 72,
           )
@@ -381,6 +424,100 @@ class PresenterWsClient(syncCacheDir: File? = null) {
       )
       "CLEAR_OVERRIDE" -> current.copy(override = "none")
       "TOGGLE_RETURN_AUDIO" -> current.copy(returnAudioMuted = !current.returnAudioMuted)
+      "AUDIO_TOGGLE_PLAY" -> current.copy(audioPlaying = !current.audioPlaying)
+      "AUDIO_STOP" -> current.copy(audioPlaying = false)
+      "PRESENT_VERSE" -> {
+        val bundle = syncCache?.bibleBundle?.value
+        val primaryBible = bundle?.primaryBible
+        val targetBook = if (bookIndex != null) primaryBible?.books?.getOrNull(bookIndex) else null
+        val targetChapter = if (targetBook != null && chapterNum != null) {
+          targetBook.chapters.firstOrNull { it.number == chapterNum } ?: targetBook.chapters.firstOrNull()
+        } else {
+          null
+        }
+        if (primaryBible != null && targetBook != null && targetChapter != null) {
+          val secondaryBible = bundle.secondaryBible
+          val secBook = secondaryBible?.let { sb ->
+            sb.books.firstOrNull { it.name.equals(targetBook.name, ignoreCase = true) }
+              ?: sb.books.getOrNull(bookIndex!!)
+          }
+          val secChapter = secBook?.chapters?.firstOrNull { it.number == targetChapter.number }
+          val styleObj = bundle.verseStyle
+          val styleLayout = (styleObj?.get("bibleLayout") as? JsonPrimitive)?.content
+          val effectiveLayout = if (secondaryBible != null) {
+            styleLayout ?: "stacked"
+          } else {
+            "primary"
+          }
+          val maxFontSize = (styleObj?.get("verseMaxFontSize") as? JsonPrimitive)?.intOrNull
+          val themeBg = (styleObj?.get("themeBackground") as? JsonPrimitive)?.content
+            ?: "linear-gradient(135deg, #0f172a 0%, #064e3b 100%)"
+          val stackedBg = (styleObj?.get("verseStackedThemeBackground") as? JsonPrimitive)?.content
+          val bgDim = (styleObj?.get("verseBgDim") as? JsonPrimitive)?.intOrNull
+          val stackedBgDim = (styleObj?.get("verseStackedBgDim") as? JsonPrimitive)?.intOrNull
+
+          val blocks = targetChapter.verses.map { v ->
+            val secVerse = secChapter?.verses?.firstOrNull { it.number == v.number }
+            SlideBlock(
+              id = "${primaryBible.id}-${targetBook.name}-${targetChapter.number}-${v.number}",
+              label = "${targetBook.name} ${targetChapter.number}:${v.number} (${primaryBible.title})",
+              groupHeader = "${targetBook.name} ${targetChapter.number}",
+              lines = listOf(v.text),
+              secondaryLabel = if (secVerse != null && secondaryBible != null) {
+                "${secBook?.name ?: targetBook.name} ${targetChapter.number}:${v.number} (${secondaryBible.title})"
+              } else {
+                null
+              },
+              secondaryLines = secVerse?.let { listOf(it.text) },
+            )
+          }
+
+          val verseItem = ProgramItem(
+            id = "verse-optimistic-${System.currentTimeMillis()}",
+            title = "${targetBook.name} ${targetChapter.number}",
+            subtitle = if (secondaryBible != null) {
+              "${primaryBible.title} + ${secondaryBible.title}"
+            } else {
+              primaryBible.title
+            },
+            type = "verse",
+            bibleLayout = effectiveLayout,
+            verseMaxFontSize = maxFontSize,
+            themeBackground = themeBg,
+            verseStackedThemeBackground = stackedBg,
+            verseBgDim = bgDim,
+            verseStackedBgDim = stackedBgDim,
+            blocks = blocks,
+          )
+          // Merge all saved verseStyle fields (e.g. text/ref colors) into the WebView JSON payload
+          val encodedItem = json.parseToJsonElement(json.encodeToString(verseItem)).jsonObject
+          val mergedItemMap = encodedItem.toMutableMap()
+          styleObj?.forEach { (k, v) ->
+            if (k != "bibleLayout") {
+              mergedItemMap[k] = v
+            }
+          }
+          optimisticVerseItemJson = JsonObject(mergedItemMap)
+
+          val targetIdx = if (verseNum != null) {
+            targetChapter.verses.indexOfFirst { it.number == verseNum }.coerceAtLeast(0)
+          } else {
+            0
+          }
+          current.copy(
+            activeItemId = verseItem.id,
+            activeItem = verseItem,
+            activeBlockIndex = targetIdx,
+            override = "none",
+            lyricsMode = "slide",
+            audioPlaying = false,
+            bibleLayout = effectiveLayout,
+            verseMaxFontSize = maxFontSize ?: current.verseMaxFontSize,
+          )
+        } else {
+          current
+        }
+      }
       else -> current
     }
     if (updated != current) {
@@ -389,10 +526,10 @@ class PresenterWsClient(syncCacheDir: File? = null) {
       _liveState.value = updated
       val baseObj = lastDesktopPayloadObj
       if (baseObj != null) {
-        val cachedItemJson = if (action == "SELECT_ITEM" && itemId != null) {
-          syncCache?.resolveCachedItemJson(itemId)
-        } else {
-          null
+        val cachedItemJson = when {
+          optimisticVerseItemJson != null -> optimisticVerseItemJson
+          action == "SELECT_ITEM" && itemId != null -> syncCache?.resolveCachedItemJson(itemId)
+          else -> null
         }
         val patched = JsonObject(
           baseObj.toMutableMap().apply {
@@ -536,6 +673,36 @@ class PresenterWsClient(syncCacheDir: File? = null) {
               }
               return
             }
+            if (type == "BIBLE_BUNDLE_AVAILABLE") {
+              val version = (rootObj["version"] as? JsonPrimitive)?.content?.toIntOrNull() ?: 0
+              val baseUrl = currentHttpBaseUrl
+              val cache = syncCache
+              if (baseUrl != null && cache != null) {
+                scope.launch {
+                  cache.syncBiblesFromServer(baseUrl, version, client)
+                }
+              }
+              return
+            }
+            if (type == "CHAT_HISTORY") {
+              val msgsArray = rootObj["messages"]?.jsonArray ?: return
+              val parsed = msgsArray.mapNotNull { el ->
+                runCatching { json.decodeFromString<OperatorChatMessage>(el.toString()) }.getOrNull()
+              }
+              _chatMessages.value = parsed
+              return
+            }
+            if (type == "CHAT_MESSAGE") {
+              val msgObj = rootObj["message"] ?: return
+              val parsed = runCatching {
+                json.decodeFromString<OperatorChatMessage>(msgObj.toString())
+              }.getOrNull() ?: return
+              val cur = _chatMessages.value
+              if (cur.none { it.id == parsed.id }) {
+                _chatMessages.value = (cur + parsed).takeLast(200)
+              }
+              return
+            }
             if (type == "SHOW_CUE") {
               val curState = _liveState.value ?: return
               val updatedAt = (rootObj["updatedAt"] as? JsonPrimitive)?.longOrNull ?: System.currentTimeMillis()
@@ -548,6 +715,9 @@ class PresenterWsClient(syncCacheDir: File? = null) {
               val activeBlockIndex = (rootObj["activeBlockIndex"] as? JsonPrimitive)?.intOrNull ?: 0
               val overrideMode = (rootObj["override"] as? JsonPrimitive)?.content ?: "none"
               val lyricsMode = (rootObj["lyricsMode"] as? JsonPrimitive)?.content ?: curState.lyricsMode
+              val audioPlaying = (rootObj["audioPlaying"] as? JsonPrimitive)?.content?.toBooleanStrictOrNull()
+                ?: curState.audioPlaying
+              val audioVolume = (rootObj["audioVolume"] as? JsonPrimitive)?.floatOrNull ?: curState.audioVolume
               val bibleLayout = (rootObj["bibleLayout"] as? JsonPrimitive)?.content ?: curState.bibleLayout
               val verseMaxFontSize = (rootObj["verseMaxFontSize"] as? JsonPrimitive)?.intOrNull ?: curState.verseMaxFontSize
               val nextItemTitle = (rootObj["nextItemTitle"] as? JsonPrimitive)?.content
@@ -569,6 +739,8 @@ class PresenterWsClient(syncCacheDir: File? = null) {
                 activeBlockIndex = activeBlockIndex,
                 override = overrideMode,
                 lyricsMode = lyricsMode,
+                audioPlaying = audioPlaying,
+                audioVolume = audioVolume,
                 bibleLayout = bibleLayout,
                 verseMaxFontSize = verseMaxFontSize,
                 nextItemTitle = nextItemTitle,
@@ -584,6 +756,8 @@ class PresenterWsClient(syncCacheDir: File? = null) {
                     put("activeBlockIndex", JsonPrimitive(activeBlockIndex))
                     put("override", JsonPrimitive(overrideMode))
                     put("lyricsMode", JsonPrimitive(lyricsMode))
+                    put("audioPlaying", JsonPrimitive(audioPlaying))
+                    put("audioVolume", JsonPrimitive(audioVolume))
                     put("bibleLayout", JsonPrimitive(bibleLayout))
                     verseMaxFontSize?.let { put("verseMaxFontSize", JsonPrimitive(it)) }
                     put("nextItemTitle", nextItemTitle?.let { JsonPrimitive(it) } ?: JsonNull)

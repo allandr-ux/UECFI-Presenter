@@ -13,13 +13,17 @@ export type RemoteCommandAction =
   | 'AUDIO_STOP'
   | 'AUDIO_RESTART'
   | 'AUDIO_SET_VOLUME'
-  | 'TOGGLE_RETURN_AUDIO';
+  | 'TOGGLE_RETURN_AUDIO'
+  | 'PRESENT_VERSE';
 
 export interface RemoteCommandMessage {
   action: RemoteCommandAction;
   blockIndex?: number;
   itemId?: string;
   volume?: number;
+  bookIndex?: number;
+  chapterNum?: number;
+  verseNum?: number;
 }
 
 export type ContentType = 'song' | 'verse' | 'slide' | 'programItem';
@@ -307,6 +311,22 @@ export interface SyncBundlePayload {
   items: ProgramItem[];
   logoSlide: ProgramItem | null;
   mediaFiles: SyncBundleMediaFile[];
+}
+
+export interface BibleSyncBundlePayload {
+  version: number;
+  primaryBible: BibleVersion | null;
+  secondaryBible: BibleVersion | null;
+  verseStyle?: Partial<ProgramItem>;
+  mediaFiles?: SyncBundleMediaFile[];
+}
+
+export interface OperatorChatMessage {
+  id: string;
+  sender: 'desktop' | 'android';
+  senderName: string;
+  text: string;
+  timestamp: number;
 }
 
 export type ParticipantStatus = 'greenRoom' | 'live';

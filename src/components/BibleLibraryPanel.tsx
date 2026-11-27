@@ -140,17 +140,25 @@ export const BibleLibraryPanel: React.FC<BibleLibraryPanelProps> = ({
   const activeChapter =
     chapters.find((c) => c.number === chapterNum) ?? chapters[0];
 
-  // Keep active verse synced when navigating verses from the Content Grid or keyboard
+  // Keep selected book, chapter, and active verse synced when live verse changes
+  // (whether from Content Grid, keyboard, Program, or Android Verse Selector).
   useEffect(() => {
-    if (!liveVerseLabel || !activeBook || !activeChapter) return;
-    const prefix = `${activeBook.name} ${activeChapter.number}:`;
-    if (liveVerseLabel.startsWith(prefix)) {
-      const parsedNum = Number.parseInt(liveVerseLabel.slice(prefix.length), 10);
-      if (!Number.isNaN(parsedNum)) {
-        setActiveVerseNum(parsedNum);
-      }
+    if (!liveVerseLabel || books.length === 0) return;
+    const cleanLabel = liveVerseLabel.replace(/\s*\([^)]*\)\s*$/, '').trim();
+    const match = cleanLabel.match(/^(.+?)\s+(\d+):(\d+)$/);
+    if (!match) return;
+    const targetBookName = match[1].trim().toLowerCase();
+    const parsedChap = Number.parseInt(match[2], 10);
+    const parsedVerse = Number.parseInt(match[3], 10);
+    if (Number.isNaN(parsedChap) || Number.isNaN(parsedVerse)) return;
+
+    const matchedBookIdx = books.findIndex((b) => b.name.toLowerCase() === targetBookName);
+    if (matchedBookIdx >= 0) {
+      setBookIndex(matchedBookIdx);
     }
-  }, [liveVerseLabel, activeBook?.name, activeChapter?.number]);
+    setChapterNum(parsedChap);
+    setActiveVerseNum(parsedVerse);
+  }, [liveVerseLabel, books]);
 
   // Keep selected book centered in Column 1
   useEffect(() => {

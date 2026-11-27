@@ -43,6 +43,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.automirrored.rounded.Chat
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.ClearAll
@@ -160,11 +161,51 @@ fun MainScreen(
   val authRequired by viewModel.authRequired.collectAsStateWithLifecycle()
   val authError by viewModel.authError.collectAsStateWithLifecycle()
   val cacheStats by viewModel.cacheStats.collectAsStateWithLifecycle()
+  val bibleBundle by viewModel.bibleBundle.collectAsStateWithLifecycle()
+  val chatMessages by viewModel.chatMessages.collectAsStateWithLifecycle()
 
   val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
   val scope = rememberCoroutineScope()
   var showSettingsModal by remember { mutableStateOf(false) }
+  var showVerseSelector by remember { mutableStateOf(false) }
+  var showChatModal by remember { mutableStateOf(false) }
+  var seenChatCount by remember { mutableIntStateOf(0) }
+  val unreadChatCount = if (showChatModal) {
+    0
+  } else {
+    (chatMessages.count { it.sender == "desktop" } - seenChatCount).coerceAtLeast(0)
+  }
+
+  LaunchedEffect(showChatModal, chatMessages.size) {
+    if (showChatModal) {
+      seenChatCount = chatMessages.count { it.sender == "desktop" }
+    }
+  }
   var pendingItemSwitch by remember { mutableStateOf<ProgramItemSummary?>(null) }
+  var pendingVerseSwitch by remember { mutableStateOf<Triple<Int, Int, Int>?>(null) }
+  var pendingVerseLabel by remember { mutableStateOf<String?>(null) }
+  var pendingVersePrefix by remember { mutableStateOf<String?>(null) }
+
+  // Dismiss verse loading overlay as soon as the desktop presents the requested verse.
+  LaunchedEffect(liveState, pendingVersePrefix) {
+    val prefix = pendingVersePrefix ?: return@LaunchedEffect
+    val item = liveState?.activeItem ?: return@LaunchedEffect
+    if (item.type != "verse") return@LaunchedEffect
+    val block = item.blocks.getOrNull(liveState?.activeBlockIndex ?: 0)
+    if (block?.label?.startsWith(prefix) == true) {
+      pendingVerseLabel = null
+      pendingVersePrefix = null
+    }
+  }
+
+  // Safety timeout so the loading overlay never gets stuck if the network drops.
+  LaunchedEffect(pendingVersePrefix) {
+    if (pendingVersePrefix != null) {
+      kotlinx.coroutines.delay(5000L)
+      pendingVerseLabel = null
+      pendingVersePrefix = null
+    }
+  }
 
   // Close settings modal automatically when connection succeeds.
   LaunchedEffect(connectionStatus) {
@@ -192,7 +233,9 @@ fun MainScreen(
               activeItemId = liveState?.activeItemId,
               isConnected = connectionStatus == ConnectionStatus.Connected,
               onSelectItem = { itemId ->
-                val isPlayingAudio = liveState?.audioPlaying == true
+                val isPlayingAudio = liveState?.audioPlaying == true &&
+                  liveState?.activeItem?.type == "song" &&
+                  (liveState?.lyricsMode == "timed" || liveState?.activeItem?.lyricsMode == "timed")
                 val activeId = liveState?.activeItemId
                 if (isPlayingAudio && activeId != null && activeId != itemId) {
                   val target = liveState?.programItems?.firstOrNull { it.id == itemId }
@@ -218,6 +261,7 @@ fun MainScreen(
             liveState = liveState,
             liveStateJsonFlow = viewModel.liveStateJson,
             audioTimeSyncFlow = viewModel.audioTimeSync,
+            bibleBundle = bibleBundle,
             mirrorHttpUrl = mirrorHttpUrl,
             connectionStatus = connectionStatus,
             statusMessage = statusMessage,
@@ -226,6 +270,40 @@ fun MainScreen(
             openCachedMedia = viewModel::openCachedMedia,
             onOpenSettings = { showSettingsModal = true },
           )
+
+          if (pendingVerseLabel != null) {
+            Box(
+              modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.45f)),
+              contentAlignment = Alignment.Center,
+            ) {
+              Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = SurfaceDark.copy(alpha = 0.94f),
+                border = BorderStroke(1.dp, AccentSky.copy(alpha = 0.45f)),
+                shadowElevation = 12.dp,
+              ) {
+                Row(
+                  modifier = Modifier.padding(horizontal = 24.dp, vertical = 18.dp),
+                  verticalAlignment = Alignment.CenterVertically,
+                  horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                  CircularProgressIndicator(
+                    modifier = Modifier.size(26.dp),
+                    color = AccentSky,
+                    strokeWidth = 3.dp,
+                  )
+                  Text(
+                    text = "Loading ${pendingVerseLabel}…",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                  )
+                }
+              }
+            }
+          }
 
           // Top overlay bar: Centro Mic button + muted notice (left), Settings & Program (right)
           Row(
@@ -335,6 +413,61 @@ fun MainScreen(
                   Icon(
                     imageVector = Icons.Rounded.Settings,
                     contentDescription = "Settings",
+                    tint = TextPrimary,
+                    modifier = Modifier.size(18.dp),
+                  )
+                }
+              }
+
+              Surface(
+                onClick = { showChatModal = true },
+                shape = RoundedCornerShape(999.dp),
+                color = Color.Black.copy(alpha = 0.48f),
+                border = BorderStroke(
+                  1.dp,
+                  if (unreadChatCount > 0) AccentSky.copy(alpha = 0.85f) else Color.White.copy(alpha = 0.14f),
+                ),
+              ) {
+                Row(
+                  modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                  verticalAlignment = Alignment.CenterVertically,
+                  horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                  Text(
+                    text = if (unreadChatCount > 0) "Chat ($unreadChatCount)" else "Chat",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (unreadChatCount > 0) AccentSky else TextPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                  )
+                  Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.Chat,
+                    contentDescription = "Open chat",
+                    tint = if (unreadChatCount > 0) AccentSky else TextPrimary,
+                    modifier = Modifier.size(18.dp),
+                  )
+                }
+              }
+
+              Surface(
+                onClick = { showVerseSelector = true },
+                shape = RoundedCornerShape(999.dp),
+                color = Color.Black.copy(alpha = 0.48f),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+              ) {
+                Row(
+                  modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                  verticalAlignment = Alignment.CenterVertically,
+                  horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                  Text(
+                    text = "Bible",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                  )
+                  Icon(
+                    imageVector = Icons.Rounded.MenuBook,
+                    contentDescription = "Open verse selector",
                     tint = TextPrimary,
                     modifier = Modifier.size(18.dp),
                   )
@@ -525,6 +658,79 @@ fun MainScreen(
           Text("Cancel", color = TextMuted)
         }
       },
+    )
+  }
+
+  pendingVerseSwitch?.let { (bookIdx, chapNum, verseNum) ->
+    val currentTitle = liveState?.activeItem?.title?.takeIf { it.isNotBlank() } ?: "Current song"
+    val bookName = bibleBundle?.primaryBible?.books?.getOrNull(bookIdx)?.name
+    val targetTitle = if (bookName != null) "$bookName $chapNum:$verseNum" else "Verse $chapNum:$verseNum"
+    AlertDialog(
+      onDismissRequest = { pendingVerseSwitch = null },
+      containerColor = SurfaceDark,
+      titleContentColor = TextPrimary,
+      textContentColor = TextMuted,
+      title = {
+        Text(
+          text = "Replace Playing Song?",
+          fontWeight = FontWeight.Bold,
+        )
+      },
+      text = {
+        Text(
+          text = "\"$currentTitle\" is currently playing. Stop it and switch to \"$targetTitle\"?",
+        )
+      },
+      confirmButton = {
+        Button(
+          onClick = {
+            pendingVerseLabel = targetTitle
+            pendingVersePrefix = if (bookName != null) "$bookName $chapNum:$verseNum " else null
+            viewModel.presentVerse(bookIdx, chapNum, verseNum)
+            pendingVerseSwitch = null
+          },
+          colors = ButtonDefaults.buttonColors(
+            containerColor = AccentSky,
+            contentColor = BgDark,
+          ),
+        ) {
+          Text("Switch Item", fontWeight = FontWeight.Bold)
+        }
+      },
+      dismissButton = {
+        TextButton(onClick = { pendingVerseSwitch = null }) {
+          Text("Cancel", color = TextMuted)
+        }
+      },
+    )
+  }
+
+  if (showVerseSelector) {
+    VerseSelectorModal(
+      bibleBundle = bibleBundle,
+      liveState = liveState,
+      onPresentVerse = { bookIdx, chapNum, verseNum ->
+        val isPlayingAudio = liveState?.audioPlaying == true &&
+          liveState?.activeItem?.type == "song" &&
+          (liveState?.lyricsMode == "timed" || liveState?.activeItem?.lyricsMode == "timed")
+        if (isPlayingAudio) {
+          pendingVerseSwitch = Triple(bookIdx, chapNum, verseNum)
+        } else {
+          val bookName = bibleBundle?.primaryBible?.books?.getOrNull(bookIdx)?.name
+          pendingVerseLabel = if (bookName != null) "$bookName $chapNum:$verseNum" else "Verse $chapNum:$verseNum"
+          pendingVersePrefix = if (bookName != null) "$bookName $chapNum:$verseNum " else null
+          viewModel.presentVerse(bookIdx, chapNum, verseNum)
+        }
+      },
+      onDismiss = { showVerseSelector = false },
+    )
+  }
+
+  if (showChatModal) {
+    ChatModal(
+      messages = chatMessages,
+      onSendMessage = viewModel::sendChatMessage,
+      onDismiss = { showChatModal = false },
     )
   }
 }
@@ -1291,6 +1497,7 @@ private fun ExactMainScreenWebView(
   url: String,
   liveStateJsonFlow: StateFlow<String?>,
   audioTimeSyncFlow: StateFlow<AudioTimeSync?>,
+  bibleBundle: org.uecfi.presenter.model.BibleSyncBundle?,
   connectionStatus: ConnectionStatus,
   openCachedMedia: (String) -> WebResourceResponse?,
   modifier: Modifier = Modifier,
@@ -1325,6 +1532,26 @@ private fun ExactMainScreenWebView(
       "window.__setAndroidAudioTime && window.__setAndroidAudioTime($timeArg, $blockArg);",
       null,
     )
+  }
+
+  // Pre-warm Bible single/stacked background images into Chromium's decoded image cache
+  // so optimistic verse presentation renders the background with zero decode delay.
+  LaunchedEffect(bibleBundle, webViewRef) {
+    val wv = webViewRef ?: return@LaunchedEffect
+    val style = bibleBundle?.verseStyle ?: return@LaunchedEffect
+    val urls = listOfNotNull(
+      (style["themeBackground"] as? kotlinx.serialization.json.JsonPrimitive)?.content,
+      (style["verseStackedThemeBackground"] as? kotlinx.serialization.json.JsonPrimitive)?.content,
+    ).mapNotNull { raw ->
+      Regex("""https?://[^"')\s]+/media/[^"')\s]+""").find(raw)?.value
+    }.distinct()
+    if (urls.isNotEmpty()) {
+      val js = urls.joinToString(" ") { imgUrl ->
+        val escaped = imgUrl.replace("\\", "\\\\").replace("'", "\\'")
+        "(new Image()).src = '$escaped';"
+      }
+      wv.evaluateJavascript(js, null)
+    }
   }
 
   LaunchedEffect(connectionStatus, hadLoadError, webViewRef) {
@@ -1438,6 +1665,7 @@ private fun MainScreenMirrorContent(
   liveState: LiveState?,
   liveStateJsonFlow: StateFlow<String?>,
   audioTimeSyncFlow: StateFlow<AudioTimeSync?>,
+  bibleBundle: org.uecfi.presenter.model.BibleSyncBundle?,
   mirrorHttpUrl: String?,
   connectionStatus: ConnectionStatus,
   statusMessage: String?,
@@ -1454,6 +1682,7 @@ private fun MainScreenMirrorContent(
       url = mirrorHttpUrl,
       liveStateJsonFlow = liveStateJsonFlow,
       audioTimeSyncFlow = audioTimeSyncFlow,
+      bibleBundle = bibleBundle,
       connectionStatus = connectionStatus,
       openCachedMedia = openCachedMedia,
     )

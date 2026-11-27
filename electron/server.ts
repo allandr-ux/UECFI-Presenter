@@ -8,7 +8,10 @@ import os from 'node:os';
 import { WebSocketServer, WebSocket } from 'ws';
 import {
   PROTOCOL_VERSION,
+  type BibleSyncBundlePayload,
+  type BibleVersion,
   type LiveState,
+  type OperatorChatMessage,
   type ParticipantSignalMessage,
   type ProgramItem,
   type RemoteCommandMessage,
@@ -115,7 +118,8 @@ const ALLOWED_REMOTE_ACTIONS = new Set<RemoteCommandMessage['action']>([
   'AUDIO_STOP',
   'AUDIO_RESTART',
   'AUDIO_SET_VOLUME',
-  'TOGGLE_RETURN_AUDIO'
+  'TOGGLE_RETURN_AUDIO',
+  'PRESENT_VERSE'
 ]);
 
 interface StoredWhitelistRecord extends WhitelistedDevice {
@@ -150,12 +154,17 @@ export class LocalRemoteServer {
   private syncBundleVersion = 0;
   private lastSyncBundleKey = '';
   private syncBundleItemIds = new Set<string>();
+  private currentBibleBundle: BibleSyncBundlePayload | null = null;
+  private bibleBundleVersion = 0;
+  private lastBibleBundleKey = '';
   private lastNonCueKey = '';
   private showCueClients = new WeakSet<WebSocket>();
   private onClientCountChange?: (count: number) => void;
   private onRemoteCommand?: (cmd: RemoteCommandMessage) => void;
   private onWhitelistChange?: (devices: WhitelistedDevice[]) => void;
   private onParticipantSignal?: (msg: ParticipantSignalMessage) => void;
+  private onChatMessage?: (msg: OperatorChatMessage) => void;
+  private chatHistory: OperatorChatMessage[] = [];
 
   constructor(options: {
     port?: number;
@@ -167,6 +176,7 @@ export class LocalRemoteServer {
     onRemoteCommand?: (cmd: RemoteCommandMessage) => void;
     onWhitelistChange?: (devices: WhitelistedDevice[]) => void;
     onParticipantSignal?: (msg: ParticipantSignalMessage) => void;
+    onChatMessage?: (msg: OperatorChatMessage) => void;
   }) {
     this.port = options.port ?? 4850;
     this.distDir = options.distDir;
@@ -182,6 +192,7 @@ export class LocalRemoteServer {
     this.onRemoteCommand = options.onRemoteCommand;
     this.onWhitelistChange = options.onWhitelistChange;
     this.onParticipantSignal = options.onParticipantSignal;
+    this.onChatMessage = options.onChatMessage;
   }
 
   /**
@@ -489,12 +500,23 @@ export class LocalRemoteServer {
           })
         );
       }
+      if (this.bibleBundleVersion > 0) {
+        ws.send(
+          JSON.stringify({
+            type: 'BIBLE_BUNDLE_AVAILABLE',
+            version: this.bibleBundleVersion
+          })
+        );
+      }
       ws.send(
         JSON.stringify({
           type: 'AUTH_RESULT',
           ok: this.authenticatedClients.has(ws)
         })
       );
+      if (this.chatHistory.length > 0) {
+        ws.send(JSON.stringify({ type: 'CHAT_HISTORY', messages: this.chatHistory }));
+      }
       this.notifyClientCount();
 
       ws.on('message', (raw) => {
@@ -509,6 +531,10 @@ export class LocalRemoteServer {
             blockIndex?: number;
             itemId?: string;
             volume?: number;
+            bookIndex?: number;
+            chapterNum?: number;
+            verseNum?: number;
+            text?: string;
             name?: string;
             audioEnabled?: boolean;
             videoEnabled?: boolean;
@@ -638,8 +664,43 @@ export class LocalRemoteServer {
               action: parsed.action,
               blockIndex: parsed.blockIndex,
               itemId: parsed.itemId,
-              volume: parsed.volume
+              volume: parsed.volume,
+              bookIndex: parsed.bookIndex,
+              chapterNum: parsed.chapterNum,
+              verseNum: parsed.verseNum
             });
+            return;
+          }
+          if (parsed.type === 'CHAT_SEND' && typeof parsed.text === 'string') {
+            if (!this.authenticatedClients.has(ws)) {
+              const matched = parsed.token
+                ? this.verifyDeviceToken(parsed.token, parsed.deviceName)
+                : null;
+              if (matched) {
+                this.authenticatedClients.add(ws);
+                this.clientDeviceIds.set(ws, matched.id);
+              } else if (this.verifyPin(parsed.pin)) {
+                this.authenticatedClients.add(ws);
+              } else {
+                ws.send(
+                  JSON.stringify({
+                    type: 'AUTH_REQUIRED',
+                    error: 'PIN required to send chat messages'
+                  })
+                );
+                return;
+              }
+            }
+            const cleanText = parsed.text.trim().slice(0, 500);
+            if (!cleanText) return;
+            const msg: OperatorChatMessage = {
+              id: `chat-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+              sender: 'android',
+              senderName: parsed.deviceName?.trim() || 'Tablet',
+              text: cleanText,
+              timestamp: Date.now()
+            };
+            this.appendAndBroadcastChat(msg);
           }
         } catch {
           // Ignore malformed messages from clients
@@ -655,6 +716,38 @@ export class LocalRemoteServer {
         this.notifyClientCount();
       });
     });
+  }
+
+  private appendAndBroadcastChat(msg: OperatorChatMessage) {
+    this.chatHistory.push(msg);
+    if (this.chatHistory.length > 200) {
+      this.chatHistory = this.chatHistory.slice(-200);
+    }
+    const payload = JSON.stringify({ type: 'CHAT_MESSAGE', message: msg });
+    for (const client of this.getAllWsClients()) {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(payload);
+      }
+    }
+    this.onChatMessage?.(msg);
+  }
+
+  public sendDesktopChatMessage(text: string): OperatorChatMessage | null {
+    const cleanText = text.trim().slice(0, 500);
+    if (!cleanText) return null;
+    const msg: OperatorChatMessage = {
+      id: `chat-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      sender: 'desktop',
+      senderName: 'Desktop',
+      text: cleanText,
+      timestamp: Date.now()
+    };
+    this.appendAndBroadcastChat(msg);
+    return msg;
+  }
+
+  public getChatHistory(): OperatorChatMessage[] {
+    return this.chatHistory;
   }
 
   public start(): Promise<{ port: number; localUrl: string; wsUrl: string; localPin: string }> {
@@ -733,6 +826,22 @@ export class LocalRemoteServer {
         return;
       }
       const body = JSON.stringify(this.currentSyncBundle);
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        'Access-Control-Allow-Origin': '*'
+      });
+      res.end(body);
+      return;
+    }
+
+    if (reqUrl.pathname === '/api/bible-bundle') {
+      if (!this.currentBibleBundle) {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
+      const body = JSON.stringify(this.currentBibleBundle);
       res.writeHead(200, {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache',
@@ -977,6 +1086,60 @@ export class LocalRemoteServer {
     }
   }
 
+  /**
+   * Stores the active Primary & Secondary Bibles plus saved verse styling and background
+   * media so Android clients can cache them locally for instant optimistic presentation.
+   */
+  public updateBibleSyncBundle(bundle: {
+    primaryBible: BibleVersion | null;
+    secondaryBible: BibleVersion | null;
+    verseStyle?: Partial<ProgramItem>;
+  }) {
+    const rawStyle = bundle.verseStyle ?? {};
+    const externalizedStyle: Partial<ProgramItem> = {
+      ...rawStyle,
+      themeBackground: this.rewriteLocalMediaUrl(rawStyle.themeBackground),
+      verseStackedThemeBackground: this.rewriteLocalMediaUrl(rawStyle.verseStackedThemeBackground)
+    };
+    const styleMediaItem: ProgramItem = {
+      id: '__bible_style__',
+      title: 'Bible Style',
+      type: 'verse',
+      themeBackground: externalizedStyle.themeBackground,
+      verseStackedThemeBackground: externalizedStyle.verseStackedThemeBackground,
+      blocks: []
+    };
+    const mediaFiles = this.collectVisualMediaFiles([styleMediaItem]);
+
+    const key = JSON.stringify({
+      p: `${bundle.primaryBible?.id ?? ''}:${bundle.primaryBible?.books.length ?? 0}`,
+      s: `${bundle.secondaryBible?.id ?? ''}:${bundle.secondaryBible?.books.length ?? 0}`,
+      style: externalizedStyle,
+      media: mediaFiles.map((f) => [f.fileName, f.size, f.mtimeMs])
+    });
+    if (key === this.lastBibleBundleKey) return;
+
+    this.lastBibleBundleKey = key;
+    this.bibleBundleVersion += 1;
+    this.currentBibleBundle = {
+      version: this.bibleBundleVersion,
+      primaryBible: bundle.primaryBible,
+      secondaryBible: bundle.secondaryBible,
+      verseStyle: externalizedStyle,
+      mediaFiles
+    };
+
+    const notice = JSON.stringify({
+      type: 'BIBLE_BUNDLE_AVAILABLE',
+      version: this.bibleBundleVersion
+    });
+    for (const client of this.getAllWsClients()) {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(notice);
+      }
+    }
+  }
+
   private externalizeMediaInItem(item: LiveState['activeItem']): LiveState['activeItem'] {
     if (!item) return item;
     return {
@@ -1116,6 +1279,8 @@ export class LocalRemoteServer {
           activeBlockIndex: slimState.activeBlockIndex,
           override: slimState.override,
           lyricsMode: slimState.lyricsMode,
+          audioPlaying: slimState.audioPlaying,
+          audioVolume: slimState.audioVolume,
           bibleLayout: slimState.bibleLayout,
           verseMaxFontSize: slimState.verseMaxFontSize,
           nextItemTitle: slimState.nextItemTitle,

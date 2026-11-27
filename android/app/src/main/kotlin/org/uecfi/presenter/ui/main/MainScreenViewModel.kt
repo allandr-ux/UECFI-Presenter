@@ -14,7 +14,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.uecfi.presenter.data.CacheStats
+import org.uecfi.presenter.model.BibleSyncBundle
 import org.uecfi.presenter.model.LiveState
+import org.uecfi.presenter.model.OperatorChatMessage
 import org.uecfi.presenter.network.AudioTimeSync
 import org.uecfi.presenter.network.ConnectionStatus
 import org.uecfi.presenter.network.DiscoveredServer
@@ -46,6 +48,8 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
   val authRequired: StateFlow<Boolean> = wsClient.authRequired
   val authError: StateFlow<String?> = wsClient.authError
   val cacheStats: StateFlow<CacheStats> = wsClient.cacheStats
+  val bibleBundle: StateFlow<BibleSyncBundle?> = wsClient.bibleBundle
+  val chatMessages: StateFlow<List<OperatorChatMessage>> = wsClient.chatMessages
 
   @Volatile
   private var userStopped = false
@@ -185,6 +189,19 @@ class MainScreenViewModel(application: Application) : AndroidViewModel(applicati
 
   fun selectItem(itemId: String) {
     wsClient.sendCommand("SELECT_ITEM", itemId = itemId)
+  }
+
+  fun presentVerse(bookIndex: Int, chapterNum: Int, verseNum: Int) {
+    wsClient.sendCommand(
+      "PRESENT_VERSE",
+      bookIndex = bookIndex,
+      chapterNum = chapterNum,
+      verseNum = verseNum,
+    )
+  }
+
+  fun sendChatMessage(text: String) {
+    wsClient.sendChatMessage(text)
   }
 
   fun toggleBlackout() {

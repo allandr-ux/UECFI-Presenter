@@ -431,6 +431,28 @@ function registerIpcHandlers() {
     }
   );
 
+  ipcMain.handle('chat:getHistory', () => {
+    return remoteServer?.getChatHistory() ?? [];
+  });
+
+  ipcMain.on('chat:send', (_event, text: string) => {
+    remoteServer?.sendDesktopChatMessage(text);
+  });
+
+  ipcMain.on(
+    'bibleSync:update',
+    (
+      _event,
+      bundle: {
+        primaryBible: import('../shared/types').BibleVersion | null;
+        secondaryBible: import('../shared/types').BibleVersion | null;
+        verseStyle?: Partial<import('../shared/types').ProgramItem>;
+      }
+    ) => {
+      remoteServer?.updateBibleSyncBundle(bundle);
+    }
+  );
+
   ipcMain.on(
     'liveState:audioTime',
     (_event, payload: { timeSec?: number; activeBlockIndex: number }) => {
@@ -765,6 +787,11 @@ app.whenReady().then(async () => {
     onWhitelistChange: (devices) => {
       if (operatorWindow && !operatorWindow.isDestroyed()) {
         operatorWindow.webContents.send('remote:whitelistChanged', devices);
+      }
+    },
+    onChatMessage: (msg) => {
+      if (operatorWindow && !operatorWindow.isDestroyed()) {
+        operatorWindow.webContents.send('remote:chatMessage', msg);
       }
     },
     onParticipantSignal: (msg) => {

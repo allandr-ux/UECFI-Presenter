@@ -23,6 +23,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.uecfi.presenter.model.BibleSyncBundle
 import org.uecfi.presenter.model.ProgramItem
 
 data class CacheStats(
@@ -46,11 +47,16 @@ class ProgramSyncCache(
   private val syncDir = cacheRoot.apply { mkdirs() }
   private val mediaDir = File(syncDir, "media").apply { mkdirs() }
   private val bundleFile = File(syncDir, "bundle.json")
+  private val bibleBundleFile = File(syncDir, "bible_bundle.json")
   private val mediaMetaFile = File(syncDir, "media_meta.json")
   private val syncMutex = Mutex()
+  private val bibleSyncMutex = Mutex()
 
   @Volatile
   private var cachedVersion: Int = 0
+
+  @Volatile
+  private var cachedBibleVersion: Int = 0
 
   private val itemJsonById = ConcurrentHashMap<String, JsonObject>()
   private val itemModelById = ConcurrentHashMap<String, ProgramItem>()
@@ -58,6 +64,9 @@ class ProgramSyncCache(
 
   private val _cacheStats = MutableStateFlow(CacheStats())
   val cacheStats: StateFlow<CacheStats> = _cacheStats.asStateFlow()
+
+  private val _bibleBundle = MutableStateFlow<BibleSyncBundle?>(null)
+  val bibleBundle: StateFlow<BibleSyncBundle?> = _bibleBundle.asStateFlow()
 
   @Volatile
   private var cachedProgramName: String = ""
@@ -94,6 +103,11 @@ class ProgramSyncCache(
         cachedProgramName = bundleObj["programName"]?.jsonPrimitive?.content.orEmpty()
         indexBundleItems(bundleObj["items"]?.jsonArray)
       }
+      if (bibleBundleFile.exists()) {
+        val parsedBible = json.decodeFromString<BibleSyncBundle>(bibleBundleFile.readText())
+        cachedBibleVersion = parsedBible.version
+        _bibleBundle.value = parsedBible
+      }
     }
     refreshStats()
   }
@@ -101,11 +115,14 @@ class ProgramSyncCache(
   suspend fun clearCache() = withContext(Dispatchers.IO) {
     syncMutex.withLock {
       cachedVersion = 0
+      cachedBibleVersion = 0
       cachedProgramName = ""
       itemJsonById.clear()
       itemModelById.clear()
       mediaMetaByName.clear()
+      _bibleBundle.value = null
       runCatching { bundleFile.delete() }
+      runCatching { bibleBundleFile.delete() }
       runCatching { mediaMetaFile.delete() }
       mediaDir.listFiles()?.forEach { runCatching { it.delete() } }
       refreshStats(isSyncing = false)
@@ -215,49 +232,86 @@ class ProgramSyncCache(
 
       // Sync visual media files referenced by the program items
       val mediaArray = bundleObj["mediaFiles"]?.jsonArray ?: JsonArray(emptyList())
-
-      for (el in mediaArray) {
-        val mObj = el as? JsonObject ?: continue
-        val fileName = mObj["fileName"]?.jsonPrimitive?.content ?: continue
-        val url = mObj["url"]?.jsonPrimitive?.content ?: continue
-        val size = mObj["size"]?.jsonPrimitive?.longOrNull ?: -1L
-        val mtimeMs = mObj["mtimeMs"]?.jsonPrimitive?.longOrNull ?: -1L
-        val stamp = "$size:$mtimeMs"
-
-        val destFile = File(mediaDir, fileName)
-        if (destFile.exists() && destFile.length() == size && mediaMetaByName[fileName] == stamp) {
-          continue
-        }
-
-        val mediaReq = Request.Builder().url(url).build()
-        runCatching {
-          client.newCall(mediaReq).execute().use { resp ->
-            if (!resp.isSuccessful) return@use
-            val bytes = resp.body?.bytes() ?: return@use
-            val tmpFile = File(mediaDir, "$fileName.tmp")
-            tmpFile.writeBytes(bytes)
-            if (!tmpFile.renameTo(destFile)) {
-              destFile.writeBytes(bytes)
-              tmpFile.delete()
-            }
-            mediaMetaByName[fileName] = stamp
-          }
-        }
-      }
-
-      // Only clean up incomplete .tmp files; keep previously cached media files so
-      // removed/re-added items appear instantly without re-downloading. (Use Clear Cache to purge.)
-      mediaDir.listFiles()?.forEach { file ->
-        if (file.name.endsWith(".tmp")) {
-          file.delete()
-        }
-      }
-
-      runCatching {
-        val metaJson = JsonObject(mediaMetaByName.mapValues { JsonPrimitive(it.value) })
-        mediaMetaFile.writeText(metaJson.toString())
-      }
+      downloadMediaFiles(mediaArray, client)
       refreshStats(isSyncing = false)
+    }
+  }
+
+  private fun downloadMediaFiles(mediaArray: JsonArray, client: OkHttpClient) {
+    for (el in mediaArray) {
+      val mObj = el as? JsonObject ?: continue
+      val fileName = mObj["fileName"]?.jsonPrimitive?.content ?: continue
+      val url = mObj["url"]?.jsonPrimitive?.content ?: continue
+      val size = mObj["size"]?.jsonPrimitive?.longOrNull ?: -1L
+      val mtimeMs = mObj["mtimeMs"]?.jsonPrimitive?.longOrNull ?: -1L
+      val stamp = "$size:$mtimeMs"
+
+      val destFile = File(mediaDir, fileName)
+      if (destFile.exists() && destFile.length() == size && mediaMetaByName[fileName] == stamp) {
+        continue
+      }
+
+      val mediaReq = Request.Builder().url(url).build()
+      runCatching {
+        client.newCall(mediaReq).execute().use { resp ->
+          if (!resp.isSuccessful) return@use
+          val bytes = resp.body?.bytes() ?: return@use
+          val tmpFile = File(mediaDir, "$fileName.tmp")
+          tmpFile.writeBytes(bytes)
+          if (!tmpFile.renameTo(destFile)) {
+            destFile.writeBytes(bytes)
+            tmpFile.delete()
+          }
+          mediaMetaByName[fileName] = stamp
+        }
+      }
+    }
+
+    // Only clean up incomplete .tmp files; keep previously cached media files so
+    // removed/re-added items appear instantly without re-downloading. (Use Clear Cache to purge.)
+    mediaDir.listFiles()?.forEach { file ->
+      if (file.name.endsWith(".tmp")) {
+        file.delete()
+      }
+    }
+
+    runCatching {
+      val metaJson = JsonObject(mediaMetaByName.mapValues { JsonPrimitive(it.value) })
+      mediaMetaFile.writeText(metaJson.toString())
+    }
+  }
+
+  suspend fun syncBiblesFromServer(
+    httpBaseUrl: String,
+    targetVersion: Int,
+    client: OkHttpClient,
+  ) = withContext(Dispatchers.IO) {
+    bibleSyncMutex.withLock {
+      if (targetVersion > 0 && cachedBibleVersion == targetVersion && _bibleBundle.value != null) {
+        return@withLock
+      }
+      val base = httpBaseUrl.trimEnd('/')
+      val req = Request.Builder().url("$base/api/bible-bundle").build()
+      val bodyText = runCatching {
+        client.newCall(req).execute().use { resp ->
+          if (!resp.isSuccessful || resp.code == 204) return@use null
+          resp.body?.string()
+        }
+      }.getOrNull() ?: return@withLock
+
+      val parsed = runCatching { json.decodeFromString<BibleSyncBundle>(bodyText) }.getOrNull()
+        ?: return@withLock
+      runCatching { bibleBundleFile.writeText(bodyText) }
+      cachedBibleVersion = parsed.version
+      _bibleBundle.value = parsed
+
+      val mediaArray = runCatching {
+        json.parseToJsonElement(bodyText).jsonObject["mediaFiles"]?.jsonArray
+      }.getOrNull()
+      if (mediaArray != null && mediaArray.isNotEmpty()) {
+        downloadMediaFiles(mediaArray, client)
+        refreshStats(isSyncing = false)
+      }
     }
   }
 }

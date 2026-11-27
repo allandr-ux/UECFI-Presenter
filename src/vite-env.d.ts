@@ -2,6 +2,7 @@
 import type {
   DisplayInfo,
   LiveState,
+  OperatorChatMessage,
   ParticipantSignalMessage,
   ProgramItem,
   RemoteCommandMessage,
@@ -25,6 +26,11 @@ export interface PresenterAPI {
     items: ProgramItem[];
     logoSlide: ProgramItem | null;
   }) => void;
+  updateBibleSyncBundle: (bundle: {
+    primaryBible: import('../shared/types').BibleVersion | null;
+    secondaryBible: import('../shared/types').BibleVersion | null;
+    verseStyle?: Partial<ProgramItem>;
+  }) => void;
   updateAudioTime: (payload: { timeSec?: number; activeBlockIndex: number }) => void;
   getInitialLiveState: () => Promise<LiveState | null>;
   onLiveStateUpdate: (callback: (state: LiveState) => void) => () => void;
@@ -45,6 +51,9 @@ export interface PresenterAPI {
   onRemoteCommand: (callback: (cmd: RemoteCommandMessage) => void) => () => void;
   sendParticipantSignal: (msg: ParticipantSignalMessage) => void;
   onParticipantSignal: (callback: (msg: ParticipantSignalMessage) => void) => () => void;
+  getChatHistory: () => Promise<OperatorChatMessage[]>;
+  sendChatMessage: (text: string) => void;
+  onChatMessage: (callback: (msg: OperatorChatMessage) => void) => () => void;
 }
 
 declare global {

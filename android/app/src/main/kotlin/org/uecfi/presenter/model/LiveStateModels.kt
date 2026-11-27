@@ -1,6 +1,7 @@
 package org.uecfi.presenter.model
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 
 /**
  * Envelope sent over LAN WebSocket by the desktop LocalRemoteServer.
@@ -86,5 +87,50 @@ data class RemoteCommandPayload(
   val blockIndex: Int? = null,
   val itemId: String? = null,
   val volume: Float? = null,
+  val bookIndex: Int? = null,
+  val chapterNum: Int? = null,
+  val verseNum: Int? = null,
   val pin: String? = null,
+)
+
+@Serializable
+data class BibleVerseModel(
+  val number: Int = 1,
+  val text: String = "",
+)
+
+@Serializable
+data class BibleChapterModel(
+  val number: Int = 1,
+  val verses: List<BibleVerseModel> = emptyList(),
+)
+
+@Serializable
+data class BibleBookModel(
+  val name: String = "",
+  val chapters: List<BibleChapterModel> = emptyList(),
+)
+
+@Serializable
+data class BibleVersionModel(
+  val id: String = "",
+  val title: String = "",
+  val books: List<BibleBookModel> = emptyList(),
+)
+
+@Serializable
+data class BibleSyncBundle(
+  val version: Int = 0,
+  val primaryBible: BibleVersionModel? = null,
+  val secondaryBible: BibleVersionModel? = null,
+  val verseStyle: JsonObject? = null,
+)
+
+@Serializable
+data class OperatorChatMessage(
+  val id: String = "",
+  val sender: String = "android", // "desktop" | "android"
+  val senderName: String = "",
+  val text: String = "",
+  val timestamp: Long = 0L,
 )
