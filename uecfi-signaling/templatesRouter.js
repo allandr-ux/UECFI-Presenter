@@ -124,6 +124,24 @@ function createR2Store() {
         } catch {
           return null;
         }
+      },
+      async removeAssets(templateId) {
+        const prefix = `templates/assets/${templateId}/`;
+        let continuationToken;
+        do {
+          const res = await client.send(
+            new ListObjectsV2Command({
+              Bucket: bucket,
+              Prefix: prefix,
+              ContinuationToken: continuationToken
+            })
+          );
+          for (const obj of res.Contents || []) {
+            if (!obj.Key) continue;
+            await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: obj.Key }));
+          }
+          continuationToken = res.IsTruncated ? res.NextContinuationToken : undefined;
+        } while (continuationToken);
       }
     };
   }
@@ -174,6 +192,12 @@ function createR2Store() {
         buffer: fs.readFileSync(p),
         contentType: guessContentType(fileName)
       };
+    },
+    async removeAssets(templateId) {
+      const dir = path.join(baseDir, 'assets', templateId);
+      if (fs.existsSync(dir)) {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
     }
   };
 }
@@ -305,7 +329,8 @@ function createTemplatesRouter() {
         }
         const rawName = String(req.query.name || req.headers['x-file-name'] || 'asset.bin');
         const safeFileName = rawName.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 100) || 'asset.bin';
-        const assetId = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+        const requestedFolder = sanitizeTemplateId(req.query.templateId || req.headers['x-template-id']);
+        const assetId = requestedFolder || `${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
         const contentType =
           typeof req.headers['content-type'] === 'string' &&
           req.headers['content-type'] !== 'application/octet-stream'
@@ -347,7 +372,7 @@ function createTemplatesRouter() {
   // Public: submit a new template for moderation
   router.post('/api/templates', express.json({ limit: '50mb' }), async (req, res) => {
     try {
-      const { title, category, author, thumbnailUrl, thumbnailDataUrl, slide, mediaAssets } = req.body || {};
+      const { id: requestedIdRaw, title, category, author, thumbnailUrl, thumbnailDataUrl, slide, mediaAssets } = req.body || {};
       const cleanTitle = String(title || '').trim().slice(0, 80);
       if (!cleanTitle) {
         return res.status(400).json({ error: 'Template title is required.' });
@@ -377,7 +402,12 @@ function createTemplatesRouter() {
         }
       }
 
-      const id = `tpl-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
+      const requestedId = sanitizeTemplateId(requestedIdRaw);
+      const existing = requestedId ? await findTemplateAcrossStatuses(requestedId) : null;
+      const id =
+        requestedId && !existing
+          ? requestedId
+          : `tpl-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`;
       const record = {
         id,
         title: cleanTitle,
@@ -499,6 +529,7 @@ function createTemplatesRouter() {
       const found = cleanId ? await findTemplateAcrossStatuses(cleanId) : null;
       if (!found) return res.status(404).json({ error: 'Template not found' });
       await store.remove(found.status, cleanId);
+      await store.removeAssets(cleanId);
       await getApprovedTemplates(true);
       res.json({ ok: true });
     } catch (err) {

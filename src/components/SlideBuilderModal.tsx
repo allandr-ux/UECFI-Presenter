@@ -110,6 +110,7 @@ import {
 import { CanvasThreeDModel } from './CanvasThreeDModel';
 import { CanvasThreeDObject, DEFAULT_THREE_D_CONFIG } from './CanvasThreeDObject';
 import {
+  createTemplateId,
   downloadTemplateAssetsAndRewrite,
   fetchApprovedTemplates,
   generateSlideThumbnailDataUrl,
@@ -308,8 +309,22 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
   const [submitFormOpen, setSubmitFormOpen] = useState(false);
   const [submitTitle, setSubmitTitle] = useState('');
   const [submitCategory, setSubmitCategory] = useState<TemplateCategory | ''>('');
-  const [submitAuthor, setSubmitAuthor] = useState('');
+  const [submitAuthorName, setSubmitAuthorName] = useState(() => {
+    try {
+      return localStorage.getItem('uecfi_template_author_name') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [submitAuthorCentro, setSubmitAuthorCentro] = useState(() => {
+    try {
+      return localStorage.getItem('uecfi_template_author_centro') || '';
+    } catch {
+      return '';
+    }
+  });
   const [submitBusy, setSubmitBusy] = useState(false);
+  const [capturingThumbnail, setCapturingThumbnail] = useState(false);
   const [submitFeedback, setSubmitFeedback] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
   const loadCommunityTemplates = async () => {
@@ -4720,33 +4735,41 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                           maxLength={80}
                           className="rounded-md border border-subtle bg-slate-950 px-2.5 py-1.5 text-[0.76rem] text-slate-100 outline-none focus:border-violet-400"
                         />
+                        <select
+                          value={submitCategory}
+                          onChange={(e) => setSubmitCategory(e.target.value as TemplateCategory | '')}
+                          className={cn(
+                            'rounded-md border border-subtle bg-slate-950 px-2.5 py-1.5 text-[0.74rem] outline-none focus:border-violet-400',
+                            submitCategory ? 'text-slate-100' : 'text-slate-400'
+                          )}
+                        >
+                          <option value="" disabled>
+                            Select category...
+                          </option>
+                          {(['General', 'Worship', 'Tema', 'Logo', 'Announcement', 'Youth', 'Event'] as const).map(
+                            (cat) => (
+                              <option key={cat} value={cat}>
+                                {cat}
+                              </option>
+                            )
+                          )}
+                        </select>
                         <div className="grid grid-cols-2 gap-1.5">
-                          <select
-                            value={submitCategory}
-                            onChange={(e) => setSubmitCategory(e.target.value as TemplateCategory | '')}
-                            className={cn(
-                              'rounded-md border border-subtle bg-slate-950 px-2 py-1.5 text-[0.74rem] outline-none focus:border-violet-400',
-                              submitCategory ? 'text-slate-100' : 'text-slate-400'
-                            )}
-                          >
-                            <option value="" disabled>
-                              Select category...
-                            </option>
-                            {(['General', 'Worship', 'Tema', 'Logo', 'Announcement', 'Youth', 'Event'] as const).map(
-                              (cat) => (
-                                <option key={cat} value={cat}>
-                                  {cat}
-                                </option>
-                              )
-                            )}
-                          </select>
                           <input
                             type="text"
-                            value={submitAuthor}
-                            onChange={(e) => setSubmitAuthor(e.target.value)}
-                            placeholder="Your name / centro"
-                            maxLength={50}
-                            className="rounded-md border border-subtle bg-slate-950 px-2 py-1.5 text-[0.74rem] text-slate-100 outline-none focus:border-violet-400"
+                            value={submitAuthorName}
+                            onChange={(e) => setSubmitAuthorName(e.target.value)}
+                            placeholder="Your name"
+                            maxLength={40}
+                            className="rounded-md border border-subtle bg-slate-950 px-2.5 py-1.5 text-[0.74rem] text-slate-100 outline-none focus:border-violet-400"
+                          />
+                          <input
+                            type="text"
+                            value={submitAuthorCentro}
+                            onChange={(e) => setSubmitAuthorCentro(e.target.value)}
+                            placeholder="Centro"
+                            maxLength={40}
+                            className="rounded-md border border-subtle bg-slate-950 px-2.5 py-1.5 text-[0.74rem] text-slate-100 outline-none focus:border-violet-400"
                           />
                         </div>
                         <div className="flex items-center justify-end gap-1.5">
@@ -4780,33 +4803,37 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                                   backgroundGradient: isGradient ? activeSlideBg : undefined,
                                   canvasElements: clonedElements
                                 };
-                                // Capture a real screenshot of the live stage (hiding selection handles briefly)
+                                // Capture a real screenshot of the live stage (hiding selection handles & dashed boxes briefly)
                                 let thumbnailDataUrl: string | undefined;
                                 if (stageRef.current && window.presenterAPI?.captureStageThumbnail) {
                                   const prevSelectedIds = selectedElIds;
                                   const prevBgSelected = backgroundSelected;
-                                  if (prevSelectedIds.length > 0 || prevBgSelected) {
-                                    setSelectedElIds([]);
-                                    setBackgroundSelected(false);
-                                    await new Promise<void>((resolve) =>
-                                      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-                                    );
+                                  setCapturingThumbnail(true);
+                                  if (prevSelectedIds.length > 0) setSelectedElIds([]);
+                                  if (prevBgSelected) setBackgroundSelected(false);
+                                  await new Promise<void>((resolve) =>
+                                    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+                                  );
+                                  try {
+                                    const rect = stageRef.current.getBoundingClientRect();
+                                    const captured = await window.presenterAPI.captureStageThumbnail({
+                                      x: rect.left,
+                                      y: rect.top,
+                                      width: rect.width,
+                                      height: rect.height
+                                    });
+                                    if (captured) thumbnailDataUrl = captured;
+                                  } finally {
+                                    setCapturingThumbnail(false);
+                                    if (prevSelectedIds.length > 0) setSelectedElIds(prevSelectedIds);
+                                    if (prevBgSelected) setBackgroundSelected(true);
                                   }
-                                  const rect = stageRef.current.getBoundingClientRect();
-                                  const captured = await window.presenterAPI.captureStageThumbnail({
-                                    x: rect.left,
-                                    y: rect.top,
-                                    width: rect.width,
-                                    height: rect.height
-                                  });
-                                  if (captured) thumbnailDataUrl = captured;
-                                  if (prevSelectedIds.length > 0) setSelectedElIds(prevSelectedIds);
-                                  if (prevBgSelected) setBackgroundSelected(true);
                                 }
                                 if (!thumbnailDataUrl) {
                                   thumbnailDataUrl = generateSlideThumbnailDataUrl(slidePayload);
                                 }
-                                // Upload thumbnail & all slide assets as real binary files to R2
+                                // Upload thumbnail & all slide assets into a single folder per template in R2
+                                const templateId = createTemplateId();
                                 let thumbnailUrl: string | undefined;
                                 if (thumbnailDataUrl) {
                                   try {
@@ -4815,7 +4842,8 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                                       signalingRelayUrl,
                                       'thumbnail.jpg',
                                       thumbBlob,
-                                      thumbBlob.type || 'image/jpeg'
+                                      thumbBlob.type || 'image/jpeg',
+                                      templateId
                                     );
                                   } catch {
                                     // Fall back to inline data URL if thumbnail upload fails
@@ -4823,12 +4851,26 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                                 }
                                 const rewrittenSlide = await uploadSlideAssetsAndRewrite(
                                   signalingRelayUrl,
-                                  slidePayload
+                                  slidePayload,
+                                  templateId
                                 );
+                                const cleanName = submitAuthorName.trim();
+                                const cleanCentro = submitAuthorCentro.trim();
+                                try {
+                                  localStorage.setItem('uecfi_template_author_name', cleanName);
+                                  localStorage.setItem('uecfi_template_author_centro', cleanCentro);
+                                } catch {
+                                  // Ignore storage errors
+                                }
+                                const combinedAuthor =
+                                  cleanName && cleanCentro
+                                    ? `${cleanName} (${cleanCentro})`
+                                    : cleanName || cleanCentro || 'Community';
                                 await submitCommunityTemplate(signalingRelayUrl, {
+                                  id: templateId,
                                   title: submitTitle.trim(),
                                   category: submitCategory,
-                                  author: submitAuthor.trim() || 'Community',
+                                  author: combinedAuthor,
                                   ...(thumbnailUrl ? { thumbnailUrl } : { thumbnailDataUrl }),
                                   slide: rewrittenSlide
                                 });
@@ -7165,14 +7207,16 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                               )
                               ? 'none'
                               : '2px solid #38bdf8'
-                            : hoveredElId === el.id &&
-                                !editingTextId &&
-                                !editingFrameId &&
-                                !resizingElId &&
-                                !rotatingInfo &&
-                                !marqueeRect
-                              ? '1.5px solid rgba(56, 189, 248, 0.85)'
-                              : '1px dashed rgba(255,255,255,0.18)',
+                            : capturingThumbnail
+                              ? 'none'
+                              : hoveredElId === el.id &&
+                                  !editingTextId &&
+                                  !editingFrameId &&
+                                  !resizingElId &&
+                                  !rotatingInfo &&
+                                  !marqueeRect
+                                ? '1.5px solid rgba(56, 189, 248, 0.85)'
+                                : 'none',
                         cursor: isEditingThisText ? 'text' : 'move',
                         display: 'flex',
                         alignItems: 'center',

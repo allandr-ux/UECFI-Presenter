@@ -30,6 +30,7 @@ export interface CommunityTemplate {
 }
 
 export interface SubmitTemplatePayload {
+  id?: string;
   title: string;
   category: TemplateCategory;
   author: string;
@@ -37,6 +38,10 @@ export interface SubmitTemplatePayload {
   thumbnailDataUrl?: string;
   mediaAssets?: Record<string, string>;
   slide: CommunityTemplateSlide;
+}
+
+export function createTemplateId(): string {
+  return `tpl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 const DEFAULT_RELAY_URL = 'wss://remote.uecfi.net/ws';
@@ -128,16 +133,20 @@ export async function uploadTemplateAsset(
   fileName: string,
   bytes: Uint8Array | ArrayBuffer | Blob,
   contentType = 'application/octet-stream',
+  templateId?: string,
 ): Promise<string> {
   const base = relayUrlToHttpBase(relayUrl);
   const body = bytes instanceof Uint8Array ? new Blob([bytes.slice()], { type: contentType }) : bytes;
+  const qs = new URLSearchParams({ name: fileName });
+  if (templateId) qs.set('templateId', templateId);
   const res = await fetch(
-    `${base}/api/templates/assets?name=${encodeURIComponent(fileName)}`,
+    `${base}/api/templates/assets?${qs.toString()}`,
     {
       method: 'POST',
       headers: {
         'Content-Type': contentType,
         'X-File-Name': fileName,
+        ...(templateId ? { 'X-Template-Id': templateId } : {}),
       },
       body,
     },
@@ -150,34 +159,57 @@ export async function uploadTemplateAsset(
 }
 
 /**
- * Uploads all `uecfi-media://local/<fileName>` files referenced by a slide
- * as real binary files and rewrites their URLs to `/api/templates/assets/...`.
+ * Uploads all local/inline assets (`uecfi-media://local/...`, `http://127.0.0.1:...`,
+ * `blob:...`, and non-SVG `data:image/...`) referenced by a slide as real binary files
+ * and rewrites their URLs to `/api/templates/assets/...`.
  */
 export async function uploadSlideAssetsAndRewrite(
   relayUrl: string | undefined,
   slide: CommunityTemplateSlide,
+  templateId?: string,
 ): Promise<CommunityTemplateSlide> {
   let serialized = JSON.stringify(slide);
-  const matches = serialized.matchAll(/uecfi-media:\/\/local\/([a-zA-Z0-9._-]+)/g);
-  const fileNames = new Set<string>();
-  for (const m of matches) {
-    if (m[1]) fileNames.add(m[1]);
-  }
-  if (fileNames.size === 0) return slide;
+  const urlSet = new Set<string>();
 
-  for (const fileName of fileNames) {
-    const res = await fetch(`uecfi-media://local/${fileName}`);
+  for (const m of serialized.matchAll(/uecfi-media:\/\/local\/[a-zA-Z0-9._-]+/g)) {
+    if (m[0]) urlSet.add(m[0]);
+  }
+  for (const m of serialized.matchAll(/http:\/\/(?:127\.0\.0\.1|localhost):\d+\/[^"'\s)\\]+/g)) {
+    if (m[0]) urlSet.add(m[0]);
+  }
+  for (const m of serialized.matchAll(/blob:[^"'\s)\\]+/g)) {
+    if (m[0]) urlSet.add(m[0]);
+  }
+  for (const m of serialized.matchAll(/data:image\/(?:png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+/g)) {
+    if (m[0]) urlSet.add(m[0]);
+  }
+
+  if (urlSet.size === 0) return slide;
+
+  let idx = 0;
+  for (const srcUrl of urlSet) {
+    idx += 1;
+    const res = await fetch(srcUrl);
     if (!res.ok) {
-      throw new Error(`Could not read local asset "${fileName}" for upload.`);
+      throw new Error(`Could not read local asset for upload (${res.status}).`);
     }
     const blob = await res.blob();
+    let fileName = `asset-${idx}.bin`;
+    if (srcUrl.startsWith('uecfi-media://') || srcUrl.startsWith('http://')) {
+      const lastSeg = srcUrl.split('/').pop()?.split('?')[0];
+      if (lastSeg) fileName = lastSeg;
+    } else if (blob.type.includes('/')) {
+      const ext = blob.type.split('/')[1].replace(/[^a-z0-9]/gi, '') || 'bin';
+      fileName = `image-${idx}.${ext === 'jpeg' ? 'jpg' : ext}`;
+    }
     const assetUrl = await uploadTemplateAsset(
       relayUrl,
       fileName,
       blob,
       blob.type || 'application/octet-stream',
+      templateId,
     );
-    serialized = serialized.replaceAll(`uecfi-media://local/${fileName}`, assetUrl);
+    serialized = serialized.replaceAll(srcUrl, assetUrl);
   }
   return JSON.parse(serialized) as CommunityTemplateSlide;
 }
