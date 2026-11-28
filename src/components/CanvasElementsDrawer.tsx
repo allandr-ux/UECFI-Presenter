@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
   Frame,
   Image as ImageIcon,
   LayoutGrid,
   Loader2,
-  Minus,
   Palette,
   PenTool,
   Search,
@@ -18,7 +19,12 @@ import type { CanvasElement, FrameVariant, ShapeVariant } from '../../shared/typ
 import { ANIMATED_STICKERS, type AnimatedStickerPreset } from '../utils/animatedStickers';
 import { buildColoredSvgDataUrl } from './AssetBrowserModal';
 import { CanvasFrameGraphic, FRAME_OPTIONS } from './CanvasFrameGraphic';
-import { CanvasShapeGraphic, SHAPE_OPTIONS } from './CanvasShapeGraphic';
+import {
+  CanvasShapeGraphic,
+  SHAPE_CATEGORIES,
+  SHAPE_OPTIONS,
+  type ShapeCategoryId
+} from './CanvasShapeGraphic';
 import { cn } from '../utils/cn';
 
 const PIXABAY_SECRET_KEY = 'pixabay_api_key';
@@ -239,6 +245,35 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<DrawerCategory>(null);
+  const [shapeSubcategory, setShapeSubcategory] = useState<ShapeCategoryId | null>(null);
+  const [shapeSearchQuery, setShapeSearchQuery] = useState('');
+  const shapeRowRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [shapeRowScrollState, setShapeRowScrollState] = useState<
+    Record<string, { canScrollLeft: boolean; canScrollRight: boolean }>
+  >({});
+
+  const updateShapeRowScroll = (catId: string, el: HTMLDivElement | null) => {
+    if (!el) return;
+    const canScrollLeft = el.scrollLeft > 2;
+    const canScrollRight = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
+    setShapeRowScrollState((prev) => {
+      const cur = prev[catId];
+      if (cur && cur.canScrollLeft === canScrollLeft && cur.canScrollRight === canScrollRight) {
+        return prev;
+      }
+      return { ...prev, [catId]: { canScrollLeft, canScrollRight } };
+    });
+  };
+
+  useEffect(() => {
+    if (activeCategory !== 'shapes' || shapeSubcategory) return;
+    const raf = requestAnimationFrame(() => {
+      for (const cat of SHAPE_CATEGORIES) {
+        updateShapeRowScroll(cat.id, shapeRowRefs.current[cat.id] ?? null);
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [activeCategory, shapeSubcategory]);
 
   // Recently Used (persisted in localStorage)
   const [recentItems, setRecentItems] = useState<RecentElementRecord[]>(() => {
@@ -635,32 +670,34 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
-      {/* Top Canva-style Search Bar */}
-      <div className="relative flex shrink-0 items-center">
-        <Search
-          size={14}
-          className="pointer-events-none absolute left-2.5 text-text-muted"
-        />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            if (e.target.value.trim()) setActiveCategory(null);
-          }}
-          placeholder="Search elements"
-          className="w-full rounded-[10px] border border-subtle bg-app py-2 pr-7 pl-8 text-[0.82rem] text-text-primary focus:border-accent focus:outline-none"
-        />
-        {searchQuery && (
-          <button
-            type="button"
-            onClick={() => setSearchQuery('')}
-            className="absolute right-2 cursor-pointer border-0 bg-transparent p-0.5 text-text-muted hover:text-text-primary"
-          >
-            <X size={13} />
-          </button>
-        )}
-      </div>
+      {/* Top Canva-style Search Bar (Home / Global Search only) */}
+      {activeCategory === null && (
+        <div className="relative flex shrink-0 items-center">
+          <Search
+            size={14}
+            className="pointer-events-none absolute left-2.5 text-text-muted"
+          />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              if (e.target.value.trim()) setActiveCategory(null);
+            }}
+            placeholder="Search elements"
+            className="w-full rounded-[10px] border border-subtle bg-app py-2 pr-7 pl-8 text-[0.82rem] text-text-primary focus:border-accent focus:outline-none"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2 cursor-pointer border-0 bg-transparent p-0.5 text-text-muted hover:text-text-primary"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* GLOBAL SEARCH RESULTS */}
       {isGlobalSearching && (
@@ -831,7 +868,7 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
                 Elements you add will appear here for quick reuse.
               </div>
             ) : (
-              <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+              <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-0.5">
                 {recentItems.slice(0, 6).map((rec) => renderRecentTile(rec, 50))}
               </div>
             )}
@@ -873,12 +910,24 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
           <div className="flex shrink-0 items-center justify-between">
             <button
               type="button"
-              onClick={() => setActiveCategory(null)}
+              onClick={() => {
+                if (activeCategory === 'shapes' && shapeSubcategory) {
+                  setShapeSubcategory(null);
+                  return;
+                }
+                setShapeSubcategory(null);
+                setShapeSearchQuery('');
+                setActiveCategory(null);
+              }}
               className="inline-flex cursor-pointer items-center gap-[5px] border-0 bg-transparent px-0 py-0.5 text-[0.8rem] font-bold text-slate-300 hover:text-white"
             >
               <ArrowLeft size={15} />
               <span className="capitalize">
-                {activeCategory === 'recent' ? 'Recently used' : activeCategory}
+                {activeCategory === 'recent'
+                  ? 'Recently used'
+                  : activeCategory === 'shapes' && shapeSubcategory
+                    ? SHAPE_CATEGORIES.find((c) => c.id === shapeSubcategory)?.label ?? 'Shapes'
+                    : activeCategory}
               </span>
             </button>
 
@@ -909,30 +958,214 @@ export const CanvasElementsDrawer: React.FC<CanvasElementsDrawerProps> = ({
 
           {/* 2. SHAPES CATEGORY */}
           {activeCategory === 'shapes' && (
-            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
-              <div className="grid grid-cols-4 gap-2">
-                {SHAPE_OPTIONS.map((opt) => (
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-0.5">
+              {/* Inline Shape Search */}
+              <div className="relative flex shrink-0 items-center">
+                <Search
+                  size={13}
+                  className="pointer-events-none absolute left-2.5 text-text-muted"
+                />
+                <input
+                  type="text"
+                  value={shapeSearchQuery}
+                  onChange={(e) => {
+                    setShapeSearchQuery(e.target.value);
+                    if (e.target.value.trim()) setShapeSubcategory(null);
+                  }}
+                  placeholder="Search shapes..."
+                  className="w-full rounded-lg border border-subtle bg-app py-1.5 pr-7 pl-8 text-[0.78rem] text-text-primary focus:border-accent focus:outline-none"
+                />
+                {shapeSearchQuery && (
                   <button
-                    key={opt.id}
                     type="button"
-                    title={opt.label}
-                    onClick={() => handleInsertShape(opt.id)}
-                    className="flex h-[58px] cursor-pointer flex-col items-center justify-center gap-1 rounded-[10px] border border-subtle bg-panel-elevated transition-colors hover:border-accent/60 hover:bg-hover"
+                    onClick={() => setShapeSearchQuery('')}
+                    className="absolute right-2 cursor-pointer border-0 bg-transparent p-0.5 text-text-muted hover:text-text-primary"
                   >
-                    <div className="h-6 w-6">
-                      <CanvasShapeGraphic shapeType={opt.id} fill="#e2e8f0" />
-                    </div>
-                    <span className="text-[0.62rem] text-text-muted">{opt.label}</span>
+                    <X size={12} />
                   </button>
-                ))}
+                )}
               </div>
-              <button
-                type="button"
-                onClick={onAddDivider}
-                className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-subtle bg-panel-elevated p-2.5 text-[0.78rem] font-semibold text-text-primary transition-colors hover:bg-hover"
-              >
-                <Minus size={14} /> Add Divider Line
-              </button>
+
+              {shapeSearchQuery.trim() ? (
+                (() => {
+                  const q = shapeSearchQuery.trim().toLowerCase();
+                  const matches = SHAPE_OPTIONS.filter(
+                    (s) =>
+                      s.label.toLowerCase().includes(q) ||
+                      s.id.toLowerCase().includes(q) ||
+                      s.category.toLowerCase().includes(q)
+                  );
+                  return matches.length === 0 ? (
+                    <div className="py-6 text-center text-[0.76rem] text-text-muted">
+                      No shapes match &ldquo;{shapeSearchQuery.trim()}&rdquo;.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-4 gap-2">
+                      {matches.map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          title={opt.label}
+                          onClick={() => handleInsertShape(opt.id)}
+                          className="flex h-[54px] cursor-pointer items-center justify-center rounded-[10px] border border-subtle bg-panel-elevated p-2.5 transition-colors hover:border-accent/60 hover:bg-hover"
+                        >
+                          <div className="h-7 w-7">
+                            <CanvasShapeGraphic shapeType={opt.id} fill="#e2e8f0" />
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()
+              ) : shapeSubcategory === 'lines' ? (
+                <div className="grid grid-cols-3 gap-2.5">
+                  {SHAPE_OPTIONS.filter((s) => s.category === 'lines').map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      title={opt.label}
+                      onClick={() => handleInsertShape(opt.id)}
+                      className="flex h-[54px] cursor-pointer items-center justify-center rounded-[10px] border border-subtle bg-panel-elevated px-2.5 transition-colors hover:border-accent/60 hover:bg-hover"
+                    >
+                      <div className="h-4 w-full">
+                        <CanvasShapeGraphic shapeType={opt.id} fill="#e2e8f0" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : shapeSubcategory ? (
+                <div className="grid grid-cols-4 gap-2">
+                  {SHAPE_OPTIONS.filter((s) => s.category === shapeSubcategory).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      title={opt.label}
+                      onClick={() => handleInsertShape(opt.id)}
+                      className="flex h-[58px] cursor-pointer flex-col items-center justify-center gap-1 rounded-[10px] border border-subtle bg-panel-elevated p-1.5 transition-colors hover:border-accent/60 hover:bg-hover"
+                    >
+                      <div className="h-7 w-7">
+                        <CanvasShapeGraphic shapeType={opt.id} fill="#e2e8f0" />
+                      </div>
+                      <span className="max-w-full truncate text-[0.6rem] text-text-muted">
+                        {opt.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  {/* Recently used shapes row */}
+                  {recentItems.some((r) => r.kind === 'shape') && (
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[0.76rem] font-bold text-text-primary">
+                          Recently used
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setActiveCategory('recent')}
+                          className="cursor-pointer border-0 bg-transparent text-[0.72rem] font-semibold text-violet-400 hover:underline"
+                        >
+                          See all
+                        </button>
+                      </div>
+                      <div className="no-scrollbar flex gap-1.5 overflow-x-auto pb-1">
+                        {recentItems
+                          .filter((r): r is Extract<RecentElementRecord, { kind: 'shape' }> => r.kind === 'shape')
+                          .slice(0, 8)
+                          .map((rec) => (
+                            <button
+                              key={rec.id}
+                              type="button"
+                              title={rec.name}
+                              onClick={() => handleInsertShape(rec.shapeType)}
+                              className="flex h-[52px] w-[52px] shrink-0 cursor-pointer items-center justify-center rounded-[10px] border border-subtle bg-panel-elevated p-2 transition-colors hover:border-accent/60 hover:bg-hover"
+                            >
+                              <div className="h-7 w-7">
+                                <CanvasShapeGraphic shapeType={rec.shapeType} fill="#e2e8f0" />
+                              </div>
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Categorized horizontal shape carousels with See all */}
+                  {SHAPE_CATEGORIES.map((cat) => {
+                    const items = SHAPE_OPTIONS.filter((s) => s.category === cat.id);
+                    if (items.length === 0) return null;
+                    return (
+                      <div key={cat.id} className="flex flex-col gap-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[0.76rem] font-bold text-text-primary">
+                            {cat.label}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setShapeSubcategory(cat.id)}
+                            className="cursor-pointer border-0 bg-transparent text-[0.72rem] font-semibold text-violet-400 hover:underline"
+                          >
+                            See all
+                          </button>
+                        </div>
+                        <div className="relative">
+                          <div
+                            ref={(el) => {
+                              shapeRowRefs.current[cat.id] = el;
+                            }}
+                            onScroll={(e) => updateShapeRowScroll(cat.id, e.currentTarget)}
+                            className="no-scrollbar flex gap-1.5 overflow-x-auto pb-1"
+                          >
+                            {items.map((opt) => (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                title={opt.label}
+                                onClick={() => handleInsertShape(opt.id)}
+                                className="flex h-[52px] w-[52px] shrink-0 cursor-pointer items-center justify-center rounded-[10px] border border-subtle bg-panel-elevated p-2 transition-colors hover:border-accent/60 hover:bg-hover"
+                              >
+                                <div className="h-7 w-7">
+                                  <CanvasShapeGraphic shapeType={opt.id} fill="#e2e8f0" />
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                          {shapeRowScrollState[cat.id]?.canScrollLeft && (
+                            <button
+                              type="button"
+                              aria-label={`Scroll ${cat.label} left`}
+                              onClick={() => {
+                                shapeRowRefs.current[cat.id]?.scrollBy({
+                                  left: -160,
+                                  behavior: 'smooth'
+                                });
+                              }}
+                              className="absolute top-0 left-0 flex h-[52px] w-6 cursor-pointer items-center justify-center border-0 bg-gradient-to-r from-panel via-panel/90 to-transparent p-0 text-text-secondary hover:text-text-primary"
+                            >
+                              <ChevronLeft size={14} />
+                            </button>
+                          )}
+                          {(shapeRowScrollState[cat.id]?.canScrollRight ?? items.length > 4) && (
+                            <button
+                              type="button"
+                              aria-label={`Scroll ${cat.label} right`}
+                              onClick={() => {
+                                shapeRowRefs.current[cat.id]?.scrollBy({
+                                  left: 160,
+                                  behavior: 'smooth'
+                                });
+                              }}
+                              className="absolute top-0 right-0 flex h-[52px] w-6 cursor-pointer items-center justify-center border-0 bg-gradient-to-l from-panel via-panel/90 to-transparent p-0 text-text-secondary hover:text-text-primary"
+                            >
+                              <ChevronRight size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
             </div>
           )}
 

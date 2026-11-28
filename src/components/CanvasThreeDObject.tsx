@@ -305,6 +305,82 @@ function buildShapesFromImage(
   return { shapes: outers.map((o) => o.shape), halfW, halfH };
 }
 
+/**
+ * Builds an opaque edge-bled texture from a PNG so extruded side/bevel walls
+ * inherit the nearest solid border pixel color ("pulled candy" effect)
+ * without picking up transparent or anti-aliased fringe pixels.
+ */
+function buildEdgeBleedTexture(img: HTMLImageElement): THREE.CanvasTexture {
+  const maxDim = 512;
+  const natW = Math.max(1, img.naturalWidth || 128);
+  const natH = Math.max(1, img.naturalHeight || 128);
+  const scale = Math.min(1, maxDim / Math.max(natW, natH));
+  const w = Math.max(4, Math.round(natW * scale));
+  const h = Math.max(4, Math.round(natH * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (ctx) {
+    ctx.drawImage(img, 0, 0, w, h);
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const data = imgData.data;
+    const total = w * h;
+    const dist = new Float32Array(total);
+    const INF = 1e9;
+
+    for (let i = 0; i < total; i++) {
+      // Only treat well-opaque pixels as color sources to avoid dark/light AA fringe
+      dist[i] = data[i * 4 + 3] >= 160 ? 0 : INF;
+    }
+
+    const relax = (idx: number, nIdx: number, step: number) => {
+      const nd = dist[nIdx] + step;
+      if (nd < dist[idx]) {
+        dist[idx] = nd;
+        const p = idx * 4;
+        const np = nIdx * 4;
+        data[p] = data[np];
+        data[p + 1] = data[np + 1];
+        data[p + 2] = data[np + 2];
+      }
+    };
+
+    // Two-pass chamfer distance flood fills every transparent pixel with nearest edge color
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = y * w + x;
+        if (dist[idx] === 0) continue;
+        if (x > 0) relax(idx, idx - 1, 1);
+        if (y > 0) relax(idx, idx - w, 1);
+        if (x > 0 && y > 0) relax(idx, idx - w - 1, 1.414);
+        if (x < w - 1 && y > 0) relax(idx, idx - w + 1, 1.414);
+      }
+    }
+    for (let y = h - 1; y >= 0; y--) {
+      for (let x = w - 1; x >= 0; x--) {
+        const idx = y * w + x;
+        if (dist[idx] === 0) continue;
+        if (x < w - 1) relax(idx, idx + 1, 1);
+        if (y < h - 1) relax(idx, idx + w, 1);
+        if (x < w - 1 && y < h - 1) relax(idx, idx + w + 1, 1.414);
+        if (x > 0 && y < h - 1) relax(idx, idx + w - 1, 1.414);
+      }
+    }
+
+    for (let i = 0; i < total; i++) {
+      data[i * 4 + 3] = 255;
+    }
+    ctx.putImageData(imgData, 0, 0);
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+  return tex;
+}
+
 interface CanvasThreeDObjectProps {
   imageSrc: string;
   config: CanvasThreeDConfig;
@@ -378,6 +454,7 @@ export const CanvasThreeDObject: React.FC<CanvasThreeDObjectProps> = ({
     let activeGeometry: THREE.BufferGeometry | null = null;
     let activeMaterials: THREE.Material[] = [];
     let activeTexture: THREE.Texture | null = null;
+    let activeSideTexture: THREE.Texture | null = null;
 
     const resize = () => {
       if (disposed) return;
@@ -430,7 +507,10 @@ export const CanvasThreeDObject: React.FC<CanvasThreeDObjectProps> = ({
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.needsUpdate = true;
 
+      const matchImage = config.edgeMode === 'matchImage';
+      const sideTexture = matchImage ? buildEdgeBleedTexture(img) : null;
       const edgeColor = new THREE.Color(config.edgeColor || '#cbd5e1');
+      const sideTint = matchImage ? new THREE.Color('#ffffff') : edgeColor;
       const faceMaterial = new THREE.MeshStandardMaterial({
         map: texture,
         transparent: true,
@@ -454,9 +534,10 @@ export const CanvasThreeDObject: React.FC<CanvasThreeDObjectProps> = ({
       const sideMaterial =
         config.material === 'ice'
           ? new THREE.MeshPhysicalMaterial({
-              color: edgeColor,
-              emissive: edgeColor,
-              emissiveIntensity: 0.45,
+              color: sideTint,
+              ...(sideTexture
+                ? { map: sideTexture, emissive: new THREE.Color('#ffffff'), emissiveMap: sideTexture, emissiveIntensity: 0.35 }
+                : { emissive: edgeColor, emissiveIntensity: 0.45 }),
               roughness: 0.12,
               metalness: 0.05,
               transmission: 0.55,
@@ -469,9 +550,10 @@ export const CanvasThreeDObject: React.FC<CanvasThreeDObjectProps> = ({
             })
           : config.material === 'glass'
             ? new THREE.MeshPhysicalMaterial({
-                color: edgeColor,
-                emissive: edgeColor,
-                emissiveIntensity: 0.12,
+                color: sideTint,
+                ...(sideTexture
+                  ? { map: sideTexture, emissive: new THREE.Color('#ffffff'), emissiveMap: sideTexture, emissiveIntensity: 0.1 }
+                  : { emissive: edgeColor, emissiveIntensity: 0.12 }),
                 roughness: 0.04,
                 metalness: 0.0,
                 transmission: 0.85,
@@ -485,15 +567,17 @@ export const CanvasThreeDObject: React.FC<CanvasThreeDObjectProps> = ({
               })
             : config.material === 'neon'
               ? new THREE.MeshStandardMaterial({
-                  color: edgeColor,
-                  emissive: edgeColor,
-                  emissiveIntensity: 0.85,
+                  color: sideTint,
+                  ...(sideTexture
+                    ? { map: sideTexture, emissive: new THREE.Color('#ffffff'), emissiveMap: sideTexture, emissiveIntensity: 0.75 }
+                    : { emissive: edgeColor, emissiveIntensity: 0.85 }),
                   roughness: 0.25,
                   metalness: 0.2
                 })
               : config.material === 'glossy'
                 ? new THREE.MeshPhysicalMaterial({
-                    color: edgeColor,
+                    color: sideTint,
+                    ...(sideTexture ? { map: sideTexture } : {}),
                     roughness: 0.14,
                     metalness: 0.1,
                     clearcoat: 1,
@@ -501,12 +585,14 @@ export const CanvasThreeDObject: React.FC<CanvasThreeDObjectProps> = ({
                   })
                 : config.material === 'metallic'
                   ? new THREE.MeshStandardMaterial({
-                      color: edgeColor,
+                      color: sideTint,
+                      ...(sideTexture ? { map: sideTexture } : {}),
                       roughness: 0.22,
                       metalness: 0.85
                     })
                   : new THREE.MeshStandardMaterial({
-                      color: edgeColor,
+                      color: sideTint,
+                      ...(sideTexture ? { map: sideTexture } : {}),
                       roughness: 0.78,
                       metalness: 0.05
                     });
@@ -517,6 +603,7 @@ export const CanvasThreeDObject: React.FC<CanvasThreeDObjectProps> = ({
       activeGeometry = geometry;
       activeMaterials = [faceMaterial, sideMaterial];
       activeTexture = texture;
+      activeSideTexture = sideTexture;
     };
 
     if (imageSrc.startsWith('data:') || imageSrc.startsWith('blob:')) {
@@ -592,9 +679,10 @@ export const CanvasThreeDObject: React.FC<CanvasThreeDObjectProps> = ({
       activeGeometry?.dispose();
       for (const mat of activeMaterials) mat.dispose();
       activeTexture?.dispose();
+      activeSideTexture?.dispose();
       renderer.dispose();
     };
-  }, [imageSrc, config.depth, config.bevel, config.material, config.edgeColor, flipX, flipY]);
+  }, [imageSrc, config.depth, config.bevel, config.material, config.edgeColor, config.edgeMode, flipX, flipY]);
 
   if (webglUnavailable) {
     const scaleX = flipX ? -1 : 1;

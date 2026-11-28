@@ -736,7 +736,7 @@ app.whenReady().then(async () => {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' uecfi-media: data: blob: http://127.0.0.1:* https://api.iconify.design https://pixabay.com https://cdn.pixabay.com",
     "media-src 'self' uecfi-media: blob: mediastream: http://127.0.0.1:*",
-    "font-src 'self' data:",
+    "font-src 'self' data: https://fonts.gstatic.com",
     [
       "connect-src 'self'",
       'wss: ws:',

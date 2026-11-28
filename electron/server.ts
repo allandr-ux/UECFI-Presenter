@@ -135,6 +135,18 @@ export class LocalRemoteServer {
   private discoverySocket: dgram.Socket | null = null;
   private currentState: LiveState | null = null;
   private lastBroadcastAtMs = 0;
+  private lastStateBroadcastAtMs = 0;
+  private pendingState: LiveState | null = null;
+  private stateBroadcastTimer: NodeJS.Timeout | null = null;
+  private pendingSyncBundle: {
+    programId: string;
+    programName: string;
+    items: ProgramItem[];
+    logoSlide: ProgramItem | null;
+  } | null = null;
+  private syncBundleTimer: NodeJS.Timeout | null = null;
+  private heartbeatTimer: NodeJS.Timeout | null = null;
+  private aliveClients = new WeakSet<WebSocket>();
   private lastStructuralKey = '';
   private lastAudioTimeSec: number | undefined = undefined;
   private lastActiveBlockIndex = -1;
@@ -482,6 +494,20 @@ export class LocalRemoteServer {
     return this.wss ? Array.from(this.wss.clients) : [];
   }
 
+  private safeWsSend(ws: WebSocket, raw: string, maxBufferedBytes = 2 * 1024 * 1024) {
+    if (ws.readyState !== WebSocket.OPEN) return;
+    if (ws.bufferedAmount > maxBufferedBytes) return;
+    try {
+      ws.send(raw, (err) => {
+        if (err) {
+          // Ignore transient send errors on closing sockets
+        }
+      });
+    } catch {
+      // Ignore synchronous send errors on closing sockets
+    }
+  }
+
   public sendParticipantSignalFromDesktop(msg: ParticipantSignalMessage) {
     const raw = JSON.stringify(msg);
     if (msg.type === 'PARTICIPANT_STATE') {
@@ -502,7 +528,37 @@ export class LocalRemoteServer {
   }
 
   private attachWsHandlers(wss: WebSocketServer) {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+    }
+    this.heartbeatTimer = setInterval(() => {
+      for (const client of this.getAllWsClients()) {
+        if (!this.aliveClients.has(client)) {
+          try {
+            client.terminate();
+          } catch {
+            // Ignore termination errors
+          }
+          continue;
+        }
+        this.aliveClients.delete(client);
+        try {
+          client.ping();
+        } catch {
+          // Ignore ping errors on closing sockets
+        }
+      }
+    }, 15000);
+
     wss.on('connection', (ws: WebSocket, req) => {
+      this.aliveClients.add(ws);
+      ws.on('pong', () => {
+        this.aliveClients.add(ws);
+      });
+      ws.on('error', () => {
+        // Prevent unhandled socket errors from destabilizing the server
+      });
+
       // Allow optional ?pin=... query param on WS handshake
       try {
         const wsReqUrl = new URL(req.url ?? '/', `http://localhost:${this.port}`);
@@ -1073,6 +1129,30 @@ export class LocalRemoteServer {
     items: ProgramItem[];
     logoSlide: ProgramItem | null;
   }) {
+    this.pendingSyncBundle = bundle;
+    if (this.syncBundleVersion === 0) {
+      if (this.syncBundleTimer) {
+        clearTimeout(this.syncBundleTimer);
+        this.syncBundleTimer = null;
+      }
+      this.flushProgramSyncBundle();
+      return;
+    }
+
+    if (this.syncBundleTimer) {
+      clearTimeout(this.syncBundleTimer);
+    }
+    this.syncBundleTimer = setTimeout(() => {
+      this.syncBundleTimer = null;
+      this.flushProgramSyncBundle();
+    }, 180);
+  }
+
+  private flushProgramSyncBundle() {
+    const bundle = this.pendingSyncBundle;
+    this.pendingSyncBundle = null;
+    if (!bundle) return;
+
     const externalizedItems = bundle.items
       .map((item) => this.externalizeMediaInItem(item))
       .filter((item): item is ProgramItem => Boolean(item));
@@ -1105,9 +1185,7 @@ export class LocalRemoteServer {
       version: this.syncBundleVersion
     });
     for (const client of this.getAllWsClients()) {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(notice);
-      }
+      this.safeWsSend(client, notice);
     }
   }
 
@@ -1215,13 +1293,39 @@ export class LocalRemoteServer {
       activeBlockIndex
     });
     for (const client of this.getAllWsClients()) {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(tickMsg);
-      }
+      this.safeWsSend(client, tickMsg, 512 * 1024);
     }
   }
 
   public broadcastState(state: LiveState) {
+    // Leading + trailing coalesce (80ms) so single clicks go out immediately while
+    // rapid bursts of edits/cues don't flood mobile WebSocket buffers.
+    const now = Date.now();
+    const elapsed = now - this.lastStateBroadcastAtMs;
+    if (elapsed < 80) {
+      this.pendingState = state;
+      if (!this.stateBroadcastTimer) {
+        this.stateBroadcastTimer = setTimeout(() => {
+          this.stateBroadcastTimer = null;
+          const next = this.pendingState;
+          this.pendingState = null;
+          if (next) {
+            this.flushBroadcastState(next);
+          }
+        }, 80 - elapsed);
+      }
+      return;
+    }
+
+    if (this.stateBroadcastTimer) {
+      clearTimeout(this.stateBroadcastTimer);
+      this.stateBroadcastTimer = null;
+    }
+    this.pendingState = null;
+    this.flushBroadcastState(state);
+  }
+
+  private flushBroadcastState(state: LiveState) {
     // In timed lyrics mode, block transitions happen continuously as audio time advances.
     // Excluding activeBlockIndex from structuralKey during timed lyrics avoids re-sending
     // the full LIVE_STATE payload on every lyric line/block change; instead, activeBlockIndex
@@ -1276,6 +1380,7 @@ export class LocalRemoteServer {
     this.lastAudioTimeSec = state.audioCurrentTimeSec;
     this.lastActiveBlockIndex = state.activeBlockIndex;
     this.lastBroadcastAtMs = now;
+    this.lastStateBroadcastAtMs = now;
 
     const nonCueKey = JSON.stringify({
       syncBundleVersion: this.syncBundleVersion,
@@ -1314,12 +1419,10 @@ export class LocalRemoteServer {
       : null;
 
     for (const client of this.getAllWsClients()) {
-      if (client.readyState === WebSocket.OPEN) {
-        if (showCueMsg && this.showCueClients.has(client)) {
-          client.send(showCueMsg);
-        } else {
-          client.send(fullMsg);
-        }
+      if (showCueMsg && this.showCueClients.has(client)) {
+        this.safeWsSend(client, showCueMsg);
+      } else {
+        this.safeWsSend(client, fullMsg);
       }
     }
   }
@@ -1362,6 +1465,18 @@ export class LocalRemoteServer {
   }
 
   public stop() {
+    if (this.stateBroadcastTimer) {
+      clearTimeout(this.stateBroadcastTimer);
+      this.stateBroadcastTimer = null;
+    }
+    if (this.syncBundleTimer) {
+      clearTimeout(this.syncBundleTimer);
+      this.syncBundleTimer = null;
+    }
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
     this.discoverySocket?.close();
     this.discoverySocket = null;
     this.wss?.close();

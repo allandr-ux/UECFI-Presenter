@@ -67,14 +67,109 @@ export type CanvasElementAnchor =
   | 'bottomCenter';
 
 export type ShapeVariant =
+  // Lines
+  | 'line'
+  | 'lineArrowRight'
+  | 'lineDoubleArrow'
+  | 'lineChevronArrow'
+  | 'lineDoubleChevronArrow'
+  | 'lineDottedArrow'
+  | 'lineDottedDoubleArrow'
+  | 'lineCircleEnds'
+  | 'lineHollowCircleEnds'
+  | 'lineSquareEnds'
+  | 'lineHollowSquareEnds'
+  | 'lineDiamondEnds'
+  | 'lineHollowDiamondEnds'
+  | 'lineBarEnds'
+  | 'lineDashed'
+  | 'lineDotted'
+  | 'lineWaveThick'
+  | 'lineZigzagWaveThick'
+  // Basic shapes
   | 'rectangle'
+  | 'roundedRect'
   | 'circle'
   | 'triangle'
+  | 'triangleDown'
   | 'diamond'
-  | 'star'
+  | 'cross'
+  | 'ring'
+  // Polygons
+  | 'pentagon'
   | 'hexagon'
+  | 'hexagonFlat'
+  | 'heptagon'
+  | 'octagon'
+  | 'chamferRect'
+  // Stars
+  | 'star4'
+  | 'star'
+  | 'star6'
+  | 'star8'
+  | 'star12'
+  | 'burst'
+  // Arrows
   | 'arrowRight'
-  | 'cross';
+  | 'arrowLeft'
+  | 'arrowUp'
+  | 'arrowDown'
+  | 'arrowLeftRight'
+  | 'chevronRight'
+  // Flowchart shapes
+  | 'flowchartHex'
+  | 'pill'
+  | 'roundedSquare'
+  | 'parallelogram'
+  | 'wave'
+  | 'trapezoid'
+  // Speech bubbles
+  | 'speechSquare'
+  | 'speechOval'
+  | 'thoughtCloud'
+  | 'speechRounded'
+  | 'speechTailLeft'
+  // Clouds
+  | 'cloud'
+  | 'cloudSoft'
+  | 'cloudFlat'
+  | 'cloudPuffy'
+  // Hearts
+  | 'heart'
+  | 'heartTall'
+  | 'heartWide'
+  | 'heartSoft'
+  // Banners
+  | 'bannerRibbon'
+  | 'bannerShield'
+  | 'bannerBookmark'
+  | 'bannerTag'
+  | 'bannerArch'
+  // Teardrops
+  | 'teardrop'
+  | 'teardropSlim'
+  | 'teardropWide'
+  | 'teardropFlame'
+  // Cogs
+  | 'cog'
+  | 'cogThin'
+  | 'sunburstCog'
+  | 'gearHole'
+  // Square stars
+  | 'asterisk6'
+  | 'asterisk8'
+  | 'plusThick'
+  | 'spark5'
+  // Organic shapes
+  | 'flower6'
+  | 'flower8'
+  | 'clover'
+  | 'blob'
+  // Abstract shapes
+  | 'quatrefoil'
+  | 'hourglass'
+  | 'archStack'
+  | 'diagonalCut';
 
 export type CanvasAnimationType =
   | 'none'
@@ -83,11 +178,19 @@ export type CanvasAnimationType =
   | 'slideLeft'
   | 'slideRight'
   | 'pop'
+  | 'smokeDissolve'
+  | 'maskRise'
+  | 'powerOn'
+  | 'strokeDraw'
   | 'float'
   | 'pulse'
   | 'glow'
   | 'spin'
-  | 'sway';
+  | 'sway'
+  | 'vaporHaze'
+  | 'squishy'
+  | 'ripple'
+  | 'wobble3d';
 
 export type FrameVariant =
   | 'circle'
@@ -110,16 +213,31 @@ export interface CanvasThreeDConfig {
   bevel: number; // Bevel thickness/size (0..0.05)
   material: CanvasThreeDMaterial;
   edgeColor: string;
+  edgeMode?: 'solid' | 'matchImage'; // 'solid' = uniform edgeColor, 'matchImage' = pulled-candy PNG edge colors
   animation: CanvasThreeDAnimation;
   speed: number; // Animation speed multiplier (0.25..3)
   tiltX: number; // Base X tilt in degrees (-45..45)
   tiltY: number; // Base Y tilt in degrees (-45..45)
 }
 
+export type LineRouteType = 'straight' | 'elbowed' | 'curved';
+export type LineDashPattern = 'solid' | 'dashed' | 'shortDashed' | 'dotted';
+export type LineCapStyle =
+  | 'none'
+  | 'arrow'
+  | 'arrowFilled'
+  | 'circleOutline'
+  | 'circleFilled'
+  | 'squareOutline'
+  | 'squareFilled'
+  | 'diamondOutline'
+  | 'diamondFilled'
+  | 'bar';
+
 export interface CanvasElement {
   id: string;
   name?: string; // Optional human-readable layer name (e.g. icon name, stock tags, or image filename)
-  kind: 'text' | 'shape' | 'image' | 'divider' | 'participantWidget' | 'frame' | 'model3d';
+  kind: 'text' | 'shape' | 'image' | 'divider' | 'participantWidget' | 'frame' | 'model3d' | 'line';
   groupId?: string;
   shapeType?: ShapeVariant;
   frameShape?: FrameVariant;
@@ -132,12 +250,29 @@ export interface CanvasElement {
   text?: string;
   fontFamily?: string;
   fontSize?: number; // Base px at 1080p height (scales proportionally)
-  fontWeight?: '400' | '600' | '700' | '800';
+  fontWeight?: '400' | '600' | '700' | '800' | '900';
   fontStyle?: 'normal' | 'italic';
   textDecoration?: 'none' | 'underline';
+  textTransform?: 'none' | 'uppercase';
+  listStyle?: 'none' | 'bullet' | 'number';
+  textPosition?: 'normal' | 'superscript' | 'subscript';
   color?: string;
   outlineWidth?: number;
   outlineColor?: string;
+  glowBlur?: number; // Base px at 1080p height (scales proportionally)
+  glowColor?: string;
+  textEffect?: 'none' | 'rainbow' | 'rainbowRipple' | 'prismSpin' | 'shimmer' | 'override' | 'voltage' | 'threeDGlow' | 'trace'; // Animated CSS text color effects
+  shimmerDensity?: number; // Particle density multiplier for shimmer (0..3, default 1 = 5 stars)
+  shimmerGlow?: number; // Particle glow intensity multiplier for shimmer (0..2, default 1 = 100%)
+  shimmerParticleSize?: number; // Particle size multiplier for shimmer (0.5..3, default 1 = 100%)
+  textShadowEnabled?: boolean; // Optional configurable drop shadow (off by default)
+  textShadowColor?: string;
+  textShadowBlur?: number; // 0..100
+  textShadowDirection?: number; // -180..180 degrees
+  textShadowOffset?: number; // 0..100
+  textShadowOffsetX?: number; // Legacy base px at 1080p height
+  textShadowOffsetY?: number; // Legacy base px at 1080p height
+  textShadowOpacity?: number; // 0..1 (default 0.55)
   lineHeight?: number;
   letterSpacing?: number; // in em units (scales proportionally with fontSize)
   textAlign?: 'left' | 'center' | 'right';
@@ -145,6 +280,19 @@ export interface CanvasElement {
   borderRadius?: number;
   opacity?: number;
   thickness?: number; // Line thickness in 1080p px for divider elements
+  lineType?: LineRouteType;
+  lineDash?: LineDashPattern;
+  lineRoundedCaps?: boolean;
+  lineStrokeWidth?: number; // Base px at 1080p height (default 4)
+  lineStartCap?: LineCapStyle;
+  lineEndCap?: LineCapStyle;
+  lineX1?: number; // 0..100 (% of stage width)
+  lineY1?: number; // 0..100 (% of stage height)
+  lineX2?: number; // 0..100 (% of stage width)
+  lineY2?: number; // 0..100 (% of stage height)
+  lineCx?: number; // Handle point X (% of stage width) for curved/elbowed routing
+  lineCy?: number; // Handle point Y (% of stage height) for curved/elbowed routing
+  linePoints?: Array<{ x: number; y: number }>; // Intermediate curving handles (% of stage) for multi-point curved lines
   imageSrc?: string;
   modelSrc?: string; // Local media URL (.glb) for imported 3D model elements
   cropTop?: number; // Non-destructive top trim fraction (0..1) for image elements
@@ -158,10 +306,14 @@ export interface CanvasElement {
   svgTemplate?: string; // Raw SVG template (with currentColor) for recolorable vector icons/graphics
   flipX?: boolean;
   flipY?: boolean;
+  locked?: boolean;
   rotation?: number; // Rotation angle in degrees (-180..180)
   animation?: CanvasAnimationType;
   animationDuration?: number; // Duration in seconds
   animationDelay?: number; // Entrance delay in seconds
+  animationUnit?: 'character' | 'word' | 'line';
+  animationDirection?: 'left' | 'right' | 'up' | 'down';
+  animationIntensity?: number; // Intensity multiplier (0.3..2)
   threeD?: CanvasThreeDConfig; // Optional Three.js 3D extrusion/effect/animation for image elements
   widgetTitleColor?: string;
   widgetTitleSize?: number;
