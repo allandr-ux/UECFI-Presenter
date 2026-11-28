@@ -110,16 +110,17 @@ import {
 import { CanvasThreeDModel } from './CanvasThreeDModel';
 import { CanvasThreeDObject, DEFAULT_THREE_D_CONFIG } from './CanvasThreeDObject';
 import {
+  downloadTemplateAssetsAndRewrite,
   fetchApprovedTemplates,
   generateSlideThumbnailDataUrl,
+  resolveTemplateAssetUrl,
   submitCommunityTemplate,
+  uploadSlideAssetsAndRewrite,
+  uploadTemplateAsset,
   type CommunityTemplate,
   type TemplateCategory
 } from '../utils/templateService';
-import {
-  bundleLocalMediaForExport,
-  restoreBundledMediaOnImport
-} from '../utils/mediaUpload';
+import { restoreBundledMediaOnImport } from '../utils/mediaUpload';
 
 interface SlideBuilderModalProps {
   open: boolean;
@@ -4805,15 +4806,31 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                                 if (!thumbnailDataUrl) {
                                   thumbnailDataUrl = generateSlideThumbnailDataUrl(slidePayload);
                                 }
-                                const mediaAssets = await bundleLocalMediaForExport(slidePayload);
+                                // Upload thumbnail & all slide assets as real binary files to R2
+                                let thumbnailUrl: string | undefined;
+                                if (thumbnailDataUrl) {
+                                  try {
+                                    const thumbBlob = await (await fetch(thumbnailDataUrl)).blob();
+                                    thumbnailUrl = await uploadTemplateAsset(
+                                      signalingRelayUrl,
+                                      'thumbnail.jpg',
+                                      thumbBlob,
+                                      thumbBlob.type || 'image/jpeg'
+                                    );
+                                  } catch {
+                                    // Fall back to inline data URL if thumbnail upload fails
+                                  }
+                                }
+                                const rewrittenSlide = await uploadSlideAssetsAndRewrite(
+                                  signalingRelayUrl,
+                                  slidePayload
+                                );
                                 await submitCommunityTemplate(signalingRelayUrl, {
                                   title: submitTitle.trim(),
                                   category: submitCategory,
                                   author: submitAuthor.trim() || 'Community',
-                                  thumbnailDataUrl,
-                                  mediaAssets:
-                                    Object.keys(mediaAssets).length > 0 ? mediaAssets : undefined,
-                                  slide: slidePayload
+                                  ...(thumbnailUrl ? { thumbnailUrl } : { thumbnailDataUrl }),
+                                  slide: rewrittenSlide
                                 });
                                 setSubmitFeedback({
                                   kind: 'ok',
@@ -4903,10 +4920,16 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                                 key={tpl.id}
                                 type="button"
                                 onClick={async () => {
-                                  const restoredSlide = await restoreBundledMediaOnImport(
-                                    tpl.slide,
-                                    tpl.mediaAssets
+                                  let restoredSlide = await downloadTemplateAssetsAndRewrite(
+                                    signalingRelayUrl,
+                                    tpl.slide
                                   );
+                                  if (tpl.mediaAssets) {
+                                    restoredSlide = await restoreBundledMediaOnImport(
+                                      restoredSlide,
+                                      tpl.mediaAssets
+                                    );
+                                  }
                                   const nextBg =
                                     restoredSlide.backgroundGradient ||
                                     restoredSlide.backgroundColor ||
@@ -4930,9 +4953,12 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                                 className="group flex cursor-pointer flex-col overflow-hidden rounded-lg border border-subtle bg-slate-950/70 text-left transition-colors hover:border-violet-400"
                               >
                                 <div className="relative aspect-video w-full overflow-hidden bg-slate-900">
-                                  {tpl.thumbnailDataUrl ? (
+                                  {(tpl.thumbnailUrl || tpl.thumbnailDataUrl) ? (
                                     <img
-                                      src={tpl.thumbnailDataUrl}
+                                      src={
+                                        resolveTemplateAssetUrl(signalingRelayUrl, tpl.thumbnailUrl) ||
+                                        tpl.thumbnailDataUrl
+                                      }
                                       alt={tpl.title}
                                       className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
                                     />

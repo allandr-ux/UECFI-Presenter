@@ -184,8 +184,9 @@
         }
         grid.innerHTML = list.map((t) => {
           const count = (t.slide && Array.isArray(t.slide.canvasElements)) ? t.slide.canvasElements.length : 0;
-          const thumbHtml = t.thumbnailDataUrl
-            ? `<img src="${esc(t.thumbnailDataUrl)}" alt="${esc(t.title)}" />`
+          const thumbSrc = t.thumbnailUrl || t.thumbnailDataUrl;
+          const thumbHtml = thumbSrc
+            ? `<img src="${esc(thumbSrc)}" alt="${esc(t.title)}" />`
             : `<span>No preview</span>`;
           return `
             <div class="tpl-card">

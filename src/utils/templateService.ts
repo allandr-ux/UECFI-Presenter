@@ -21,6 +21,7 @@ export interface CommunityTemplate {
   category: TemplateCategory;
   author: string;
   status?: 'pending' | 'approved' | 'rejected';
+  thumbnailUrl?: string;
   thumbnailDataUrl?: string;
   mediaAssets?: Record<string, string>;
   createdAt: string;
@@ -32,6 +33,7 @@ export interface SubmitTemplatePayload {
   title: string;
   category: TemplateCategory;
   author: string;
+  thumbnailUrl?: string;
   thumbnailDataUrl?: string;
   mediaAssets?: Record<string, string>;
   slide: CommunityTemplateSlide;
@@ -101,6 +103,116 @@ export async function fetchApprovedTemplates(
     templates: Array.isArray(data?.templates) ? data.templates : [],
     storageMode: data?.storageMode,
   };
+}
+
+/**
+ * Resolves a server-relative asset path (e.g. /api/templates/assets/...)
+ * against the signaling server's HTTP base URL.
+ */
+export function resolveTemplateAssetUrl(
+  relayUrl: string | undefined,
+  assetPath: string | undefined,
+): string | undefined {
+  if (!assetPath) return undefined;
+  if (/^(https?:|data:|uecfi-media:)/i.test(assetPath)) return assetPath;
+  const base = relayUrlToHttpBase(relayUrl);
+  return `${base}${assetPath.startsWith('/') ? assetPath : `/${assetPath}`}`;
+}
+
+/**
+ * Uploads a single binary file (image, background, 3D .glb, or JPEG thumbnail)
+ * to the signaling server / R2 and returns its server-relative URL.
+ */
+export async function uploadTemplateAsset(
+  relayUrl: string | undefined,
+  fileName: string,
+  bytes: Uint8Array | ArrayBuffer | Blob,
+  contentType = 'application/octet-stream',
+): Promise<string> {
+  const base = relayUrlToHttpBase(relayUrl);
+  const body = bytes instanceof Uint8Array ? new Blob([bytes.slice()], { type: contentType }) : bytes;
+  const res = await fetch(
+    `${base}/api/templates/assets?name=${encodeURIComponent(fileName)}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': contentType,
+        'X-File-Name': fileName,
+      },
+      body,
+    },
+  );
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data?.url) {
+    throw new Error(data?.error || `Asset upload failed (${res.status})`);
+  }
+  return data.url as string;
+}
+
+/**
+ * Uploads all `uecfi-media://local/<fileName>` files referenced by a slide
+ * as real binary files and rewrites their URLs to `/api/templates/assets/...`.
+ */
+export async function uploadSlideAssetsAndRewrite(
+  relayUrl: string | undefined,
+  slide: CommunityTemplateSlide,
+): Promise<CommunityTemplateSlide> {
+  let serialized = JSON.stringify(slide);
+  const matches = serialized.matchAll(/uecfi-media:\/\/local\/([a-zA-Z0-9._-]+)/g);
+  const fileNames = new Set<string>();
+  for (const m of matches) {
+    if (m[1]) fileNames.add(m[1]);
+  }
+  if (fileNames.size === 0) return slide;
+
+  for (const fileName of fileNames) {
+    const res = await fetch(`uecfi-media://local/${fileName}`);
+    if (!res.ok) {
+      throw new Error(`Could not read local asset "${fileName}" for upload.`);
+    }
+    const blob = await res.blob();
+    const assetUrl = await uploadTemplateAsset(
+      relayUrl,
+      fileName,
+      blob,
+      blob.type || 'application/octet-stream',
+    );
+    serialized = serialized.replaceAll(`uecfi-media://local/${fileName}`, assetUrl);
+  }
+  return JSON.parse(serialized) as CommunityTemplateSlide;
+}
+
+/**
+ * Downloads any `/api/templates/assets/<assetId>/<fileName>` binary files
+ * referenced by a template slide into the local Electron media directory and
+ * remaps their URLs to `uecfi-media://local/...`.
+ */
+export async function downloadTemplateAssetsAndRewrite(
+  relayUrl: string | undefined,
+  slide: CommunityTemplateSlide,
+): Promise<CommunityTemplateSlide> {
+  if (!window.presenterAPI?.saveMediaFile) return slide;
+  let serialized = JSON.stringify(slide);
+  const matches = serialized.matchAll(/\/api\/templates\/assets\/([a-zA-Z0-9_-]+)\/([a-zA-Z0-9._-]+)/g);
+  const paths = new Map<string, string>();
+  for (const m of matches) {
+    if (m[0] && m[2]) paths.set(m[0], m[2]);
+  }
+  if (paths.size === 0) return slide;
+
+  const base = relayUrlToHttpBase(relayUrl);
+  for (const [assetPath, fileName] of paths.entries()) {
+    try {
+      const res = await fetch(`${base}${assetPath}`);
+      if (!res.ok) continue;
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      const saved = await window.presenterAPI.saveMediaFile(fileName, bytes);
+      serialized = serialized.replaceAll(assetPath, saved.url);
+    } catch {
+      // Skip unreachable asset
+    }
+  }
+  return JSON.parse(serialized) as CommunityTemplateSlide;
 }
 
 /**

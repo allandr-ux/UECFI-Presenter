@@ -758,7 +758,7 @@ app.whenReady().then(async () => {
     "default-src 'self'",
     isDev ? "script-src 'self' 'unsafe-inline' http://localhost:5173" : "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' uecfi-media: data: blob: http://127.0.0.1:* https://api.iconify.design https://pixabay.com https://cdn.pixabay.com",
+    "img-src 'self' uecfi-media: data: blob: http://127.0.0.1:* https:",
     "media-src 'self' uecfi-media: blob: mediastream: http://127.0.0.1:*",
     "font-src 'self' data: https://fonts.gstatic.com",
     [

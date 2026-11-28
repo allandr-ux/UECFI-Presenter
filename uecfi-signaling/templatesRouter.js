@@ -97,13 +97,40 @@ function createR2Store() {
             Key: `templates/${status}/${id}.json`
           })
         );
+      },
+      async putAsset(assetId, fileName, buffer, contentType) {
+        await client.send(
+          new PutObjectCommand({
+            Bucket: bucket,
+            Key: `templates/assets/${assetId}/${fileName}`,
+            Body: buffer,
+            ContentType: contentType || 'application/octet-stream'
+          })
+        );
+      },
+      async getAsset(assetId, fileName) {
+        try {
+          const res = await client.send(
+            new GetObjectCommand({
+              Bucket: bucket,
+              Key: `templates/assets/${assetId}/${fileName}`
+            })
+          );
+          const bytes = await res.Body.transformToByteArray();
+          return {
+            buffer: Buffer.from(bytes),
+            contentType: res.ContentType || guessContentType(fileName)
+          };
+        } catch {
+          return null;
+        }
       }
     };
   }
 
   // Local fallback for development when R2 credentials are not set
   const baseDir = path.join(__dirname, '.templates-cache');
-  for (const s of STATUSES) {
+  for (const s of [...STATUSES, 'assets']) {
     fs.mkdirSync(path.join(baseDir, s), { recursive: true });
   }
   console.warn('[TEMPLATES] R2 env vars not set; using ephemeral local cache (.templates-cache/)');
@@ -134,8 +161,40 @@ function createR2Store() {
     async remove(status, id) {
       const p = path.join(baseDir, status, `${id}.json`);
       if (fs.existsSync(p)) fs.unlinkSync(p);
+    },
+    async putAsset(assetId, fileName, buffer) {
+      const dir = path.join(baseDir, 'assets', assetId);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, fileName), buffer);
+    },
+    async getAsset(assetId, fileName) {
+      const p = path.join(baseDir, 'assets', assetId, fileName);
+      if (!fs.existsSync(p)) return null;
+      return {
+        buffer: fs.readFileSync(p),
+        contentType: guessContentType(fileName)
+      };
     }
   };
+}
+
+function guessContentType(fileName) {
+  const ext = path.extname(String(fileName || '')).toLowerCase();
+  const map = {
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp',
+    '.gif': 'image/gif',
+    '.svg': 'image/svg+xml',
+    '.glb': 'model/gltf-binary',
+    '.gltf': 'model/gltf+json',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+    '.mp4': 'video/mp4',
+    '.webm': 'video/webm'
+  };
+  return map[ext] || 'application/octet-stream';
 }
 
 function getSessionSecret() {
@@ -234,10 +293,61 @@ function createTemplatesRouter() {
     }
   });
 
-  // Public: submit a new template for moderation
-  router.post('/api/templates', express.json({ limit: '30mb' }), async (req, res) => {
+  // Public: upload a single binary asset file (image, background, 3D .glb, thumbnail)
+  router.post(
+    '/api/templates/assets',
+    express.raw({ type: '*/*', limit: '50mb' }),
+    async (req, res) => {
+      try {
+        const buffer = Buffer.isBuffer(req.body) ? req.body : null;
+        if (!buffer || buffer.length === 0) {
+          return res.status(400).json({ error: 'Empty file body.' });
+        }
+        const rawName = String(req.query.name || req.headers['x-file-name'] || 'asset.bin');
+        const safeFileName = rawName.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 100) || 'asset.bin';
+        const assetId = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+        const contentType =
+          typeof req.headers['content-type'] === 'string' &&
+          req.headers['content-type'] !== 'application/octet-stream'
+            ? req.headers['content-type'].split(';')[0].trim()
+            : guessContentType(safeFileName);
+        await store.putAsset(assetId, safeFileName, buffer, contentType);
+        res.status(201).json({
+          ok: true,
+          url: `/api/templates/assets/${assetId}/${safeFileName}`
+        });
+      } catch (err) {
+        console.error('[TEMPLATES] POST /api/templates/assets error:', err);
+        res.status(500).json({ error: 'Failed to upload template asset' });
+      }
+    }
+  );
+
+  // Public: serve a binary template asset file from R2 / local cache
+  router.get('/api/templates/assets/:assetId/:fileName', async (req, res) => {
     try {
-      const { title, category, author, thumbnailDataUrl, slide, mediaAssets } = req.body || {};
+      const assetId = sanitizeTemplateId(req.params.assetId);
+      const fileName = String(req.params.fileName || '').replace(/[^a-zA-Z0-9._-]/g, '');
+      if (!assetId || !fileName) {
+        return res.status(400).json({ error: 'Invalid asset path' });
+      }
+      const asset = await store.getAsset(assetId, fileName);
+      if (!asset) {
+        return res.status(404).json({ error: 'Asset not found' });
+      }
+      res.setHeader('Content-Type', asset.contentType || guessContentType(fileName));
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      res.send(asset.buffer);
+    } catch (err) {
+      console.error('[TEMPLATES] GET /api/templates/assets error:', err);
+      res.status(500).json({ error: 'Failed to load asset' });
+    }
+  });
+
+  // Public: submit a new template for moderation
+  router.post('/api/templates', express.json({ limit: '50mb' }), async (req, res) => {
+    try {
+      const { title, category, author, thumbnailUrl, thumbnailDataUrl, slide, mediaAssets } = req.body || {};
       const cleanTitle = String(title || '').trim().slice(0, 80);
       if (!cleanTitle) {
         return res.status(400).json({ error: 'Template title is required.' });
@@ -247,8 +357,14 @@ function createTemplatesRouter() {
       }
       const cleanCategory = VALID_CATEGORIES.includes(category) ? category : 'General';
       const cleanAuthor = String(author || 'Community').trim().slice(0, 60) || 'Community';
+      const cleanThumbUrl =
+        typeof thumbnailUrl === 'string' && thumbnailUrl.startsWith('/api/templates/assets/')
+          ? thumbnailUrl.slice(0, 300)
+          : undefined;
       const cleanThumb =
-        typeof thumbnailDataUrl === 'string' && thumbnailDataUrl.startsWith('data:image/')
+        !cleanThumbUrl &&
+        typeof thumbnailDataUrl === 'string' &&
+        thumbnailDataUrl.startsWith('data:image/')
           ? thumbnailDataUrl.slice(0, 600_000)
           : undefined;
       let cleanMediaAssets;
@@ -267,6 +383,7 @@ function createTemplatesRouter() {
         title: cleanTitle,
         category: cleanCategory,
         author: cleanAuthor,
+        ...(cleanThumbUrl ? { thumbnailUrl: cleanThumbUrl } : {}),
         ...(cleanThumb ? { thumbnailDataUrl: cleanThumb } : {}),
         ...(cleanMediaAssets ? { mediaAssets: cleanMediaAssets } : {}),
         slide: {
