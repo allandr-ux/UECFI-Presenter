@@ -83,6 +83,12 @@ contextBridge.exposeInMainWorld('presenterAPI', {
     ipcRenderer.invoke('secrets:get', key),
   setSecret: (key: string, value: string | null): Promise<boolean> =>
     ipcRenderer.invoke('secrets:set', { key, value }),
+  captureStageThumbnail: (rect: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }): Promise<string | null> => ipcRenderer.invoke('stage:captureThumbnail', rect),
   onRemoteClientCount: (callback: (count: number) => void): (() => void) => {
     const handler = (_event: Electron.IpcRendererEvent, count: number) => callback(count);
     ipcRenderer.on('remote:clientCount', handler);

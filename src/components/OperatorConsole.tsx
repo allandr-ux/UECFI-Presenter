@@ -90,6 +90,7 @@ import {
   restoreBundledMediaOnImport,
   saveUserMediaFile
 } from '../utils/mediaUpload';
+import { pingSignalingHealth } from '../utils/templateService';
 import { MainScreenView } from './MainScreenView';
 import { ScaledMainScreenPreview } from './ScaledMainScreenPreview';
 import { RemoteParticipantsPanel } from './RemoteParticipantsPanel';
@@ -1487,6 +1488,18 @@ export const OperatorConsole: React.FC = () => {
       stage: participantStageConfig
     });
   }, [participants, participantStageConfig, dispatchSignalToRelayOrLan]);
+
+  // Keep Render signaling server awake with a lightweight 5-minute health ping while online
+  useEffect(() => {
+    const relayUrl = participantSettings.signalingRelayUrl.trim();
+    const runPing = () => {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+      void pingSignalingHealth(relayUrl);
+    };
+    runPing();
+    const timer = window.setInterval(runPing, 5 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, [participantSettings.signalingRelayUrl]);
 
   // Connect to uecfi-signaling server (e.g. wss://remote.uecfi.net/ws)
   useEffect(() => {
@@ -6161,12 +6174,14 @@ export const OperatorConsole: React.FC = () => {
       <SlideBuilderModal
         open={slideBuilderOpen}
         initialItem={editingItem}
+        signalingRelayUrl={participantSettings.signalingRelayUrl}
         onClose={() => setSlideBuilderOpen(false)}
         onSave={handleSaveEditorItem}
       />
 
       <SlideBuilderModal
         open={logoBuilderOpen}
+        signalingRelayUrl={participantSettings.signalingRelayUrl}
         initialItem={
           logoSlide ?? {
             id: 'logo-slide-default',

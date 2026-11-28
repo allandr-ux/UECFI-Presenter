@@ -32,13 +32,13 @@ function base64ToUint8(b64: string): Uint8Array {
 }
 
 /**
- * Collects all `uecfi-media://local/<fileName>` assets (images, backgrounds, audio)
- * referenced by `items` and encodes them as base64 for portable JSON export.
+ * Collects all `uecfi-media://local/<fileName>` assets (images, backgrounds, 3D models, audio)
+ * referenced by `data` and encodes them as base64 for portable JSON export.
  */
-export async function bundleLocalMediaForExport(
-  items: ProgramItem[]
+export async function bundleLocalMediaForExport<T = ProgramItem[]>(
+  data: T
 ): Promise<Record<string, string>> {
-  const serialized = JSON.stringify(items);
+  const serialized = JSON.stringify(data);
   const matches = serialized.matchAll(/uecfi-media:\/\/local\/([a-zA-Z0-9._-]+)/g);
   const fileNames = new Set<string>();
   for (const m of matches) {
@@ -63,12 +63,12 @@ export async function bundleLocalMediaForExport(
  * Restores any bundled `mediaAssets` from an imported JSON payload into the
  * local machine's media directory and remaps `uecfi-media://local/...` URLs.
  */
-export async function restoreBundledMediaOnImport(
-  items: ProgramItem[],
+export async function restoreBundledMediaOnImport<T = ProgramItem[]>(
+  data: T,
   mediaAssets: unknown
-): Promise<ProgramItem[]> {
+): Promise<T> {
   if (!mediaAssets || typeof mediaAssets !== 'object' || !window.presenterAPI?.saveMediaFile) {
-    return items;
+    return data;
   }
 
   const urlMap = new Map<string, string>();
@@ -83,12 +83,12 @@ export async function restoreBundledMediaOnImport(
     }
   }
 
-  if (urlMap.size === 0) return items;
-  let serialized = JSON.stringify(items);
+  if (urlMap.size === 0) return data;
+  let serialized = JSON.stringify(data);
   for (const [oldUrl, newUrl] of urlMap.entries()) {
     if (oldUrl !== newUrl) {
       serialized = serialized.replaceAll(oldUrl, newUrl);
     }
   }
-  return JSON.parse(serialized) as ProgramItem[];
+  return JSON.parse(serialized) as T;
 }

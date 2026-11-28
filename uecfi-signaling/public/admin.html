@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UECFI Presenter — Template Moderation</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b1120;
+        --panel: #111827;
+        --elev: #1e293b;
+        --border: rgba(148, 163, 184, 0.22);
+        --text: #f8fafc;
+        --muted: #94a3b8;
+        --accent: #7c3aed;
+        --green: #10b981;
+        --red: #ef4444;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--border);
+        background: var(--panel);
+      }
+      header h1 { margin: 0; font-size: 1.05rem; font-weight: 700; }
+      main { max-width: 1100px; margin: 0 auto; padding: 24px; }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+      }
+      .login-box { max-width: 380px; margin: 60px auto; }
+      input[type='password'] {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--text);
+        font-size: 0.95rem;
+        margin: 12px 0;
+      }
+      button {
+        cursor: pointer;
+        border: 0;
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: #fff;
+        background: var(--accent);
+      }
+      button.secondary { background: var(--elev); color: var(--text); border: 1px solid var(--border); }
+      button.approve { background: var(--green); color: #052e16; }
+      button.reject { background: #f59e0b; color: #1c1917; }
+      button.danger { background: var(--red); }
+      .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+      .tabs button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
+      }
+      .tpl-card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .thumb {
+        aspect-ratio: 16 / 9;
+        background: #020617;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+      .thumb img { width: 100%; height: 100%; object-fit: cover; }
+      .tpl-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+      .tpl-title { font-weight: 700; font-size: 0.95rem; }
+      .tpl-meta { font-size: 0.78rem; color: var(--muted); }
+      .tpl-actions { display: flex; gap: 6px; margin-top: auto; padding-top: 8px; flex-wrap: wrap; }
+      .error { color: #fca5a5; font-size: 0.82rem; margin-top: 6px; }
+      .hidden { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>UECFI Presenter — Template Moderation</h1>
+      <div id="headerActions" class="hidden" style="display:flex;gap:8px;align-items:center;">
+        <span id="storageBadge" class="tpl-meta"></span>
+        <button id="refreshBtn" class="secondary">Refresh</button>
+        <button id="logoutBtn" class="secondary">Log out</button>
+      </div>
+    </header>
+
+    <main>
+      <div id="loginView" class="card login-box">
+        <h2 style="margin:0 0 6px;font-size:1.1rem;">Admin Login</h2>
+        <p class="tpl-meta" style="margin:0;">Enter the server's <code>ADMIN_PASSWORD</code> to moderate submitted slide templates.</p>
+        <form id="loginForm">
+          <input id="passwordInput" type="password" placeholder="Admin password" required />
+          <button type="submit" style="width:100%;">Sign In</button>
+          <div id="loginError" class="error"></div>
+        </form>
+      </div>
+
+      <div id="dashView" class="hidden">
+        <div class="tabs">
+          <button data-tab="pending" class="secondary active">Pending (<span id="countPending">0</span>)</button>
+          <button data-tab="approved" class="secondary">Approved (<span id="countApproved">0</span>)</button>
+          <button data-tab="rejected" class="secondary">Rejected (<span id="countRejected">0</span>)</button>
+        </div>
+        <div id="grid" class="grid"></div>
+      </div>
+    </main>
+
+    <script>
+      let currentTab = 'pending';
+      let data = { pending: [], approved: [], rejected: [] };
+
+      const loginView = document.getElementById('loginView');
+      const dashView = document.getElementById('dashView');
+      const headerActions = document.getElementById('headerActions');
+      const loginError = document.getElementById('loginError');
+      const grid = document.getElementById('grid');
+
+      async function checkSession() {
+        const res = await fetch('/api/admin/me');
+        if (res.ok) {
+          showDashboard();
+        }
+      }
+
+      function showDashboard() {
+        loginView.classList.add('hidden');
+        dashView.classList.remove('hidden');
+        headerActions.classList.remove('hidden');
+        loadTemplates();
+      }
+
+      function showLogin() {
+        loginView.classList.remove('hidden');
+        dashView.classList.add('hidden');
+        headerActions.classList.add('hidden');
+      }
+
+      async function loadTemplates() {
+        const res = await fetch('/api/admin/templates');
+        if (res.status === 401) return showLogin();
+        const json = await res.json();
+        data = json;
+        document.getElementById('storageBadge').textContent = `Storage: ${json.storageMode || 'unknown'}`;
+        document.getElementById('countPending').textContent = (json.pending || []).length;
+        document.getElementById('countApproved').textContent = (json.approved || []).length;
+        document.getElementById('countRejected').textContent = (json.rejected || []).length;
+        renderGrid();
+      }
+
+      function esc(str) {
+        return String(str || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      }
+
+      function renderGrid() {
+        const list = data[currentTab] || [];
+        if (list.length === 0) {
+          grid.innerHTML = `<div class="card tpl-meta">No ${currentTab} templates.</div>`;
+          return;
+        }
+        grid.innerHTML = list.map((t) => {
+          const count = (t.slide && Array.isArray(t.slide.canvasElements)) ? t.slide.canvasElements.length : 0;
+          const thumbHtml = t.thumbnailDataUrl
+            ? `<img src="${esc(t.thumbnailDataUrl)}" alt="${esc(t.title)}" />`
+            : `<span>No preview</span>`;
+          return `
+            <div class="tpl-card">
+              <div class="thumb">${thumbHtml}</div>
+              <div class="tpl-body">
+                <div class="tpl-title">${esc(t.title)}</div>
+                <div class="tpl-meta">${esc(t.category)} · by ${esc(t.author)} · ${count} layers</div>
+                <div class="tpl-meta">${t.createdAt ? new Date(t.createdAt).toLocaleString() : ''}</div>
+                <div class="tpl-actions">
+                  ${currentTab !== 'approved' ? `<button class="approve" onclick="moderate('${esc(t.id)}','approve')">Approve</button>` : ''}
+                  ${currentTab !== 'rejected' ? `<button class="reject" onclick="moderate('${esc(t.id)}','reject')">Reject</button>` : ''}
+                  <button class="danger" onclick="removeTpl('${esc(t.id)}')">Delete</button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      window.moderate = async (id, action) => {
+        await fetch(`/api/admin/templates/${encodeURIComponent(id)}/${action}`, { method: 'POST' });
+        await loadTemplates();
+      };
+
+      window.removeTpl = async (id) => {
+        if (!confirm('Delete this template permanently?')) return;
+        await fetch(`/api/admin/templates/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        await loadTemplates();
+      };
+
+      document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        loginError.textContent = '';
+        const password = document.getElementById('passwordInput').value;
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          loginError.textContent = err.error || 'Login failed';
+          return;
+        }
+        showDashboard();
+      });
+
+      document.getElementById('logoutBtn').addEventListener('click', async () => {
+        await fetch('/api/admin/logout', { method: 'POST' });
+        showLogin();
+      });
+
+      document.getElementById('refreshBtn').addEventListener('click', loadTemplates);
+
+      document.querySelectorAll('.tabs button').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          currentTab = btn.dataset.tab;
+          document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('active', b === btn));
+          renderGrid();
+        });
+      });
+
+      checkSession();
+    </script>
+  </body>
+</html>

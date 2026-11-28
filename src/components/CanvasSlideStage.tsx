@@ -340,6 +340,12 @@ export const CanvasSlideStage: React.FC<CanvasSlideStageProps> = ({
               const isVoltage = textEffect === 'voltage';
               const isThreeDGlow = textEffect === 'threeDGlow';
               const isTrace = textEffect === 'trace';
+              const isThreeDExtrude = textEffect === 'threeDExtrude';
+              const isPopArt = textEffect === 'popArt';
+              const isRetroStack = textEffect === 'retroStack';
+              const isSlideStripes = textEffect === 'slideStripes';
+              const isBlock3d = textEffect === 'block3d';
+              const isAmazingPop = textEffect === 'amazingPop';
               const isStrokeDraw = item.animation === 'strokeDraw';
               const isGradientText =
                 !isPrismSpin &&
@@ -350,6 +356,12 @@ export const CanvasSlideStage: React.FC<CanvasSlideStageProps> = ({
                 !isVoltage &&
                 !isThreeDGlow &&
                 !isTrace &&
+                !isThreeDExtrude &&
+                !isPopArt &&
+                !isRetroStack &&
+                !isSlideStripes &&
+                !isBlock3d &&
+                !isAmazingPop &&
                 (item.color || '').includes('gradient(');
               const hasOutline = Boolean(item.outlineWidth && item.outlineWidth > 0);
               const { textShadow: glowShadow, filter: glowFilter } = buildTextEffectsCss(
@@ -962,6 +974,70 @@ export const CanvasSlideStage: React.FC<CanvasSlideStageProps> = ({
                   </svg>
                 );
               }
+              if (item.animation === 'deconstructed' && !isTrace && !isThreeDGlow) {
+                return (
+                  <div
+                    className="uecfi-deconstructed-stage"
+                    style={{
+                      ['--decon-dur' as string]: `${item.animationDuration ?? 5}s`
+                    }}
+                  >
+                    <div style={{ ...baseTextStyle, opacity: 0, pointerEvents: 'none' }}>
+                      {displayText}
+                    </div>
+                    {[1, 2, 3, 4].map((sliceNum) => (
+                      <div
+                        key={sliceNum}
+                        aria-hidden="true"
+                        className={[
+                          `uecfi-deconstructed-slice-${sliceNum}`,
+                          isPopArt ? 'uecfi-text-pop-art' : '',
+                          isRetroStack ? 'uecfi-text-retro-stack' : '',
+                          isThreeDExtrude ? 'uecfi-text-3d-extrude' : '',
+                          isOverride ? 'uecfi-text-override' : '',
+                          isPrismSpin ? 'uecfi-text-prism-spin' : '',
+                          isShimmer ? 'uecfi-text-shimmer' : ''
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        style={{
+                          ...baseTextStyle,
+                          ...(isPopArt
+                            ? {
+                                color: 'transparent',
+                                WebkitTextFillColor: 'transparent',
+                                ...(item.color && !item.color.includes('gradient(')
+                                  ? ({ '--pop-art-accent': item.color } as React.CSSProperties)
+                                  : {})
+                              }
+                            : isThreeDExtrude
+                              ? {
+                                  ...(item.color && !item.color.includes('gradient(')
+                                    ? ({ '--extrude-color': item.color } as React.CSSProperties)
+                                    : {})
+                                }
+                              : isPrismSpin || isShimmer
+                                ? {
+                                    ...(isShimmer && item.color && !item.color.includes('gradient(')
+                                      ? ({ '--shimmer-color': item.color } as React.CSSProperties)
+                                      : {}),
+                                    WebkitBackgroundClip: 'text',
+                                    backgroundClip: 'text',
+                                    WebkitTextFillColor: 'transparent',
+                                    color: 'transparent'
+                                  }
+                                : { color: item.color || '#ffffff' }),
+                          position: 'absolute',
+                          inset: 0,
+                          pointerEvents: 'none'
+                        }}
+                      >
+                        {displayText}
+                      </div>
+                    ))}
+                  </div>
+                );
+              }
               if (isThreeDGlow) {
                 const layerStyle: React.CSSProperties = {
                   ...baseTextStyle,
@@ -1065,11 +1141,23 @@ export const CanvasSlideStage: React.FC<CanvasSlideStageProps> = ({
                               ? 'uecfi-text-override'
                               : isVoltage
                                 ? 'uecfi-text-voltage'
-                                : undefined
+                                : isThreeDExtrude
+                                  ? 'uecfi-text-3d-extrude'
+                                  : isPopArt
+                                    ? 'uecfi-text-pop-art'
+                                    : isRetroStack
+                                      ? 'uecfi-text-retro-stack'
+                                      : isSlideStripes
+                                        ? 'uecfi-text-slide-stripes'
+                                        : isBlock3d
+                                          ? 'uecfi-text-block-3d'
+                                          : isAmazingPop
+                                            ? 'uecfi-text-amazing-pop'
+                                            : undefined
                   }
                   style={{
                     ...baseTextStyle,
-                    ...(isGradientText || isPrismSpin || isShimmer
+                    ...(isGradientText || isPrismSpin || isShimmer || isSlideStripes
                       ? {
                           ...(isGradientText ? { backgroundImage: item.color } : {}),
                           ...(isShimmer && item.color && !item.color.includes('gradient(')
@@ -1093,7 +1181,27 @@ export const CanvasSlideStage: React.FC<CanvasSlideStageProps> = ({
                                 ? ({ '--voltage-color': item.color } as React.CSSProperties)
                                 : {})
                             }
-                          : isOverride
+                          : isThreeDExtrude
+                            ? {
+                                ...(item.color && !item.color.includes('gradient(')
+                                  ? ({ '--extrude-color': item.color } as React.CSSProperties)
+                                  : {})
+                              }
+                            : isPopArt
+                              ? {
+                                  color: 'transparent',
+                                  WebkitTextFillColor: 'transparent',
+                                  ...(item.color && !item.color.includes('gradient(')
+                                    ? ({ '--pop-art-accent': item.color } as React.CSSProperties)
+                                    : {})
+                                }
+                              : isAmazingPop
+                                ? {
+                                    ...(item.color && !item.color.includes('gradient(')
+                                      ? ({ '--amazing-accent': item.color } as React.CSSProperties)
+                                      : {})
+                                  }
+                                : isOverride
                             ? {
                                 color: item.color || '#f4f6ff',
                                 ...(glowShadow && glowShadow !== 'none'

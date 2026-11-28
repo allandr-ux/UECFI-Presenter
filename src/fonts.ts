@@ -64,6 +64,7 @@ import '@fontsource/raleway/latin-400.css';
 import '@fontsource/raleway/latin-600.css';
 import '@fontsource/raleway/latin-700.css';
 import '@fontsource/raleway/latin-800.css';
+import '@fontsource/raleway/latin-900.css';
 
 import '@fontsource/nunito/latin-400.css';
 import '@fontsource/nunito/latin-600.css';
@@ -135,6 +136,15 @@ import '@fontsource/fira-code/latin-700.css';
 
 import '@fontsource/concert-one/latin-400.css';
 
+import '@fontsource/cambay/latin-400.css';
+import '@fontsource/cambay/latin-700.css';
+
+import '@fontsource/niconne/latin-400.css';
+
+import '@fontsource/bungee-shade/latin-400.css';
+
+import '@fontsource/barlow-condensed/latin-600.css';
+
 export type FontCategory = 'sans' | 'serif' | 'display' | 'handwriting' | 'monospace';
 
 export interface FontOption {
@@ -153,6 +163,11 @@ export const LOCAL_FONTS: FontOption[] = [
   { label: 'Merriweather', family: 'Merriweather', value: "'Merriweather', serif", category: 'serif' },
   { label: 'Playfair Display', family: 'Playfair Display', value: "'Playfair Display', serif", category: 'serif' },
   { label: 'Concert One', family: 'Concert One', value: "'Concert One', sans-serif", category: 'display' },
+  { label: 'Cambay', family: 'Cambay', value: "'Cambay', sans-serif", category: 'sans' },
+  { label: 'Niconne', family: 'Niconne', value: "'Niconne', cursive", category: 'handwriting' },
+  { label: 'Bungee Shade', family: 'Bungee Shade', value: "'Bungee Shade', cursive", category: 'display' },
+  { label: 'Barlow Condensed', family: 'Barlow Condensed', value: "'Barlow Condensed', Impact, Arial, sans-serif", category: 'sans' },
+  { label: 'Verdana', family: 'Verdana', value: 'Verdana, Geneva, sans-serif', category: 'sans' },
   {
     label: 'System Sans',
     family: 'System Sans',

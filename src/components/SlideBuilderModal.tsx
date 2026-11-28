@@ -12,6 +12,7 @@ import {
   ArrowUp,
   Box,
   Check,
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -25,6 +26,7 @@ import {
   Image as ImageIcon,
   Italic,
   Layers,
+  LayoutTemplate,
   List,
   ListOrdered,
   Lock,
@@ -33,7 +35,9 @@ import {
   Palette,
   Plus,
   Redo2,
+  RefreshCw,
   RotateCw,
+  Send,
   SlidersHorizontal,
   Sparkles,
   Square,
@@ -105,10 +109,22 @@ import {
 } from './CanvasShapeGraphic';
 import { CanvasThreeDModel } from './CanvasThreeDModel';
 import { CanvasThreeDObject, DEFAULT_THREE_D_CONFIG } from './CanvasThreeDObject';
+import {
+  fetchApprovedTemplates,
+  generateSlideThumbnailDataUrl,
+  submitCommunityTemplate,
+  type CommunityTemplate,
+  type TemplateCategory
+} from '../utils/templateService';
+import {
+  bundleLocalMediaForExport,
+  restoreBundledMediaOnImport
+} from '../utils/mediaUpload';
 
 interface SlideBuilderModalProps {
   open: boolean;
   initialItem: ProgramItem | null;
+  signalingRelayUrl?: string;
   onClose: () => void;
   onSave: (item: ProgramItem) => void;
   studioMode?: {
@@ -201,6 +217,7 @@ function blockToCanvasElements(block: SlideBlock): CanvasElement[] {
 export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
   open,
   initialItem,
+  signalingRelayUrl,
   onClose,
   onSave,
   studioMode
@@ -271,6 +288,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
   const [animReplayNonce, setAnimReplayNonce] = useState(0);
   // Canva-style far-left rail active tab (null = collapsed drawer for maximum canvas space)
   const [activeRailTab, setActiveRailTab] = useState<
+    | 'templates'
     | 'elements'
     | 'text'
     | 'uploads'
@@ -282,6 +300,35 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
     | 'animate'
     | null
   >(null);
+  const [communityTemplates, setCommunityTemplates] = useState<CommunityTemplate[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [templatesError, setTemplatesError] = useState<string | null>(null);
+  const [templateCategoryFilter, setTemplateCategoryFilter] = useState<'All' | TemplateCategory>('All');
+  const [submitFormOpen, setSubmitFormOpen] = useState(false);
+  const [submitTitle, setSubmitTitle] = useState('');
+  const [submitCategory, setSubmitCategory] = useState<TemplateCategory | ''>('');
+  const [submitAuthor, setSubmitAuthor] = useState('');
+  const [submitBusy, setSubmitBusy] = useState(false);
+  const [submitFeedback, setSubmitFeedback] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+
+  const loadCommunityTemplates = async () => {
+    setTemplatesLoading(true);
+    setTemplatesError(null);
+    try {
+      const res = await fetchApprovedTemplates(signalingRelayUrl);
+      setCommunityTemplates(res.templates);
+    } catch (err) {
+      setTemplatesError(err instanceof Error ? err.message : 'Unable to load templates');
+    } finally {
+      setTemplatesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (open && activeRailTab === 'templates') {
+      void loadCommunityTemplates();
+    }
+  }, [open, activeRailTab, signalingRelayUrl]);
   const [colorTarget, setColorTarget] = useState<
     | { kind: 'textColor'; label: string }
     | { kind: 'shapeFill'; label: string }
@@ -1059,6 +1106,78 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
     updateActiveElements((prev) => [...prev, newEl]);
     setSelectedElId(newEl.id);
     setEditingTextId(overrides?.enterEdit === false ? null : newEl.id);
+  };
+
+  const handleAddAmazingInteriorsPreset = () => {
+    const now = Date.now();
+    const groupId = `grp-${now}`;
+    const fontFamily = "'Barlow Condensed', Impact, Arial, sans-serif";
+    const fontSize = 110;
+    const measureBoxWidth = (word: string): number => {
+      if (typeof document === 'undefined' || !document.body) return 45;
+      const probe = document.createElement('div');
+      probe.style.position = 'fixed';
+      probe.style.left = '-99999px';
+      probe.style.top = '-99999px';
+      probe.style.visibility = 'hidden';
+      probe.style.display = 'inline-block';
+      probe.style.width = 'max-content';
+      probe.style.whiteSpace = 'pre';
+      probe.style.boxSizing = 'border-box';
+      probe.style.padding = '12px';
+      probe.style.fontFamily = fontFamily;
+      probe.style.fontSize = `${fontSize}px`;
+      probe.style.fontWeight = '600';
+      probe.style.textTransform = 'uppercase';
+      probe.textContent = word;
+      document.body.appendChild(probe);
+      const measuredPx = probe.getBoundingClientRect().width + 18;
+      document.body.removeChild(probe);
+      return Math.min(90, Math.max(8, Number(((measuredPx / 1920) * 100).toFixed(2))));
+    };
+    const w1 = measureBoxWidth('AMAZING');
+    const w2 = measureBoxWidth('INTERIORS');
+    const el1: CanvasElement = {
+      id: `el-${now}-1`,
+      kind: 'text',
+      groupId,
+      x: Number(((100 - w1) / 2).toFixed(2)),
+      y: 30,
+      width: w1,
+      height: 15,
+      zIndex: elements.length + 1,
+      text: 'AMAZING',
+      fontSize,
+      fontWeight: '600',
+      fontFamily,
+      textTransform: 'uppercase',
+      lineHeight: 0.85,
+      color: '#00ffff',
+      textAlign: 'center',
+      textEffect: 'amazingPop'
+    };
+    const el2: CanvasElement = {
+      id: `el-${now}-2`,
+      kind: 'text',
+      groupId,
+      x: Number(((100 - w2) / 2).toFixed(2)),
+      y: 44,
+      width: w2,
+      height: 15,
+      zIndex: elements.length + 2,
+      text: 'INTERIORS',
+      fontSize,
+      fontWeight: '600',
+      fontFamily,
+      textTransform: 'uppercase',
+      lineHeight: 0.85,
+      color: '#ff69b4',
+      textAlign: 'center',
+      textEffect: 'amazingPop'
+    };
+    updateActiveElements((prev) => [...prev, el1, el2]);
+    setSelectedElIds([el1.id, el2.id]);
+    setEditingTextId(null);
   };
 
   const handleAddShape = (shapeType: ShapeVariant = 'rectangle') => {
@@ -2520,6 +2639,7 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
           >
             {(
               [
+                { id: 'templates', label: 'Templates', icon: <LayoutTemplate size={18} /> },
                 { id: 'elements', label: 'Elements', icon: <Sparkles size={18} /> },
                 { id: 'text', label: 'Text', icon: <Type size={18} /> },
                 { id: 'uploads', label: 'Uploads', icon: <Upload size={18} /> },
@@ -2971,6 +3091,158 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                       >
                         <span className="leading-tight">TRACE</span>
                       </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleAddText('heading', {
+                            text: '3D Extrude',
+                            color: '#e91e63',
+                            textEffect: 'threeDExtrude',
+                            fontFamily: "'Inter', sans-serif",
+                            fontWeight: '900',
+                            enterEdit: false
+                          })
+                        }
+                        className="col-span-2 flex h-[66px] cursor-pointer items-center justify-center rounded-[10px] border border-subtle px-2 text-center text-[1.28rem] font-black transition-transform hover:scale-[1.01]"
+                        style={{
+                          fontFamily: "'Inter', sans-serif",
+                          background: 'color-mix(in srgb, #ffffff 82%, #e91e63)'
+                        }}
+                      >
+                        <span className="uecfi-text-3d-extrude leading-tight">3D Extrude</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleAddText('heading', {
+                            text: 'POP ART',
+                            color: '#ff1f8f',
+                            textEffect: 'popArt',
+                            fontFamily: "'Raleway', sans-serif",
+                            fontWeight: '900',
+                            textTransform: 'uppercase',
+                            letterSpacing: 0.1,
+                            enterEdit: false
+                          })
+                        }
+                        className="flex h-[66px] cursor-pointer items-center justify-center rounded-[10px] border border-subtle px-2 text-center text-[1.18rem] font-black tracking-[0.1em] uppercase transition-transform hover:scale-[1.01]"
+                        style={{
+                          fontFamily: "'Raleway', sans-serif",
+                          background: '#ffff00'
+                        }}
+                      >
+                        <span className="uecfi-text-pop-art leading-tight">POP ART</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleAddText('heading', {
+                            text: 'DECONSTRUCTED',
+                            color: '#ffff64',
+                            animation: 'deconstructed',
+                            animationDuration: 5,
+                            fontFamily: "'Cambay', sans-serif",
+                            fontWeight: '700',
+                            letterSpacing: -0.02,
+                            enterEdit: false
+                          })
+                        }
+                        className="flex h-[66px] cursor-pointer items-center justify-center rounded-[10px] border border-subtle px-2 text-center text-[0.95rem] font-bold tracking-[-0.02em] transition-transform hover:scale-[1.01]"
+                        style={{
+                          fontFamily: "'Cambay', sans-serif",
+                          background: '#000000',
+                          color: '#ffff64'
+                        }}
+                      >
+                        <span className="leading-tight">DECONSTRUCTED</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleAddText('heading', {
+                            text: 'Retro Stack',
+                            color: '#fcedd8',
+                            textEffect: 'retroStack',
+                            fontFamily: "'Niconne', cursive",
+                            fontWeight: '700',
+                            enterEdit: false
+                          })
+                        }
+                        className="col-span-2 flex h-[66px] cursor-pointer items-center justify-center rounded-[10px] border border-subtle px-2 text-center text-[1.45rem] font-bold transition-transform hover:scale-[1.01]"
+                        style={{
+                          fontFamily: "'Niconne', cursive",
+                          background: '#d52e3f'
+                        }}
+                      >
+                        <span className="uecfi-text-retro-stack leading-tight">Retro Stack</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleAddText('heading', {
+                            text: 'Slide',
+                            color: '#4bc0c8',
+                            textEffect: 'slideStripes',
+                            fontFamily: "'Bungee Shade', cursive",
+                            fontWeight: '400',
+                            enterEdit: false
+                          })
+                        }
+                        className="col-span-2 flex h-[66px] cursor-pointer items-center justify-center rounded-[10px] border border-subtle px-2 text-center text-[1.45rem] font-normal transition-transform hover:scale-[1.01]"
+                        style={{
+                          fontFamily: "'Bungee Shade', cursive",
+                          background: '#ffed94'
+                        }}
+                      >
+                        <span className="uecfi-text-slide-stripes leading-tight">Slide</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleAddText('heading', {
+                            text: '3D BLOCK',
+                            color: '#ece8da',
+                            textEffect: 'block3d',
+                            fontFamily: 'Verdana, Geneva, sans-serif',
+                            fontWeight: '700',
+                            textTransform: 'uppercase',
+                            enterEdit: false
+                          })
+                        }
+                        className="col-span-2 flex h-[66px] cursor-pointer items-center justify-center rounded-[10px] border border-subtle px-2 text-center text-[1.22rem] font-bold uppercase transition-transform hover:scale-[1.01]"
+                        style={{
+                          fontFamily: 'Verdana, Geneva, sans-serif',
+                          background: '#c8c3b8'
+                        }}
+                      >
+                        <span className="uecfi-text-block-3d leading-tight">3D BLOCK</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAddAmazingInteriorsPreset}
+                        className="col-span-2 flex h-[74px] cursor-pointer flex-col items-center justify-center rounded-[10px] border border-subtle px-2 text-center text-[1.18rem] font-semibold leading-[0.86] uppercase transition-transform hover:scale-[1.01]"
+                        style={{
+                          fontFamily: "'Barlow Condensed', Impact, Arial, sans-serif",
+                          backgroundColor: '#ffffff',
+                          backgroundImage:
+                            'radial-gradient(lightgrey 10%, transparent 5%), radial-gradient(lightgrey 10%, transparent 5%)',
+                          backgroundSize: '14px 14px',
+                          backgroundPosition: '0 0, 7px 7px'
+                        }}
+                      >
+                        <span
+                          className="uecfi-text-amazing-pop"
+                          style={{ ['--amazing-accent' as string]: '#00ffff' }}
+                        >
+                          AMAZING
+                        </span>
+                        <span
+                          className="uecfi-text-amazing-pop"
+                          style={{ ['--amazing-accent' as string]: '#ff69b4' }}
+                        >
+                          INTERIORS
+                        </span>
+                      </button>
                     </div>
                     <p className="m-0 text-[0.72rem] leading-[1.45] text-text-muted">
                       Tip: Double-click any text box on the canvas to type directly inside it.
@@ -3112,6 +3384,14 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                                 }}
                               >
                                 Merci
+                              </span>
+                            );
+                          }
+                          if (id === 'deconstructed') {
+                            return (
+                              <span className={cn('relative inline-block text-[0.95rem] font-bold tracking-tight', fg)}>
+                                <span className="inline-block translate-x-[2px] opacity-70">AB</span>
+                                <span className="inline-block -translate-x-[2px]">C</span>
                               </span>
                             );
                           }
@@ -3309,7 +3589,8 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                                         (selectedEl.textEffect === 'prismSpin' ||
                                           selectedEl.textEffect === 'shimmer' ||
                                           selectedEl.textEffect === 'threeDGlow' ||
-                                          selectedEl.textEffect === 'trace')) ||
+                                          selectedEl.textEffect === 'trace' ||
+                                          selectedEl.textEffect === 'slideStripes')) ||
                                       (p.id === 'strokeDraw' &&
                                         selectedEl.textEffect !== undefined &&
                                         selectedEl.textEffect !== 'none');
@@ -3786,6 +4067,216 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                             </span>
                             <span className="text-[0.68rem] text-text-secondary">Trace</span>
                           </button>
+                          <button
+                            type="button"
+                            disabled={selectedEl.animation === 'strokeDraw'}
+                            title={
+                              selectedEl.animation === 'strokeDraw'
+                                ? 'Not compatible with Stroke Draw animation'
+                                : undefined
+                            }
+                            onClick={() =>
+                              updateSelectedEl({
+                                textEffect:
+                                  selectedEl.textEffect === 'threeDExtrude'
+                                    ? 'none'
+                                    : 'threeDExtrude',
+                                ...(selectedEl.textEffect !== 'threeDExtrude' &&
+                                (!selectedEl.color || selectedEl.color === '#ffffff')
+                                  ? { color: '#e91e63' }
+                                  : {})
+                              })
+                            }
+                            className={cn(
+                              'flex flex-col items-center gap-1 rounded-[10px] border bg-panel-elevated p-2 transition-colors',
+                              selectedEl.animation === 'strokeDraw'
+                                ? 'cursor-not-allowed opacity-40 border-subtle'
+                                : selectedEl.textEffect === 'threeDExtrude'
+                                  ? 'cursor-pointer border-violet-500 ring-1 ring-violet-500'
+                                  : 'cursor-pointer border-subtle hover:border-accent/60'
+                            )}
+                          >
+                            <span className="uecfi-text-3d-extrude px-1 text-[1.15rem] font-black">
+                              Ag
+                            </span>
+                            <span className="text-[0.68rem] text-text-secondary">Extrude</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled={selectedEl.animation === 'strokeDraw'}
+                            title={
+                              selectedEl.animation === 'strokeDraw'
+                                ? 'Not compatible with Stroke Draw animation'
+                                : undefined
+                            }
+                            onClick={() =>
+                              updateSelectedEl({
+                                textEffect:
+                                  selectedEl.textEffect === 'popArt' ? 'none' : 'popArt',
+                                ...(selectedEl.textEffect !== 'popArt' &&
+                                (!selectedEl.color || selectedEl.color === '#ffffff')
+                                  ? { color: '#ff1f8f' }
+                                  : {})
+                              })
+                            }
+                            className={cn(
+                              'flex flex-col items-center gap-1 rounded-[10px] border bg-panel-elevated p-2 transition-colors',
+                              selectedEl.animation === 'strokeDraw'
+                                ? 'cursor-not-allowed opacity-40 border-subtle'
+                                : selectedEl.textEffect === 'popArt'
+                                  ? 'cursor-pointer border-violet-500 ring-1 ring-violet-500'
+                                  : 'cursor-pointer border-subtle hover:border-accent/60'
+                            )}
+                          >
+                            <span className="uecfi-text-pop-art px-1 text-[1.15rem] font-black">
+                              Ag
+                            </span>
+                            <span className="text-[0.68rem] text-text-secondary">Pop Art</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled={selectedEl.animation === 'strokeDraw'}
+                            title={
+                              selectedEl.animation === 'strokeDraw'
+                                ? 'Not compatible with Stroke Draw animation'
+                                : undefined
+                            }
+                            onClick={() =>
+                              updateSelectedEl({
+                                textEffect:
+                                  selectedEl.textEffect === 'retroStack' ? 'none' : 'retroStack',
+                                ...(selectedEl.textEffect !== 'retroStack' &&
+                                (!selectedEl.color || selectedEl.color === '#ffffff')
+                                  ? { color: '#fcedd8' }
+                                  : {})
+                              })
+                            }
+                            className={cn(
+                              'flex flex-col items-center gap-1 rounded-[10px] border bg-panel-elevated p-2 transition-colors',
+                              selectedEl.animation === 'strokeDraw'
+                                ? 'cursor-not-allowed opacity-40 border-subtle'
+                                : selectedEl.textEffect === 'retroStack'
+                                  ? 'cursor-pointer border-violet-500 ring-1 ring-violet-500'
+                                  : 'cursor-pointer border-subtle hover:border-accent/60'
+                            )}
+                          >
+                            <span className="uecfi-text-retro-stack px-1 text-[1.15rem] font-bold">
+                              Ag
+                            </span>
+                            <span className="text-[0.68rem] text-text-secondary">Retro</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled={
+                              selectedEl.animation === 'smokeDissolve' ||
+                              selectedEl.animation === 'maskRise' ||
+                              selectedEl.animation === 'powerOn' ||
+                              selectedEl.animation === 'strokeDraw' ||
+                              selectedEl.animation === 'squishy' ||
+                              selectedEl.animation === 'ripple'
+                            }
+                            title={
+                              selectedEl.animation === 'smokeDissolve' ||
+                              selectedEl.animation === 'maskRise' ||
+                              selectedEl.animation === 'powerOn' ||
+                              selectedEl.animation === 'strokeDraw' ||
+                              selectedEl.animation === 'squishy' ||
+                              selectedEl.animation === 'ripple'
+                                ? 'Not compatible with per-character/stroke animations'
+                                : undefined
+                            }
+                            onClick={() =>
+                              updateSelectedEl({
+                                textEffect:
+                                  selectedEl.textEffect === 'slideStripes' ? 'none' : 'slideStripes'
+                              })
+                            }
+                            className={cn(
+                              'flex flex-col items-center gap-1 rounded-[10px] border bg-panel-elevated p-2 transition-colors',
+                              selectedEl.animation === 'smokeDissolve' ||
+                                selectedEl.animation === 'maskRise' ||
+                                selectedEl.animation === 'powerOn' ||
+                                selectedEl.animation === 'strokeDraw' ||
+                                selectedEl.animation === 'squishy' ||
+                                selectedEl.animation === 'ripple'
+                                ? 'cursor-not-allowed opacity-40 border-subtle'
+                                : selectedEl.textEffect === 'slideStripes'
+                                  ? 'cursor-pointer border-violet-500 ring-1 ring-violet-500'
+                                  : 'cursor-pointer border-subtle hover:border-accent/60'
+                            )}
+                          >
+                            <span className="uecfi-text-slide-stripes px-1 text-[1.15rem] font-black">
+                              Ag
+                            </span>
+                            <span className="text-[0.68rem] text-text-secondary">Slide</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled={selectedEl.animation === 'strokeDraw'}
+                            title={
+                              selectedEl.animation === 'strokeDraw'
+                                ? 'Not compatible with Stroke Draw animation'
+                                : undefined
+                            }
+                            onClick={() =>
+                              updateSelectedEl({
+                                textEffect:
+                                  selectedEl.textEffect === 'block3d' ? 'none' : 'block3d',
+                                ...(selectedEl.textEffect !== 'block3d' &&
+                                (!selectedEl.color || selectedEl.color === '#ffffff')
+                                  ? { color: '#ece8da' }
+                                  : {})
+                              })
+                            }
+                            className={cn(
+                              'flex flex-col items-center gap-1 rounded-[10px] border bg-panel-elevated p-2 transition-colors',
+                              selectedEl.animation === 'strokeDraw'
+                                ? 'cursor-not-allowed opacity-40 border-subtle'
+                                : selectedEl.textEffect === 'block3d'
+                                  ? 'cursor-pointer border-violet-500 ring-1 ring-violet-500'
+                                  : 'cursor-pointer border-subtle hover:border-accent/60'
+                            )}
+                          >
+                            <span className="uecfi-text-block-3d px-1 text-[1.15rem] font-bold">
+                              Ag
+                            </span>
+                            <span className="text-[0.68rem] text-text-secondary">3D Block</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled={selectedEl.animation === 'strokeDraw'}
+                            title={
+                              selectedEl.animation === 'strokeDraw'
+                                ? 'Not compatible with Stroke Draw animation'
+                                : undefined
+                            }
+                            onClick={() =>
+                              updateSelectedEl({
+                                textEffect:
+                                  selectedEl.textEffect === 'amazingPop' ? 'none' : 'amazingPop',
+                                ...(selectedEl.textEffect !== 'amazingPop' &&
+                                (!selectedEl.color || selectedEl.color === '#ffffff')
+                                  ? { color: '#00ffff' }
+                                  : {})
+                              })
+                            }
+                            className={cn(
+                              'flex flex-col items-center gap-1 rounded-[10px] border bg-panel-elevated p-2 transition-colors',
+                              selectedEl.animation === 'strokeDraw'
+                                ? 'cursor-not-allowed opacity-40 border-subtle'
+                                : selectedEl.textEffect === 'amazingPop'
+                                  ? 'cursor-pointer border-violet-500 ring-1 ring-violet-500'
+                                  : 'cursor-pointer border-subtle hover:border-accent/60'
+                            )}
+                          >
+                            <span
+                              className="uecfi-text-amazing-pop px-1 text-[1.15rem] font-semibold"
+                              style={{ ['--amazing-accent' as string]: '#00ffff' }}
+                            >
+                              Ag
+                            </span>
+                            <span className="text-[0.68rem] text-text-secondary">Color Pop</span>
+                          </button>
                         </div>
 
                         {selectedEl.textEffect === 'shimmer' && (
@@ -4181,6 +4672,302 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                       />
                     </div>
                   </>
+                )}
+
+                {activeRailTab === 'templates' && (
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={SECTION_TITLE_CLS}>Community Templates</span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => void loadCommunityTemplates()}
+                          disabled={templatesLoading}
+                          title="Refresh templates"
+                          className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-subtle bg-white/5 px-2 py-1 text-[0.7rem] text-slate-300 hover:bg-white/10 disabled:opacity-50"
+                        >
+                          <RefreshCw size={12} className={templatesLoading ? 'animate-spin' : ''} />
+                          Refresh
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSubmitFormOpen((v) => !v);
+                            setSubmitFeedback(null);
+                            if (!submitTitle.trim() && title.trim()) {
+                              setSubmitTitle(title.trim());
+                            }
+                          }}
+                          className="inline-flex cursor-pointer items-center gap-1 rounded-md border-0 bg-violet-600 px-2 py-1 text-[0.7rem] font-semibold text-white hover:bg-violet-500"
+                        >
+                          <Send size={11} />
+                          Submit
+                        </button>
+                      </div>
+                    </div>
+
+                    {submitFormOpen && (
+                      <div className="flex flex-col gap-2 rounded-lg border border-violet-500/40 bg-violet-950/25 p-2.5">
+                        <div className="text-[0.74rem] font-semibold text-violet-200">
+                          Share Current Slide as Template
+                        </div>
+                        <input
+                          type="text"
+                          value={submitTitle}
+                          onChange={(e) => setSubmitTitle(e.target.value)}
+                          placeholder="Template title (e.g. Easter Welcome)"
+                          maxLength={80}
+                          className="rounded-md border border-subtle bg-slate-950 px-2.5 py-1.5 text-[0.76rem] text-slate-100 outline-none focus:border-violet-400"
+                        />
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <select
+                            value={submitCategory}
+                            onChange={(e) => setSubmitCategory(e.target.value as TemplateCategory | '')}
+                            className={cn(
+                              'rounded-md border border-subtle bg-slate-950 px-2 py-1.5 text-[0.74rem] outline-none focus:border-violet-400',
+                              submitCategory ? 'text-slate-100' : 'text-slate-400'
+                            )}
+                          >
+                            <option value="" disabled>
+                              Select category...
+                            </option>
+                            {(['General', 'Worship', 'Tema', 'Logo', 'Announcement', 'Youth', 'Event'] as const).map(
+                              (cat) => (
+                                <option key={cat} value={cat}>
+                                  {cat}
+                                </option>
+                              )
+                            )}
+                          </select>
+                          <input
+                            type="text"
+                            value={submitAuthor}
+                            onChange={(e) => setSubmitAuthor(e.target.value)}
+                            placeholder="Your name / centro"
+                            maxLength={50}
+                            className="rounded-md border border-subtle bg-slate-950 px-2 py-1.5 text-[0.74rem] text-slate-100 outline-none focus:border-violet-400"
+                          />
+                        </div>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setSubmitFormOpen(false)}
+                            className="cursor-pointer rounded-md border border-subtle bg-transparent px-2.5 py-1 text-[0.72rem] text-slate-300 hover:bg-white/5"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            disabled={submitBusy}
+                            onClick={async () => {
+                              if (!submitTitle.trim()) {
+                                setSubmitFeedback({ kind: 'err', text: 'Please enter a template title.' });
+                                return;
+                              }
+                              if (!submitCategory) {
+                                setSubmitFeedback({ kind: 'err', text: 'Please select a category.' });
+                                return;
+                              }
+                              setSubmitBusy(true);
+                              setSubmitFeedback(null);
+                              try {
+                                const clonedElements = JSON.parse(JSON.stringify(elements)) as CanvasElement[];
+                                const isGradient =
+                                  activeSlideBg.includes('gradient(') || activeSlideBg.includes('url(');
+                                const slidePayload = {
+                                  backgroundColor: isGradient ? undefined : activeSlideBg,
+                                  backgroundGradient: isGradient ? activeSlideBg : undefined,
+                                  canvasElements: clonedElements
+                                };
+                                // Capture a real screenshot of the live stage (hiding selection handles briefly)
+                                let thumbnailDataUrl: string | undefined;
+                                if (stageRef.current && window.presenterAPI?.captureStageThumbnail) {
+                                  const prevSelectedIds = selectedElIds;
+                                  const prevBgSelected = backgroundSelected;
+                                  if (prevSelectedIds.length > 0 || prevBgSelected) {
+                                    setSelectedElIds([]);
+                                    setBackgroundSelected(false);
+                                    await new Promise<void>((resolve) =>
+                                      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+                                    );
+                                  }
+                                  const rect = stageRef.current.getBoundingClientRect();
+                                  const captured = await window.presenterAPI.captureStageThumbnail({
+                                    x: rect.left,
+                                    y: rect.top,
+                                    width: rect.width,
+                                    height: rect.height
+                                  });
+                                  if (captured) thumbnailDataUrl = captured;
+                                  if (prevSelectedIds.length > 0) setSelectedElIds(prevSelectedIds);
+                                  if (prevBgSelected) setBackgroundSelected(true);
+                                }
+                                if (!thumbnailDataUrl) {
+                                  thumbnailDataUrl = generateSlideThumbnailDataUrl(slidePayload);
+                                }
+                                const mediaAssets = await bundleLocalMediaForExport(slidePayload);
+                                await submitCommunityTemplate(signalingRelayUrl, {
+                                  title: submitTitle.trim(),
+                                  category: submitCategory,
+                                  author: submitAuthor.trim() || 'Community',
+                                  thumbnailDataUrl,
+                                  mediaAssets:
+                                    Object.keys(mediaAssets).length > 0 ? mediaAssets : undefined,
+                                  slide: slidePayload
+                                });
+                                setSubmitFeedback({
+                                  kind: 'ok',
+                                  text: 'Submitted! Your template is pending admin approval.'
+                                });
+                                setSubmitTitle('');
+                                setSubmitCategory('');
+                                setSubmitFormOpen(false);
+                              } catch (err) {
+                                setSubmitFeedback({
+                                  kind: 'err',
+                                  text: err instanceof Error ? err.message : 'Failed to submit template'
+                                });
+                              } finally {
+                                setSubmitBusy(false);
+                              }
+                            }}
+                            className="inline-flex cursor-pointer items-center gap-1 rounded-md border-0 bg-violet-600 px-3 py-1 text-[0.72rem] font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+                          >
+                            {submitBusy ? 'Submitting...' : 'Submit for Review'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {submitFeedback && (
+                      <div
+                        className={cn(
+                          'flex items-start gap-1.5 rounded-lg border px-2.5 py-2 text-[0.74rem]',
+                          submitFeedback.kind === 'ok'
+                            ? 'border-emerald-500/40 bg-emerald-950/30 text-emerald-200'
+                            : 'border-rose-500/40 bg-rose-950/30 text-rose-200'
+                        )}
+                      >
+                        {submitFeedback.kind === 'ok' && <CheckCircle2 size={14} className="mt-0.5 shrink-0" />}
+                        <span>{submitFeedback.text}</span>
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-1">
+                      {(['All', 'Worship', 'Tema', 'Logo', 'Announcement', 'Youth', 'Event', 'General'] as const).map(
+                        (cat) => (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => setTemplateCategoryFilter(cat)}
+                            className={cn(
+                              'cursor-pointer rounded-full border px-2 py-0.5 text-[0.68rem] transition-colors',
+                              templateCategoryFilter === cat
+                                ? 'border-violet-400 bg-violet-600/30 font-semibold text-violet-100'
+                                : 'border-subtle bg-white/5 text-slate-300 hover:bg-white/10'
+                            )}
+                          >
+                            {cat}
+                          </button>
+                        )
+                      )}
+                    </div>
+
+                    {templatesError && (
+                      <div className="rounded-lg border border-rose-500/40 bg-rose-950/30 px-2.5 py-2 text-[0.74rem] text-rose-200">
+                        {templatesError}
+                      </div>
+                    )}
+
+                    {templatesLoading ? (
+                      <div className="py-6 text-center text-[0.76rem] text-text-muted">
+                        Loading community templates...
+                      </div>
+                    ) : (
+                      (() => {
+                        const filtered = communityTemplates.filter(
+                          (tpl) =>
+                            templateCategoryFilter === 'All' || tpl.category === templateCategoryFilter
+                        );
+                        if (filtered.length === 0) {
+                          return (
+                            <div className="rounded-lg border border-dashed border-subtle px-3 py-6 text-center text-[0.76rem] text-text-muted">
+                              No approved templates in this category yet. Click <strong>Submit</strong> above to share yours!
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="grid grid-cols-1 gap-2.5">
+                            {filtered.map((tpl) => (
+                              <button
+                                key={tpl.id}
+                                type="button"
+                                onClick={async () => {
+                                  const restoredSlide = await restoreBundledMediaOnImport(
+                                    tpl.slide,
+                                    tpl.mediaAssets
+                                  );
+                                  const nextBg =
+                                    restoredSlide.backgroundGradient ||
+                                    restoredSlide.backgroundColor ||
+                                    activeSlideBg;
+                                  const cloned = (
+                                    JSON.parse(JSON.stringify(restoredSlide.canvasElements || [])) as CanvasElement[]
+                                  ).map((el, idx) => ({
+                                    ...el,
+                                    id: `tpl-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`
+                                  }));
+                                  const nextSlides = slidesRef.current.map((s, idx) =>
+                                    idx === activeSlideIdx
+                                      ? { ...s, background: nextBg, canvasElements: cloned }
+                                      : s
+                                  );
+                                  setSlides(nextSlides);
+                                  setSelectedElIds([]);
+                                  setBackgroundSelected(false);
+                                  pushHistory(nextSlides, bgRef.current);
+                                }}
+                                className="group flex cursor-pointer flex-col overflow-hidden rounded-lg border border-subtle bg-slate-950/70 text-left transition-colors hover:border-violet-400"
+                              >
+                                <div className="relative aspect-video w-full overflow-hidden bg-slate-900">
+                                  {tpl.thumbnailDataUrl ? (
+                                    <img
+                                      src={tpl.thumbnailDataUrl}
+                                      alt={tpl.title}
+                                      className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
+                                    />
+                                  ) : (
+                                    <div
+                                      className="flex h-full w-full items-center justify-center text-[0.72rem] text-slate-300"
+                                      style={{
+                                        background:
+                                          tpl.slide.backgroundGradient ||
+                                          tpl.slide.backgroundColor ||
+                                          '#1e293b'
+                                      }}
+                                    >
+                                      {tpl.title}
+                                    </div>
+                                  )}
+                                  <span className="absolute right-1.5 top-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[0.62rem] font-semibold text-slate-200">
+                                    {tpl.category}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between gap-2 px-2.5 py-1.5">
+                                  <span className="truncate text-[0.75rem] font-semibold text-slate-100">
+                                    {tpl.title}
+                                  </span>
+                                  <span className="shrink-0 text-[0.66rem] text-slate-400">
+                                    by {tpl.author || 'Community'}
+                                  </span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })()
+                    )}
+                  </div>
                 )}
 
                 {activeRailTab === 'layers' && (
@@ -5913,6 +6700,12 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                   const isVoltage = textEffect === 'voltage';
                   const isThreeDGlow = textEffect === 'threeDGlow';
                   const isTrace = textEffect === 'trace';
+                  const isThreeDExtrude = textEffect === 'threeDExtrude';
+                  const isPopArt = textEffect === 'popArt';
+                  const isRetroStack = textEffect === 'retroStack';
+                  const isSlideStripes = textEffect === 'slideStripes';
+                  const isBlock3d = textEffect === 'block3d';
+                  const isAmazingPop = textEffect === 'amazingPop';
                   const isStrokeDraw = el.animation === 'strokeDraw';
                   const isGradientText =
                     !isPrismSpin &&
@@ -5923,12 +6716,18 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                     !isVoltage &&
                     !isThreeDGlow &&
                     !isTrace &&
+                    !isThreeDExtrude &&
+                    !isPopArt &&
+                    !isRetroStack &&
+                    !isSlideStripes &&
+                    !isBlock3d &&
+                    !isAmazingPop &&
                     (el.color || '').includes('gradient(');
                   const { textShadow: computedTextShadow, filter: computedTextFilter } =
                     buildTextEffectsCss(el, scale);
                   const sharedTextStyle: React.CSSProperties = {
                     width: '100%',
-                    ...(isGradientText || isPrismSpin || isShimmer
+                    ...(isGradientText || isPrismSpin || isShimmer || isSlideStripes
                       ? {
                           ...(isGradientText ? { backgroundImage: el.color } : {}),
                           ...(isShimmer && el.color && !el.color.includes('gradient(')
@@ -5957,7 +6756,27 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                                 color: el.color || '#0a0a0a',
                                 ['--glow-3d-blur' as string]: `${Math.max(4, 30 * scale)}px`
                               }
-                          : isOverride
+                            : isThreeDExtrude
+                              ? {
+                                  ...(el.color && !el.color.includes('gradient(')
+                                    ? ({ '--extrude-color': el.color } as React.CSSProperties)
+                                    : {})
+                                }
+                              : isPopArt
+                                ? {
+                                    color: 'transparent',
+                                    WebkitTextFillColor: 'transparent',
+                                    ...(el.color && !el.color.includes('gradient(')
+                                      ? ({ '--pop-art-accent': el.color } as React.CSSProperties)
+                                      : {})
+                                  }
+                                : isAmazingPop
+                                  ? {
+                                      ...(el.color && !el.color.includes('gradient(')
+                                        ? ({ '--amazing-accent': el.color } as React.CSSProperties)
+                                        : {})
+                                    }
+                                  : isOverride
                             ? {
                                 color: el.color || '#f4f6ff',
                                 ...(computedTextShadow && computedTextShadow !== 'none'
@@ -6442,17 +7261,15 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                             placeholder="Type here..."
                             style={{
                               ...sharedTextStyle,
-                              ...(isGradientText || isPrismSpin || isShimmer || isRainbowRipple || isVoltage || isThreeDGlow
+                              ...(isGradientText || isPrismSpin || isShimmer || isRainbowRipple || isVoltage || isThreeDGlow || isPopArt || isSlideStripes
                                 ? {
                                     backgroundImage: undefined,
                                     WebkitBackgroundClip: undefined,
                                     backgroundClip: undefined,
                                     WebkitTextFillColor: undefined,
-                                    color: isPrismSpin
+                                    color: isPrismSpin || isThreeDGlow || isPopArt || isSlideStripes
                                       ? '#ffffff'
-                                      : isThreeDGlow
-                                        ? '#ffffff'
-                                        : isShimmer
+                                      : isShimmer
                                           ? (el.color && !el.color.includes('gradient(') ? el.color : '#e8d5f5')
                                           : isVoltage
                                             ? (el.color && !el.color.includes('gradient(') ? el.color : '#f5bc28')
@@ -6591,6 +7408,42 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                               </svg>
                             );
                           })()
+                        ) : el.animation === 'deconstructed' && !isTrace && !isThreeDGlow ? (
+                          <div
+                            data-text-measure={el.id}
+                            className="uecfi-deconstructed-stage"
+                            style={{
+                              pointerEvents: 'none',
+                              ['--decon-dur' as string]: `${el.animationDuration ?? 5}s`
+                            }}
+                          >
+                            <div style={{ ...sharedTextStyle, opacity: 0, pointerEvents: 'none' }}>
+                              {applyListPrefix(el.text || '', el.listStyle)}
+                            </div>
+                            {[1, 2, 3, 4].map((sliceNum) => (
+                              <div
+                                key={sliceNum}
+                                aria-hidden="true"
+                                className={cn(
+                                  `uecfi-deconstructed-slice-${sliceNum}`,
+                                  isPopArt && 'uecfi-text-pop-art',
+                                  isRetroStack && 'uecfi-text-retro-stack',
+                                  isThreeDExtrude && 'uecfi-text-3d-extrude',
+                                  isOverride && 'uecfi-text-override',
+                                  isPrismSpin && 'uecfi-text-prism-spin',
+                                  isShimmer && 'uecfi-text-shimmer'
+                                )}
+                                style={{
+                                  ...sharedTextStyle,
+                                  position: 'absolute',
+                                  inset: 0,
+                                  pointerEvents: 'none'
+                                }}
+                              >
+                                {applyListPrefix(el.text || '', el.listStyle)}
+                              </div>
+                            ))}
+                          </div>
                         ) : isThreeDGlow ? (
                           <div
                             data-text-measure={el.id}
@@ -6686,7 +7539,19 @@ export const SlideBuilderModal: React.FC<SlideBuilderModalProps> = ({
                                         ? 'uecfi-text-override'
                                         : isVoltage
                                           ? 'uecfi-text-voltage'
-                                          : undefined
+                                          : isThreeDExtrude
+                                            ? 'uecfi-text-3d-extrude'
+                                            : isPopArt
+                                              ? 'uecfi-text-pop-art'
+                                              : isRetroStack
+                                                ? 'uecfi-text-retro-stack'
+                                                : isSlideStripes
+                                                  ? 'uecfi-text-slide-stripes'
+                                                  : isBlock3d
+                                                    ? 'uecfi-text-block-3d'
+                                                    : isAmazingPop
+                                                      ? 'uecfi-text-amazing-pop'
+                                                      : undefined
                             }
                             style={{ ...sharedTextStyle, pointerEvents: 'none' }}
                           >

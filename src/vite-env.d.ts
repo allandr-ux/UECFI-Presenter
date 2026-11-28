@@ -47,6 +47,12 @@ export interface PresenterAPI {
   deleteMediaFile: (fileName: string) => Promise<boolean>;
   getSecret: (key: string) => Promise<string | null>;
   setSecret: (key: string, value: string | null) => Promise<boolean>;
+  captureStageThumbnail: (rect: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }) => Promise<string | null>;
   onRemoteClientCount: (callback: (count: number) => void) => () => void;
   onRemoteCommand: (callback: (cmd: RemoteCommandMessage) => void) => () => void;
   sendParticipantSignal: (msg: ParticipantSignalMessage) => void;

@@ -19,10 +19,12 @@ const http = require('http');
 const { WebSocketServer, WebSocket } = require('ws');
 const path = require('path');
 const cors = require('cors');
+const { createTemplatesRouter } = require('./templatesRouter');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(createTemplatesRouter());
 
 // Serve the responsive Remote Guest Web Portal from public/
 app.use(

@@ -190,7 +190,8 @@ export type CanvasAnimationType =
   | 'vaporHaze'
   | 'squishy'
   | 'ripple'
-  | 'wobble3d';
+  | 'wobble3d'
+  | 'deconstructed';
 
 export type FrameVariant =
   | 'circle'
@@ -261,7 +262,7 @@ export interface CanvasElement {
   outlineColor?: string;
   glowBlur?: number; // Base px at 1080p height (scales proportionally)
   glowColor?: string;
-  textEffect?: 'none' | 'rainbow' | 'rainbowRipple' | 'prismSpin' | 'shimmer' | 'override' | 'voltage' | 'threeDGlow' | 'trace'; // Animated CSS text color effects
+  textEffect?: 'none' | 'rainbow' | 'rainbowRipple' | 'prismSpin' | 'shimmer' | 'override' | 'voltage' | 'threeDGlow' | 'trace' | 'threeDExtrude' | 'popArt' | 'retroStack' | 'slideStripes' | 'block3d' | 'amazingPop'; // Animated CSS text color effects
   shimmerDensity?: number; // Particle density multiplier for shimmer (0..3, default 1 = 5 stars)
   shimmerGlow?: number; // Particle glow intensity multiplier for shimmer (0..2, default 1 = 100%)
   shimmerParticleSize?: number; // Particle size multiplier for shimmer (0.5..3, default 1 = 100%)

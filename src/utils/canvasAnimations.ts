@@ -60,7 +60,8 @@ export const CANVAS_ANIMATION_PRESETS: CanvasAnimationPreset[] = [
   { id: 'vaporHaze', label: 'Vapor Haze', group: 'loop', defaultDuration: 7, supportsIntensity: true },
   { id: 'squishy', label: 'Squishy', group: 'loop', defaultDuration: 1.5, supportsUnit: true, supportsIntensity: true },
   { id: 'ripple', label: 'Wave Ripple', group: 'loop', defaultDuration: 1.6, supportsUnit: true, supportsIntensity: true },
-  { id: 'wobble3d', label: '3D Wobble', group: 'loop', defaultDuration: 5, supportsIntensity: true }
+  { id: 'wobble3d', label: '3D Wobble', group: 'loop', defaultDuration: 5, supportsIntensity: true },
+  { id: 'deconstructed', label: 'Deconstructed', group: 'loop', defaultDuration: 5 }
 ];
 
 const KEYFRAME_MAP: Record<Exclude<CanvasAnimationType, 'none'>, string> = {
@@ -81,7 +82,8 @@ const KEYFRAME_MAP: Record<Exclude<CanvasAnimationType, 'none'>, string> = {
   vaporHaze: 'uecfiAnimVaporHaze',
   squishy: 'uecfiAnimPulse',
   ripple: 'uecfiAnimFloat',
-  wobble3d: 'uecfiAnimWobble3d'
+  wobble3d: 'uecfiAnimWobble3d',
+  deconstructed: 'uecfiAnimSlideLeft'
 };
 
 export const SMOKE_CHAR_VECTORS: Array<{ x: string; y: string; r: string }> = [
@@ -131,7 +133,8 @@ export function isLoopAnimation(type?: CanvasAnimationType): boolean {
     type === 'vaporHaze' ||
     type === 'squishy' ||
     type === 'ripple' ||
-    type === 'wobble3d'
+    type === 'wobble3d' ||
+    type === 'deconstructed'
   );
 }
 
@@ -148,7 +151,8 @@ export function getElementAnimationStyle(el: CanvasElement): React.CSSProperties
       anim === 'powerOn' ||
       anim === 'strokeDraw' ||
       anim === 'squishy' ||
-      anim === 'ripple') &&
+      anim === 'ripple' ||
+      anim === 'deconstructed') &&
     el.kind === 'text'
   ) {
     return {};

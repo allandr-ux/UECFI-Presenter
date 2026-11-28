@@ -604,6 +604,30 @@ function registerIpcHandlers() {
     fs.writeFileSync(secretsPath, JSON.stringify(store), { mode: 0o600 });
     return true;
   });
+
+  // Capture a real 16:9 screenshot of the SlideBuilder stage for community template thumbnails
+  ipcMain.handle(
+    'stage:captureThumbnail',
+    async (
+      event,
+      rect: { x: number; y: number; width: number; height: number }
+    ): Promise<string | null> => {
+      try {
+        const win = BrowserWindow.fromWebContents(event.sender);
+        if (!win || !rect) return null;
+        const x = Math.max(0, Math.round(rect.x));
+        const y = Math.max(0, Math.round(rect.y));
+        const width = Math.round(rect.width);
+        const height = Math.round(rect.height);
+        if (width < 10 || height < 10) return null;
+        const image = await win.webContents.capturePage({ x, y, width, height });
+        const resized = image.resize({ width: 320, height: 180, quality: 'good' });
+        return `data:image/jpeg;base64,${resized.toJPEG(82).toString('base64')}`;
+      } catch {
+        return null;
+      }
+    }
+  );
 }
 
 if (gotSingleInstanceLock) {
